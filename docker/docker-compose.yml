@@ -1,0 +1,33 @@
+services:
+  warehouse_ws: &warehouse_ws
+    container_name: warehouse_ws
+    image: warehouse_ws:latest
+    ipc: host
+    network_mode: host
+    privileged: true
+    environment:
+      - DISPLAY
+      - XAUTHORITY=/tmp/.Xauthority
+    volumes:
+      - ../src:/root/warehouse_ws/src
+      - $HOME/ros2_shared:/root/shared/ros2
+      - $HOME/.Xauthority:/tmp/.Xauthority
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /dev:/dev
+    command: ["tail", "-f", "/dev/null"]
+
+  # The following services are commented out for this tutorial.
+  # They demonstrate how to create multiple containers from the same Docker image,
+  # each running a specific ROS 2 node. These containers can communicate with each other
+  # because they share the same ROS_DOMAIN_ID.
+  # Publisher service: Runs the demo talker node
+  minimal_publisher:
+    <<: *warehouse_ws  # This uses all the same settings as the 'warehouse_ws' service
+    container_name: minimal_publisher
+    command: ["ros2", "run", "demo_nodes_cpp", "talker"]
+
+  # Subscriber service: Runs the demo listener node
+  minimal_subscriber:
+    <<: *warehouse_ws  # This uses all the same settings as the 'warehouse_ws' service
+    container_name: minimal_subscriber
+    command: ["ros2", "run", "demo_nodes_cpp", "listener"]
