@@ -1605,7 +1605,7 @@
       <pose>29.4938 -3.0603 0.0000 0.0000 -0.0000 0.0000</pose>
     </include>
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Cable_Spool</name>
       <uri>Cable_Spool</uri>
@@ -1631,7 +1631,7 @@
       <name>Cable_Spool.003</name>
       <uri>Cable_Spool</uri>
       <pose>30.4837 -10.9715 0.4916 -1.5708 -0.0000 1.5708</pose>
-    </include>
+    </include> -->
 
     <include>
       <static>true</static>
@@ -1640,19 +1640,19 @@
       <pose>28.8856 24.1307 0.0000 0.0000 -0.0000 1.5708</pose>
     </include>
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Dumpster_Large.001</name>
       <uri>Dumpster_Large</uri>
       <pose>-18.4293 -29.0935 0.0000 0.0000 -0.0000 0.0000</pose>
-    </include>
+    </include> -->
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Forklift</name>
       <uri>Forklift</uri>
       <pose>0.0399 -10.0522 0.0000 0.0000 0.0000 -1.8313</pose>
-    </include>
+    </include> -->
 
     <include>
       <static>true</static>
@@ -1675,19 +1675,19 @@
       <pose>21.7241 13.2248 0.0000 0.0000 0.0000 -2.6822</pose>
     </include>
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Hand_Cart.001</name>
       <uri>Hand_Cart</uri>
       <pose>16.2 -29.0120 0.0000 0.0000 0.0000 -1.5957</pose>
-    </include>
+    </include> -->
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Hand_Cart.002</name>
       <uri>Hand_Cart</uri>
       <pose>9.8893 -28.1736 0.0000 0.0000 0.0000 -1.7779</pose>
-    </include>
+    </include> -->
 
     <include>
       <static>true</static>
@@ -1836,26 +1836,26 @@
       <pose>19.9088 13.0841 0.0000 0.0000 0.0000 -3.1416</pose>
     </include>
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Jack</name>
       <uri>Pallet_Jack</uri>
       <pose>16.9004 -10.0573 -0.0000 0.0000 -0.0000 1.8314</pose>
-    </include>
+    </include> -->
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Jack.001</name>
       <uri>Pallet_Jack</uri>
       <pose>-1.1993 21.5562 0.0000 0.0000 -0.0000 0.9740</pose>
-    </include>
+    </include> -->
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Jack.002</name>
       <uri>Pallet_Jack</uri>
       <pose>5.5510 -16.5990 -0.0000 0.0000 0.0000 -0.4523</pose>
-    </include>
+    </include> -->
 
     <include>
       <static>true</static>
@@ -1871,12 +1871,12 @@
       <pose>16.3462 18.8209 0.0000 0.0000 -0.0000 1.3997</pose>
     </include>
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Standard.001</name>
       <uri>Pallet_Standard</uri>
       <pose>-21.2859 -12.4455 0.0000 0.0000 0.0000 -0.2909</pose>
-    </include>
+    </include> -->
 
     <include>
       <static>true</static>
@@ -1906,35 +1906,35 @@
       <pose>1.1614 17.9783 -0.0000 0.0000 -0.0000 3.2149</pose>
     </include>
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Standard.006</name>
       <uri>Pallet_Standard</uri>
       <pose>-4.4823 -7.7842 0.0000 0.0000 -0.0000 0.0000</pose>
-    </include>
+    </include> -->
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Standard.007</name>
       <uri>Pallet_Standard</uri>
       <pose>-7.0000 -12.6278 0.0000 -1.5708 0.0000 0.0000</pose>
-    </include>
+    </include> -->
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Standard.008</name>
       <uri>Pallet_Standard</uri>
       <pose>-4.4823 -12.6278 0.0000 -1.5708 0.0000 0.0000</pose>
-    </include>
+    </include> -->
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Standard.009</name>
       <uri>Pallet_Standard</uri>
       <pose>-7.0000 -14.1208 0.0000 0.0000 0.0000 0.0000</pose>
-    </include>
+    </include> -->
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Standard.010</name>
       <uri>Pallet_Standard</uri>
@@ -1981,16 +1981,16 @@
       <name>Pallet_Standard.016</name>
       <uri>Pallet_Standard</uri>
       <pose>-4.4823 -25.2753 0.0000 0.0000 -0.0000 0.0000</pose>
-    </include>
+    </include> -->
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Standard.017</name>
       <uri>Pallet_Standard</uri>
       <pose>-7.0000 -7.7842 0.0000 0.0000 0.0000 0.0000</pose>
-    </include>
+    </include> -->
 
-    <include>
+    <!-- <include>
       <static>true</static>
       <name>Pallet_Rack</name>
       <uri>Pallet_Rack</uri>
@@ -2450,7 +2450,7 @@
       <name>Pallet_Rack_Section.059</name>
       <uri>Pallet_Rack_Section</uri>
       <pose>18.1437 -25.2694 0.0000 0.0000 0.0000 0.0000</pose>
-    </include>
+    </include> -->
 
     <!-- Optional conveyor demo interface (uncomment if using Open-RMF conveyor demo):
     <include merge="true">
@@ -2458,5 +2458,4121 @@
       <uri>sim_ifaces_demo.sdf</uri>
     </include>
     -->
+
+    <include>
+      <static>false</static>
+      <name>small_box_000_1</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_000_2</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_000_3</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_000_4</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_000_5</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_000_6</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_001_1</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_001_2</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_001_3</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_001_4</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_001_5</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box_001_6</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.002_1</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.002_2</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+    
+    <include>
+      <static>false</static>
+      <name>small_box.002_3</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include><include>
+
+      <static>false</static>
+      <name>small_box.002_4</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+    
+    <include>
+      <static>false</static>
+      <name>small_box.002_5</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+    
+    <include>
+      <static>false</static>
+      <name>small_box.002_6</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.003_1</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.003_2</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+    
+    <include>
+      <static>false</static>
+      <name>small_box.003_3</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+    
+    <include>
+      <static>false</static>
+      <name>small_box.003_4</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+    
+    <include>
+      <static>false</static>
+      <name>small_box.003_5</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+    
+    <include>
+      <static>false</static>
+      <name>small_box.003_6</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.004_1</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.004_2</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.004_3</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.004_4</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.004_5</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.004_6</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.005_1</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.005_2</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.005_3</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.005_4</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.005_5</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.005_6</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.006_1</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.006_2</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.006_3</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.006_4</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.006_5</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.006_6</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.007_1</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.007_2</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.007_3</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.007_4</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.007_5</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.007_6</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.008_1</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.008_2</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.008_3</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.008_4</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.008_5</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.008_6</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.009_1</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.009_2</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.009_3</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.009_4</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.009_5</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.009_6</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.010_1</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.010_2</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.010_3</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.010_4</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.010_5</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.010_6</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.011_1</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.011_2</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.011_3</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.011_4</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.011_5</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.011_6</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.012_1</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.012_2</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.012_3</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.012_4</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.012_5</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.012_6</name>
+      <uri>small_box</uri>
+      <pose>-4.2612 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.013_1</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.013_2</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.013_3</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.013_4</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.013_5</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.013_6</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.014_1</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.014_2</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.014_3</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.014_4</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.014_5</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.014_6</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.015_1</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.015_2</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.015_3</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.015_4</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.015_5</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.015_6</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.016_1</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.016_2</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.016_3</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.016_4</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.016_5</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.016_6</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.017_1</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.017_2</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.017_3</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.017_4</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.017_5</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.017_6</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.018_1</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.018_2</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.018_3</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.018_4</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.018_5</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.018_6</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.019_1</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.019_2</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.019_3</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.019_4</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.019_5</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.019_6</name>
+      <uri>small_box</uri>
+      <pose>-3.7612 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.020_1</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.020_2</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.020_3</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.020_4</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.020_5</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.020_6</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.021_1</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.021_2</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.021_3</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.021_4</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.021_5</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.021_6</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.022_1</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.022_2</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.022_3</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.022_4</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.022_5</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.022_6</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.023_1</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.023_2</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.023_3</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.023_4</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.023_5</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.023_6</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.024_1</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.024_2</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.024_3</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.024_4</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.024_5</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.024_6</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.025_1</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.025_2</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.025_3</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.025_4</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.025_5</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.025_6</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.026_1</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.026_2</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.026_3</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.026_4</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.026_5</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.026_6</name>
+      <uri>small_box</uri>
+      <pose>-0.7612 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.027_1</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.027_2</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.027_3</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.027_4</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.027_5</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.027_6</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.028_1</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.028_2</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.028_3</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.028_4</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.028_5</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.028_6</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.029_1</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.029_2</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.029_3</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.029_4</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.029_5</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.029_6</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.030_1</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.030_2</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.030_3</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.030_4</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.030_5</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.030_6</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.031_1</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.031_2</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.031_3</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.031_4</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.031_5</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.031_6</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.032_1</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.032_2</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.032_3</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.032_4</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.032_5</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.032_6</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.033_1</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.033_2</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.033_3</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.033_4</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.033_5</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.033_6</name>
+      <uri>small_box</uri>
+      <pose>-0.2612 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.034_1</name>
+      <uri>small_box</uri>
+      <pose>2.7388 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.034_2</name>
+      <uri>small_box</uri>
+      <pose>2.7388 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.034_3</name>
+      <uri>small_box</uri>
+      <pose>2.7388 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.034_4</name>
+      <uri>small_box</uri>
+      <pose>2.7388 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.034_5</name>
+      <uri>small_box</uri>
+      <pose>2.7388 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.034_6</name>
+      <uri>small_box</uri>
+      <pose>2.7388 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.035_1</name>
+      <uri>small_box</uri>
+      <pose>2.7388 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.035_2</name>
+      <uri>small_box</uri>
+      <pose>2.7388 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.035_3</name>
+      <uri>small_box</uri>
+      <pose>2.7388 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.035_4</name>
+      <uri>small_box</uri>
+      <pose>2.7388 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.035_5</name>
+      <uri>small_box</uri>
+      <pose>2.7388 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.035_6</name>
+      <uri>small_box</uri>
+      <pose>2.7388 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.036_1</name>
+      <uri>small_box</uri>
+      <pose>2.7388 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.036_2</name>
+      <uri>small_box</uri>
+      <pose>2.7388 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.036_3</name>
+      <uri>small_box</uri>
+      <pose>2.7388 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.036_4</name>
+      <uri>small_box</uri>
+      <pose>2.7388 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.036_5</name>
+      <uri>small_box</uri>
+      <pose>2.7388 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.036_6</name>
+      <uri>small_box</uri>
+      <pose>2.7388 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.037_1</name>
+      <uri>small_box</uri>
+      <pose>2.7388 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.037_2</name>
+      <uri>small_box</uri>
+      <pose>2.7388 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.037_3</name>
+      <uri>small_box</uri>
+      <pose>2.7388 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.037_4</name>
+      <uri>small_box</uri>
+      <pose>2.7388 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.037_5</name>
+      <uri>small_box</uri>
+      <pose>2.7388 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.037_6</name>
+      <uri>small_box</uri>
+      <pose>2.7388 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.038_1</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.038_2</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.038_3</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.038_4</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.038_5</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.038_6</name>
+      <uri>small_box</uri>
+      <pose>-7.2612 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.039_1</name>
+      <uri>small_box</uri>
+      <pose>2.7388 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.039_2</name>
+      <uri>small_box</uri>
+      <pose>2.7388 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.039_3</name>
+      <uri>small_box</uri>
+      <pose>2.7388 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.039_4</name>
+      <uri>small_box</uri>
+      <pose>2.7388 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.039_5</name>
+      <uri>small_box</uri>
+      <pose>2.7388 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.039_6</name>
+      <uri>small_box</uri>
+      <pose>2.7388 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.040_1</name>
+      <uri>small_box</uri>
+      <pose>2.7388 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.040_2</name>
+      <uri>small_box</uri>
+      <pose>2.7388 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.040_3</name>
+      <uri>small_box</uri>
+      <pose>2.7388 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.040_4</name>
+      <uri>small_box</uri>
+      <pose>2.7388 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.040_5</name>
+      <uri>small_box</uri>
+      <pose>2.7388 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.040_6</name>
+      <uri>small_box</uri>
+      <pose>2.7388 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.041_1</name>
+      <uri>small_box</uri>
+      <pose>2.7388 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.041_2</name>
+      <uri>small_box</uri>
+      <pose>2.7388 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.041_3</name>
+      <uri>small_box</uri>
+      <pose>2.7388 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.041_4</name>
+      <uri>small_box</uri>
+      <pose>2.7388 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.041_5</name>
+      <uri>small_box</uri>
+      <pose>2.7388 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.041_6</name>
+      <uri>small_box</uri>
+      <pose>2.7388 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.042_1</name>
+      <uri>small_box</uri>
+      <pose>3.2388 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.042_2</name>
+      <uri>small_box</uri>
+      <pose>3.2388 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.042_3</name>
+      <uri>small_box</uri>
+      <pose>3.2388 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.042_4</name>
+      <uri>small_box</uri>
+      <pose>3.2388 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.042_5</name>
+      <uri>small_box</uri>
+      <pose>3.2388 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.042_6</name>
+      <uri>small_box</uri>
+      <pose>3.2388 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.043_1</name>
+      <uri>small_box</uri>
+      <pose>3.2388 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.043_2</name>
+      <uri>small_box</uri>
+      <pose>3.2388 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.043_3</name>
+      <uri>small_box</uri>
+      <pose>3.2388 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.043_4</name>
+      <uri>small_box</uri>
+      <pose>3.2388 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.043_5</name>
+      <uri>small_box</uri>
+      <pose>3.2388 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.043_6</name>
+      <uri>small_box</uri>
+      <pose>3.2388 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.044_1</name>
+      <uri>small_box</uri>
+      <pose>3.2388 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.044_2</name>
+      <uri>small_box</uri>
+      <pose>3.2388 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.044_3</name>
+      <uri>small_box</uri>
+      <pose>3.2388 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.044_4</name>
+      <uri>small_box</uri>
+      <pose>3.2388 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.044_5</name>
+      <uri>small_box</uri>
+      <pose>3.2388 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.044_6</name>
+      <uri>small_box</uri>
+      <pose>3.2388 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.045_1</name>
+      <uri>small_box</uri>
+      <pose>3.2388 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.045_2</name>
+      <uri>small_box</uri>
+      <pose>3.2388 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.045_3</name>
+      <uri>small_box</uri>
+      <pose>3.2388 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.045_4</name>
+      <uri>small_box</uri>
+      <pose>3.2388 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.045_5</name>
+      <uri>small_box</uri>
+      <pose>3.2388 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.045_6</name>
+      <uri>small_box</uri>
+      <pose>3.2388 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.046_1</name>
+      <uri>small_box</uri>
+      <pose>3.2388 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.046_2</name>
+      <uri>small_box</uri>
+      <pose>3.2388 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.046_3</name>
+      <uri>small_box</uri>
+      <pose>3.2388 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.046_4</name>
+      <uri>small_box</uri>
+      <pose>3.2388 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.046_5</name>
+      <uri>small_box</uri>
+      <pose>3.2388 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.046_6</name>
+      <uri>small_box</uri>
+      <pose>3.2388 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.047_1</name>
+      <uri>small_box</uri>
+      <pose>3.2388 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.047_2</name>
+      <uri>small_box</uri>
+      <pose>3.2388 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.047_3</name>
+      <uri>small_box</uri>
+      <pose>3.2388 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.047_4</name>
+      <uri>small_box</uri>
+      <pose>3.2388 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.047_5</name>
+      <uri>small_box</uri>
+      <pose>3.2388 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.047_6</name>
+      <uri>small_box</uri>
+      <pose>3.2388 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.048_1</name>
+      <uri>small_box</uri>
+      <pose>3.2388 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.048_2</name>
+      <uri>small_box</uri>
+      <pose>3.2388 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.048_3</name>
+      <uri>small_box</uri>
+      <pose>3.2388 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.048_4</name>
+      <uri>small_box</uri>
+      <pose>3.2388 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.048_5</name>
+      <uri>small_box</uri>
+      <pose>3.2388 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.048_6</name>
+      <uri>small_box</uri>
+      <pose>3.2388 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.049_1</name>
+      <uri>small_box</uri>
+      <pose>6.2388 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.049_2</name>
+      <uri>small_box</uri>
+      <pose>6.2388 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.049_3</name>
+      <uri>small_box</uri>
+      <pose>6.2388 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.049_4</name>
+      <uri>small_box</uri>
+      <pose>6.2388 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.049_5</name>
+      <uri>small_box</uri>
+      <pose>6.2388 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.049_6</name>
+      <uri>small_box</uri>
+      <pose>6.2388 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.050_1</name>
+      <uri>small_box</uri>
+      <pose>6.2388 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.050_2</name>
+      <uri>small_box</uri>
+      <pose>6.2388 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.050_3</name>
+      <uri>small_box</uri>
+      <pose>6.2388 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.050_4</name>
+      <uri>small_box</uri>
+      <pose>6.2388 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.050_5</name>
+      <uri>small_box</uri>
+      <pose>6.2388 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.050_6</name>
+      <uri>small_box</uri>
+      <pose>6.2388 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.051_1</name>
+      <uri>small_box</uri>
+      <pose>6.2388 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.051_2</name>
+      <uri>small_box</uri>
+      <pose>6.2388 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.051_3</name>
+      <uri>small_box</uri>
+      <pose>6.2388 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.051_4</name>
+      <uri>small_box</uri>
+      <pose>6.2388 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.051_5</name>
+      <uri>small_box</uri>
+      <pose>6.2388 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.051_6</name>
+      <uri>small_box</uri>
+      <pose>6.2388 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.052_1</name>
+      <uri>small_box</uri>
+      <pose>6.2388 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.052_2</name>
+      <uri>small_box</uri>
+      <pose>6.2388 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.052_3</name>
+      <uri>small_box</uri>
+      <pose>6.2388 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.052_4</name>
+      <uri>small_box</uri>
+      <pose>6.2388 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.052_5</name>
+      <uri>small_box</uri>
+      <pose>6.2388 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.052_6</name>
+      <uri>small_box</uri>
+      <pose>6.2388 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.053_1</name>
+      <uri>small_box</uri>
+      <pose>6.2388 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.053_2</name>
+      <uri>small_box</uri>
+      <pose>6.2388 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.053_3</name>
+      <uri>small_box</uri>
+      <pose>6.2388 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.053_4</name>
+      <uri>small_box</uri>
+      <pose>6.2388 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.053_5</name>
+      <uri>small_box</uri>
+      <pose>6.2388 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.053_6</name>
+      <uri>small_box</uri>
+      <pose>6.2388 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.054_1</name>
+      <uri>small_box</uri>
+      <pose>6.2388 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.054_2</name>
+      <uri>small_box</uri>
+      <pose>6.2388 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.054_3</name>
+      <uri>small_box</uri>
+      <pose>6.2388 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.054_4</name>
+      <uri>small_box</uri>
+      <pose>6.2388 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.054_5</name>
+      <uri>small_box</uri>
+      <pose>6.2388 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.054_6</name>
+      <uri>small_box</uri>
+      <pose>6.2388 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.055_1</name>
+      <uri>small_box</uri>
+      <pose>6.2388 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.055_2</name>
+      <uri>small_box</uri>
+      <pose>6.2388 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.055_3</name>
+      <uri>small_box</uri>
+      <pose>6.2388 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.055_4</name>
+      <uri>small_box</uri>
+      <pose>6.2388 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.055_5</name>
+      <uri>small_box</uri>
+      <pose>6.2388 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.055_6</name>
+      <uri>small_box</uri>
+      <pose>6.2388 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.056_1</name>
+      <uri>small_box</uri>
+      <pose>6.7388 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.056_2</name>
+      <uri>small_box</uri>
+      <pose>6.7388 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.056_3</name>
+      <uri>small_box</uri>
+      <pose>6.7388 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.056_4</name>
+      <uri>small_box</uri>
+      <pose>6.7388 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.056_5</name>
+      <uri>small_box</uri>
+      <pose>6.7388 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.056_6</name>
+      <uri>small_box</uri>
+      <pose>6.7388 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.057_1</name>
+      <uri>small_box</uri>
+      <pose>6.7388 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.057_2</name>
+      <uri>small_box</uri>
+      <pose>6.7388 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.057_3</name>
+      <uri>small_box</uri>
+      <pose>6.7388 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.057_4</name>
+      <uri>small_box</uri>
+      <pose>6.7388 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.057_5</name>
+      <uri>small_box</uri>
+      <pose>6.7388 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.057_6</name>
+      <uri>small_box</uri>
+      <pose>6.7388 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.058_1</name>
+      <uri>small_box</uri>
+      <pose>6.7388 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.058_2</name>
+      <uri>small_box</uri>
+      <pose>6.7388 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.058_3</name>
+      <uri>small_box</uri>
+      <pose>6.7388 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.058_4</name>
+      <uri>small_box</uri>
+      <pose>6.7388 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.058_5</name>
+      <uri>small_box</uri>
+      <pose>6.7388 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.058_6</name>
+      <uri>small_box</uri>
+      <pose>6.7388 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.059_1</name>
+      <uri>small_box</uri>
+      <pose>6.7388 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.059_2</name>
+      <uri>small_box</uri>
+      <pose>6.7388 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.059_3</name>
+      <uri>small_box</uri>
+      <pose>6.7388 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.059_4</name>
+      <uri>small_box</uri>
+      <pose>6.7388 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.059_5</name>
+      <uri>small_box</uri>
+      <pose>6.7388 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.059_6</name>
+      <uri>small_box</uri>
+      <pose>6.7388 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.060_1</name>
+      <uri>small_box</uri>
+      <pose>6.7388 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.060_2</name>
+      <uri>small_box</uri>
+      <pose>6.7388 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.060_3</name>
+      <uri>small_box</uri>
+      <pose>6.7388 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.060_4</name>
+      <uri>small_box</uri>
+      <pose>6.7388 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.060_5</name>
+      <uri>small_box</uri>
+      <pose>6.7388 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.060_6</name>
+      <uri>small_box</uri>
+      <pose>6.7388 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.061_1</name>
+      <uri>small_box</uri>
+      <pose>6.7388 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.061_2</name>
+      <uri>small_box</uri>
+      <pose>6.7388 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.061_3</name>
+      <uri>small_box</uri>
+      <pose>6.7388 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.061_4</name>
+      <uri>small_box</uri>
+      <pose>6.7388 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.061_5</name>
+      <uri>small_box</uri>
+      <pose>6.7388 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.061_6</name>
+      <uri>small_box</uri>
+      <pose>6.7388 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.062_1</name>
+      <uri>small_box</uri>
+      <pose>6.7388 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.062_2</name>
+      <uri>small_box</uri>
+      <pose>6.7388 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.062_3</name>
+      <uri>small_box</uri>
+      <pose>6.7388 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.062_4</name>
+      <uri>small_box</uri>
+      <pose>6.7388 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.062_5</name>
+      <uri>small_box</uri>
+      <pose>6.7388 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.062_6</name>
+      <uri>small_box</uri>
+      <pose>6.7388 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.063_1</name>
+      <uri>small_box</uri>
+      <pose>9.7388 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.063_2</name>
+      <uri>small_box</uri>
+      <pose>9.7388 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.063_3</name>
+      <uri>small_box</uri>
+      <pose>9.7388 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.063_4</name>
+      <uri>small_box</uri>
+      <pose>9.7388 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.063_5</name>
+      <uri>small_box</uri>
+      <pose>9.7388 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.063_6</name>
+      <uri>small_box</uri>
+      <pose>9.7388 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.064_1</name>
+      <uri>small_box</uri>
+      <pose>9.7388 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.064_2</name>
+      <uri>small_box</uri>
+      <pose>9.7388 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.064_3</name>
+      <uri>small_box</uri>
+      <pose>9.7388 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.064_4</name>
+      <uri>small_box</uri>
+      <pose>9.7388 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.064_5</name>
+      <uri>small_box</uri>
+      <pose>9.7388 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.064_6</name>
+      <uri>small_box</uri>
+      <pose>9.7388 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.065_1</name>
+      <uri>small_box</uri>
+      <pose>9.7388 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.065_2</name>
+      <uri>small_box</uri>
+      <pose>9.7388 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.065_3</name>
+      <uri>small_box</uri>
+      <pose>9.7388 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.065_4</name>
+      <uri>small_box</uri>
+      <pose>9.7388 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.065_5</name>
+      <uri>small_box</uri>
+      <pose>9.7388 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.065_6</name>
+      <uri>small_box</uri>
+      <pose>9.7388 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.066_1</name>
+      <uri>small_box</uri>
+      <pose>9.7388 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.066_2</name>
+      <uri>small_box</uri>
+      <pose>9.7388 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.066_3</name>
+      <uri>small_box</uri>
+      <pose>9.7388 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.066_4</name>
+      <uri>small_box</uri>
+      <pose>9.7388 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.066_5</name>
+      <uri>small_box</uri>
+      <pose>9.7388 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.066_6</name>
+      <uri>small_box</uri>
+      <pose>9.7388 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.067_1</name>
+      <uri>small_box</uri>
+      <pose>9.7388 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.067_2</name>
+      <uri>small_box</uri>
+      <pose>9.7388 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.067_3</name>
+      <uri>small_box</uri>
+      <pose>9.7388 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.067_4</name>
+      <uri>small_box</uri>
+      <pose>9.7388 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.067_5</name>
+      <uri>small_box</uri>
+      <pose>9.7388 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.067_6</name>
+      <uri>small_box</uri>
+      <pose>9.7388 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.068_1</name>
+      <uri>small_box</uri>
+      <pose>9.7388 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.068_2</name>
+      <uri>small_box</uri>
+      <pose>9.7388 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.068_3</name>
+      <uri>small_box</uri>
+      <pose>9.7388 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.068_4</name>
+      <uri>small_box</uri>
+      <pose>9.7388 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.068_5</name>
+      <uri>small_box</uri>
+      <pose>9.7388 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.068_6</name>
+      <uri>small_box</uri>
+      <pose>9.7388 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.069_1</name>
+      <uri>small_box</uri>
+      <pose>9.7388 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.069_2</name>
+      <uri>small_box</uri>
+      <pose>9.7388 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.069_3</name>
+      <uri>small_box</uri>
+      <pose>9.7388 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.069_4</name>
+      <uri>small_box</uri>
+      <pose>9.7388 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.069_5</name>
+      <uri>small_box</uri>
+      <pose>9.7388 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.069_6</name>
+      <uri>small_box</uri>
+      <pose>9.7388 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.070_1</name>
+      <uri>small_box</uri>
+      <pose>10.2388 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.070_2</name>
+      <uri>small_box</uri>
+      <pose>10.2388 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.070_3</name>
+      <uri>small_box</uri>
+      <pose>10.2388 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.070_4</name>
+      <uri>small_box</uri>
+      <pose>10.2388 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.070_5</name>
+      <uri>small_box</uri>
+      <pose>10.2388 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.070_6</name>
+      <uri>small_box</uri>
+      <pose>10.2388 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.071_1</name>
+      <uri>small_box</uri>
+      <pose>10.2388 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.071_2</name>
+      <uri>small_box</uri>
+      <pose>10.2388 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.071_3</name>
+      <uri>small_box</uri>
+      <pose>10.2388 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.071_4</name>
+      <uri>small_box</uri>
+      <pose>10.2388 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.071_5</name>
+      <uri>small_box</uri>
+      <pose>10.2388 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.071_6</name>
+      <uri>small_box</uri>
+      <pose>10.2388 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.072_1</name>
+      <uri>small_box</uri>
+      <pose>10.2388 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.072_2</name>
+      <uri>small_box</uri>
+      <pose>10.2388 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.072_3</name>
+      <uri>small_box</uri>
+      <pose>10.2388 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.072_4</name>
+      <uri>small_box</uri>
+      <pose>10.2388 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.072_5</name>
+      <uri>small_box</uri>
+      <pose>10.2388 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.072_6</name>
+      <uri>small_box</uri>
+      <pose>10.2388 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.073_1</name>
+      <uri>small_box</uri>
+      <pose>10.2388 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.073_2</name>
+      <uri>small_box</uri>
+      <pose>10.2388 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.073_3</name>
+      <uri>small_box</uri>
+      <pose>10.2388 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.073_4</name>
+      <uri>small_box</uri>
+      <pose>10.2388 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.073_5</name>
+      <uri>small_box</uri>
+      <pose>10.2388 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.073_6</name>
+      <uri>small_box</uri>
+      <pose>10.2388 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.074_1</name>
+      <uri>small_box</uri>
+      <pose>10.2388 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.074_2</name>
+      <uri>small_box</uri>
+      <pose>10.2388 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.074_3</name>
+      <uri>small_box</uri>
+      <pose>10.2388 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.074_4</name>
+      <uri>small_box</uri>
+      <pose>10.2388 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.074_5</name>
+      <uri>small_box</uri>
+      <pose>10.2388 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.074_6</name>
+      <uri>small_box</uri>
+      <pose>10.2388 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.075_1</name>
+      <uri>small_box</uri>
+      <pose>10.2388 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.075_2</name>
+      <uri>small_box</uri>
+      <pose>10.2388 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.075_3</name>
+      <uri>small_box</uri>
+      <pose>10.2388 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.075_4</name>
+      <uri>small_box</uri>
+      <pose>10.2388 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.075_5</name>
+      <uri>small_box</uri>
+      <pose>10.2388 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.075_6</name>
+      <uri>small_box</uri>
+      <pose>10.2388 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.076_1</name>
+      <uri>small_box</uri>
+      <pose>10.2388 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.076_2</name>
+      <uri>small_box</uri>
+      <pose>10.2388 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.076_3</name>
+      <uri>small_box</uri>
+      <pose>10.2388 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.076_4</name>
+      <uri>small_box</uri>
+      <pose>10.2388 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.076_5</name>
+      <uri>small_box</uri>
+      <pose>10.2388 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.076_6</name>
+      <uri>small_box</uri>
+      <pose>10.2388 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.077_1</name>
+      <uri>small_box</uri>
+      <pose>13.2388 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.077_2</name>
+      <uri>small_box</uri>
+      <pose>13.2388 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.077_3</name>
+      <uri>small_box</uri>
+      <pose>13.2388 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.077_4</name>
+      <uri>small_box</uri>
+      <pose>13.2388 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.077_5</name>
+      <uri>small_box</uri>
+      <pose>13.2388 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.077_6</name>
+      <uri>small_box</uri>
+      <pose>13.2388 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.078_1</name>
+      <uri>small_box</uri>
+      <pose>13.2388 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.078_2</name>
+      <uri>small_box</uri>
+      <pose>13.2388 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.078_3</name>
+      <uri>small_box</uri>
+      <pose>13.2388 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.078_4</name>
+      <uri>small_box</uri>
+      <pose>13.2388 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.078_5</name>
+      <uri>small_box</uri>
+      <pose>13.2388 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.078_6</name>
+      <uri>small_box</uri>
+      <pose>13.2388 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.079_1</name>
+      <uri>small_box</uri>
+      <pose>13.2388 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.079_2</name>
+      <uri>small_box</uri>
+      <pose>13.2388 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.079_3</name>
+      <uri>small_box</uri>
+      <pose>13.2388 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.079_4</name>
+      <uri>small_box</uri>
+      <pose>13.2388 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.079_5</name>
+      <uri>small_box</uri>
+      <pose>13.2388 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.079_6</name>
+      <uri>small_box</uri>
+      <pose>13.2388 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.080_1</name>
+      <uri>small_box</uri>
+      <pose>13.2388 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.080_2</name>
+      <uri>small_box</uri>
+      <pose>13.2388 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.080_3</name>
+      <uri>small_box</uri>
+      <pose>13.2388 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.080_4</name>
+      <uri>small_box</uri>
+      <pose>13.2388 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.080_5</name>
+      <uri>small_box</uri>
+      <pose>13.2388 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.080_6</name>
+      <uri>small_box</uri>
+      <pose>13.2388 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.081_1</name>
+      <uri>small_box</uri>
+      <pose>13.2388 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.081_2</name>
+      <uri>small_box</uri>
+      <pose>13.2388 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.081_3</name>
+      <uri>small_box</uri>
+      <pose>13.2388 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.081_4</name>
+      <uri>small_box</uri>
+      <pose>13.2388 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.081_5</name>
+      <uri>small_box</uri>
+      <pose>13.2388 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.081_6</name>
+      <uri>small_box</uri>
+      <pose>13.2388 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.082_1</name>
+      <uri>small_box</uri>
+      <pose>13.2388 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.082_2</name>
+      <uri>small_box</uri>
+      <pose>13.2388 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.082_3</name>
+      <uri>small_box</uri>
+      <pose>13.2388 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.082_4</name>
+      <uri>small_box</uri>
+      <pose>13.2388 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.082_5</name>
+      <uri>small_box</uri>
+      <pose>13.2388 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.082_6</name>
+      <uri>small_box</uri>
+      <pose>13.2388 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.083_1</name>
+      <uri>small_box</uri>
+      <pose>13.2388 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.083_2</name>
+      <uri>small_box</uri>
+      <pose>13.2388 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.083_3</name>
+      <uri>small_box</uri>
+      <pose>13.2388 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.083_4</name>
+      <uri>small_box</uri>
+      <pose>13.2388 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.083_5</name>
+      <uri>small_box</uri>
+      <pose>13.2388 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.083_6</name>
+      <uri>small_box</uri>
+      <pose>13.2388 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.084_1</name>
+      <uri>small_box</uri>
+      <pose>13.7388 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.084_2</name>
+      <uri>small_box</uri>
+      <pose>13.7388 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.084_3</name>
+      <uri>small_box</uri>
+      <pose>13.7388 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.084_4</name>
+      <uri>small_box</uri>
+      <pose>13.7388 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.084_5</name>
+      <uri>small_box</uri>
+      <pose>13.7388 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.084_6</name>
+      <uri>small_box</uri>
+      <pose>13.7388 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.085_1</name>
+      <uri>small_box</uri>
+      <pose>13.7388 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.085_2</name>
+      <uri>small_box</uri>
+      <pose>13.7388 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.085_3</name>
+      <uri>small_box</uri>
+      <pose>13.7388 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.085_4</name>
+      <uri>small_box</uri>
+      <pose>13.7388 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.085_5</name>
+      <uri>small_box</uri>
+      <pose>13.7388 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.085_6</name>
+      <uri>small_box</uri>
+      <pose>13.7388 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.086_1</name>
+      <uri>small_box</uri>
+      <pose>13.7388 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.086_2</name>
+      <uri>small_box</uri>
+      <pose>13.7388 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.086_3</name>
+      <uri>small_box</uri>
+      <pose>13.7388 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.086_4</name>
+      <uri>small_box</uri>
+      <pose>13.7388 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.086_5</name>
+      <uri>small_box</uri>
+      <pose>13.7388 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.086_6</name>
+      <uri>small_box</uri>
+      <pose>13.7388 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.087_1</name>
+      <uri>small_box</uri>
+      <pose>13.7388 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.087_2</name>
+      <uri>small_box</uri>
+      <pose>13.7388 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.087_3</name>
+      <uri>small_box</uri>
+      <pose>13.7388 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.087_4</name>
+      <uri>small_box</uri>
+      <pose>13.7388 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.087_5</name>
+      <uri>small_box</uri>
+      <pose>13.7388 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.087_6</name>
+      <uri>small_box</uri>
+      <pose>13.7388 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.088_1</name>
+      <uri>small_box</uri>
+      <pose>13.7388 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.088_2</name>
+      <uri>small_box</uri>
+      <pose>13.7388 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.088_3</name>
+      <uri>small_box</uri>
+      <pose>13.7388 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.088_4</name>
+      <uri>small_box</uri>
+      <pose>13.7388 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.088_5</name>
+      <uri>small_box</uri>
+      <pose>13.7388 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.088_6</name>
+      <uri>small_box</uri>
+      <pose>13.7388 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.089_1</name>
+      <uri>small_box</uri>
+      <pose>13.7388 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.089_2</name>
+      <uri>small_box</uri>
+      <pose>13.7388 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.089_3</name>
+      <uri>small_box</uri>
+      <pose>13.7388 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.089_4</name>
+      <uri>small_box</uri>
+      <pose>13.7388 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.089_5</name>
+      <uri>small_box</uri>
+      <pose>13.7388 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.089_6</name>
+      <uri>small_box</uri>
+      <pose>13.7388 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.090_1</name>
+      <uri>small_box</uri>
+      <pose>13.7388 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.090_2</name>
+      <uri>small_box</uri>
+      <pose>13.7388 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.090_3</name>
+      <uri>small_box</uri>
+      <pose>13.7388 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.090_4</name>
+      <uri>small_box</uri>
+      <pose>13.7388 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.090_5</name>
+      <uri>small_box</uri>
+      <pose>13.7388 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.090_6</name>
+      <uri>small_box</uri>
+      <pose>13.7388 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.091_1</name>
+      <uri>small_box</uri>
+      <pose>16.7388 -0.0508 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.091_2</name>
+      <uri>small_box</uri>
+      <pose>16.7388 -0.0508 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.091_3</name>
+      <uri>small_box</uri>
+      <pose>16.7388 -0.0508 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.091_4</name>
+      <uri>small_box</uri>
+      <pose>16.7388 -0.0508 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.091_5</name>
+      <uri>small_box</uri>
+      <pose>16.7388 -0.0508 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.091_6</name>
+      <uri>small_box</uri>
+      <pose>16.7388 -0.0508 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.092_1</name>
+      <uri>small_box</uri>
+      <pose>16.7388 0.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.092_2</name>
+      <uri>small_box</uri>
+      <pose>16.7388 0.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.092_3</name>
+      <uri>small_box</uri>
+      <pose>16.7388 0.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.092_4</name>
+      <uri>small_box</uri>
+      <pose>16.7388 0.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.092_5</name>
+      <uri>small_box</uri>
+      <pose>16.7388 0.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.092_6</name>
+      <uri>small_box</uri>
+      <pose>16.7388 0.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.093_1</name>
+      <uri>small_box</uri>
+      <pose>16.7388 1.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.093_2</name>
+      <uri>small_box</uri>
+      <pose>16.7388 1.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.093_3</name>
+      <uri>small_box</uri>
+      <pose>16.7388 1.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.093_4</name>
+      <uri>small_box</uri>
+      <pose>16.7388 1.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.093_5</name>
+      <uri>small_box</uri>
+      <pose>16.7388 1.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.093_6</name>
+      <uri>small_box</uri>
+      <pose>16.7388 1.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.094_1</name>
+      <uri>small_box</uri>
+      <pose>16.7388 2.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.094_2</name>
+      <uri>small_box</uri>
+      <pose>16.7388 2.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.094_3</name>
+      <uri>small_box</uri>
+      <pose>16.7388 2.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.094_4</name>
+      <uri>small_box</uri>
+      <pose>16.7388 2.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.094_5</name>
+      <uri>small_box</uri>
+      <pose>16.7388 2.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.094_6</name>
+      <uri>small_box</uri>
+      <pose>16.7388 2.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.095_1</name>
+      <uri>small_box</uri>
+      <pose>16.7388 3.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.095_2</name>
+      <uri>small_box</uri>
+      <pose>16.7388 3.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.095_3</name>
+      <uri>small_box</uri>
+      <pose>16.7388 3.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.095_4</name>
+      <uri>small_box</uri>
+      <pose>16.7388 3.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.095_5</name>
+      <uri>small_box</uri>
+      <pose>16.7388 3.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.095_6</name>
+      <uri>small_box</uri>
+      <pose>16.7388 3.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.096_1</name>
+      <uri>small_box</uri>
+      <pose>16.7388 4.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.096_2</name>
+      <uri>small_box</uri>
+      <pose>16.7388 4.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.096_3</name>
+      <uri>small_box</uri>
+      <pose>16.7388 4.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.096_4</name>
+      <uri>small_box</uri>
+      <pose>16.7388 4.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.096_5</name>
+      <uri>small_box</uri>
+      <pose>16.7388 4.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.096_6</name>
+      <uri>small_box</uri>
+      <pose>16.7388 4.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.097_1</name>
+      <uri>small_box</uri>
+      <pose>16.7388 5.9492 0.2000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.097_2</name>
+      <uri>small_box</uri>
+      <pose>16.7388 5.9492 0.5000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.097_3</name>
+      <uri>small_box</uri>
+      <pose>16.7388 5.9492 0.8000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.097_4</name>
+      <uri>small_box</uri>
+      <pose>16.7388 5.9492 1.1000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.097_5</name>
+      <uri>small_box</uri>
+      <pose>16.7388 5.9492 1.4000 0.0000 -0.0000 1.5708</pose>
+    </include>
+
+    <include>
+      <static>false</static>
+      <name>small_box.097_6</name>
+      <uri>small_box</uri>
+      <pose>16.7388 5.9492 1.7000 0.0000 -0.0000 1.5708</pose>
+    </include>
+    
   </world>
 </sdf>
