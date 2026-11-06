@@ -55,6 +55,13 @@ def validate_taxonomy_classification(output: Dict[str, Any]) -> List[str]:
     cot = output["chain_of_thought"]
     out_class = output["output_classification"]
 
+    # Check 1b: Verify output_classification is a dictionary
+    if not isinstance(out_class, dict):
+        errors.append(
+            f"INVALID_OUTPUT_CLASSIFICATION_TYPE: 'output_classification' must be an object, got {type(out_class).__name__}."
+        )
+        return errors
+
     # Check 2: Separation of concerns (solver prediction prohibited)
     if "matched_solver" in out_class or "matched_solver" in output:
         errors.append(

@@ -298,7 +298,14 @@ class MissionPlanner:
         from llm_planner.taxonomy_classifier import classify_taxonomy
 
         subtasks = decomp.plan.get("subtasks", [])
-        tax_result = classify_taxonomy(subtasks, fleet=fleet, objects=objects)
+        tax_result = classify_taxonomy(
+            subtasks,
+            fleet=fleet,
+            objects=objects,
+            client=self.client,
+            model=self.model,
+            max_retries=self.max_retries,
+        )
 
         combined_errors = list(decomp.errors) + list(tax_result.errors)
         status = "ok" if tax_result.is_success else "failed_taxonomy_classification"

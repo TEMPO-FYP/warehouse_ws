@@ -23,7 +23,6 @@ from llm_planner.config import (
 from llm_planner.llm_client import call_llm_chat, get_client
 from llm_planner.orchestrator import sanitize_json_response
 
-DEFAULT_MODEL = GEMINI_MODEL if LLM_PROVIDER == "gemini" else GROQ_MODEL
 from llm_planner.taxonomy_prompt_builder import (
     TAXONOMY_SYSTEM_PROMPT,
     build_taxonomy_prompt,
@@ -31,6 +30,8 @@ from llm_planner.taxonomy_prompt_builder import (
     load_taxonomy_exemplars,
 )
 from llm_planner.taxonomy_validator import validate_taxonomy_classification
+
+DEFAULT_MODEL = GEMINI_MODEL if LLM_PROVIDER == "gemini" else GROQ_MODEL
 
 
 def load_default_fleet() -> Dict[str, Any]:
@@ -257,10 +258,21 @@ def classify_taxonomy(
     subtasks: List[Dict[str, Any]],
     fleet: Optional[Dict[str, Any]] = None,
     objects: Optional[Dict[str, Any]] = None,
+    client: Optional[Any] = None,
+    model: Optional[str] = None,
+    max_retries: Optional[int] = None,
 ) -> TaxonomyClassificationResult:
     """
-    Classifies a subtask DAG into an iTax subclass using the default cached classifier.
+    Classifies a subtask DAG into an iTax subclass using a configured or cached classifier.
     """
+    if client is not None or model is not None or max_retries is not None:
+        classifier = TaxonomyClassifier(
+            client=client,
+            model=model,
+            max_retries=max_retries if max_retries is not None else MAX_RETRIES,
+        )
+        return classifier.classify(subtasks, fleet=fleet, objects=objects)
+
     global _default_taxonomy_classifier
     if _default_taxonomy_classifier is None:
         _default_taxonomy_classifier = TaxonomyClassifier()

@@ -115,15 +115,22 @@ def validate_plan(plan: dict, G: nx.DiGraph,
                     f"Valid ids: {sorted(task_ids)}"
                 )
 
-    # Check 4, skill validity.
+    # Check 4, skill count & validity (must specify exactly one valid skill per atomic subtask).
     for task in plan["subtasks"]:
-        for skill in task["required_skills"]:
-            if skill not in valid_skills:
-                errors.append(
-                    f"INVALID_SKILL: task '{task['id']}' uses skill "
-                    f"'{skill}' which was not in the retrieved skill bank. "
-                    f"Valid skills: {sorted(valid_skills)}"
-                )
+        skills = task.get("required_skills")
+        if not isinstance(skills, list) or len(skills) != 1:
+            errors.append(
+                f"INVALID_SKILLS_COUNT: task '{task.get('id')}' must specify exactly one skill "
+                f"in 'required_skills' array, got {skills}."
+            )
+            continue
+        skill = skills[0]
+        if skill not in valid_skills:
+            errors.append(
+                f"INVALID_SKILL: task '{task['id']}' uses skill "
+                f"'{skill}' which was not in the retrieved skill bank. "
+                f"Valid skills: {sorted(valid_skills)}"
+            )
 
     # Check 5, args keys match skill inputs.
     for task in plan["subtasks"]:

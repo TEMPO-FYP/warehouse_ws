@@ -30,7 +30,7 @@ setup(
     version='0.1.0',
     packages=find_packages(exclude=['test']),
     data_files=data_files,
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'networkx'],
     zip_safe=True,
     maintainer='Taha Zahid',
     maintainer_email='tz09220@st.habib.edu.pk',
