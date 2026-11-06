@@ -1,0 +1,28 @@
+{
+  "skills": [
+    {
+      "skill_id": "navigate_to",
+      "description": "Navigate to a named location or waypoint using path planning.",
+      "inputs": ["location"],
+      "preconditions": ["robot is idle"],
+      "effects": ["robot is at location"],
+      "required_capabilities": ["navigation"]
+    },
+    {
+      "skill_id": "pick",
+      "description": "Pick up a named object using the manipulator.",
+      "inputs": ["object"],
+      "preconditions": ["robot is within reach of object", "gripper is empty"],
+      "effects": ["robot is holding object"],
+      "required_capabilities": ["manipulation"]
+    },
+    {
+      "skill_id": "place",
+      "description": "Place the currently held object at a target location.",
+      "inputs": ["object", "location"],
+      "preconditions": ["robot is holding object", "robot is at location"],
+      "effects": ["object is at location", "gripper is empty"],
+      "required_capabilities": ["manipulation"]
+    }
+  ]
+}

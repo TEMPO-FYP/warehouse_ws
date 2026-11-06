@@ -34,3 +34,8 @@ log/
 *.swp
 *~
 .DS_Store
+
+# Environment variables (API keys)
+.env
+.env.*
+!.env.example

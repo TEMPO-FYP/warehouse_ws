@@ -1,0 +1,663 @@
+{
+  "examples": [
+    {
+      "id": "tax_example_001",
+      "name": "Independent Parallel Dispatches (ND[ST-SR-IA])",
+      "input": {
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the box at shelf A.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_A" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the box from shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_A", "location": "origin" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_B" },
+            "dependencies": []
+          },
+          {
+            "id": "T6",
+            "description": "Pick up the box at shelf B.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_B" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Navigate to origin with the box from shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T6"]
+          },
+          {
+            "id": "T8",
+            "description": "Place the box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_B", "location": "origin" },
+            "dependencies": ["T7"]
+          }
+        ],
+        "fleet": {
+          "mobile_robot": {
+            "count": 2,
+            "payload_capacity_kg": 10.0,
+            "speed_m_s": 1.0,
+            "capabilities": ["navigation", "manipulation"]
+          }
+        },
+        "objects": {
+          "box_shelf_A": { "weight_kg": 2.0 },
+          "box_shelf_B": { "weight_kg": 2.0 }
+        }
+      },
+      "chain_of_thought": {
+        "step_1_robot_model": "Each mobile robot has a single mobile base and single manipulator, capable of executing at most one subtask at any instant -> ST.",
+        "step_2_task_model": "Max object weight (2.0 kg) <= robot payload capacity (10.0 kg). Every subtask can be executed by a single robot -> SR.",
+        "step_3_time_horizon": "There are 2 delivery chains and 2 available qualified robots. Both chains can be dispatched concurrently right now with no backlog or multi-trip requirement -> IA.",
+        "step_4_dependency": "Chains T1-T4 and T5-T8 are completely disjoint and independent, with each robot returning to origin. No inter-robot precedence edges or multi-stop routing tours exist -> ND."
+      },
+      "output_classification": {
+        "axes": {
+          "robot_model": "ST",
+          "task_model": "SR",
+          "time_horizon": "IA",
+          "dependency": "ND"
+        },
+        "subclass": "ND[ST-SR-IA]"
+      }
+    },
+    {
+      "id": "tax_example_002",
+      "name": "Independent Multi-Trip Sequential Scheduling (ND[ST-SR-TA])",
+      "input": {
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the box at shelf A.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_A" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the box from shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_A", "location": "origin" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_B" },
+            "dependencies": []
+          },
+          {
+            "id": "T6",
+            "description": "Pick up the box at shelf B.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_B" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Navigate to origin with the box from shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T6"]
+          },
+          {
+            "id": "T8",
+            "description": "Place the box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_B", "location": "origin" },
+            "dependencies": ["T7"]
+          },
+          {
+            "id": "T9",
+            "description": "Navigate to shelf C.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_C" },
+            "dependencies": []
+          },
+          {
+            "id": "T10",
+            "description": "Pick up the box at shelf C.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_C" },
+            "dependencies": ["T9"]
+          },
+          {
+            "id": "T11",
+            "description": "Navigate to origin with the box from shelf C.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T10"]
+          },
+          {
+            "id": "T12",
+            "description": "Place the box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_C", "location": "origin" },
+            "dependencies": ["T11"]
+          }
+        ],
+        "fleet": {
+          "mobile_robot": {
+            "count": 2,
+            "payload_capacity_kg": 3.0,
+            "speed_m_s": 1.0,
+            "capabilities": ["navigation", "manipulation"]
+          }
+        },
+        "objects": {
+          "box_shelf_A": { "weight_kg": 3.0 },
+          "box_shelf_B": { "weight_kg": 3.0 },
+          "box_shelf_C": { "weight_kg": 3.0 }
+        }
+      },
+      "chain_of_thought": {
+        "step_1_robot_model": "Each mobile robot has single actuator systems, executing one subtask at a time -> ST.",
+        "step_2_task_model": "Every box weight (3.0 kg) <= robot payload capacity (3.0 kg). Each delivery job requires only a single robot -> SR.",
+        "step_3_time_horizon": "There are 3 separate delivery jobs but only 2 robots available. Since each robot has a payload capacity of 3.0 kg, a robot can carry at most one 3.0 kg box at a time. Therefore, at least one robot must execute a subsequent trip over time (|jobs| > |robots|) -> TA.",
+        "step_4_dependency": "All 3 retrieval jobs are independent round-trips returning to origin. No inter-robot precedence constraints or multi-stop routing dependencies exist -> ND."
+      },
+      "output_classification": {
+        "axes": {
+          "robot_model": "ST",
+          "task_model": "SR",
+          "time_horizon": "TA",
+          "dependency": "ND"
+        },
+        "subclass": "ND[ST-SR-TA]"
+      }
+    },
+    {
+      "id": "tax_example_003",
+      "name": "Intra-Schedule Multi-Stop Routing Tour (ID[ST-SR-TA])",
+      "input": {
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the box at shelf A.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_A" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_B" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Pick up the box at shelf B.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_B" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to origin with both collected boxes.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T4"]
+          },
+          {
+            "id": "T6",
+            "description": "Place the first box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_A", "location": "origin" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Place the second box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_B", "location": "origin" },
+            "dependencies": ["T5"]
+          }
+        ],
+        "fleet": {
+          "mobile_robot": {
+            "count": 1,
+            "payload_capacity_kg": 10.0,
+            "speed_m_s": 1.0,
+            "capabilities": ["navigation", "manipulation"]
+          }
+        },
+        "objects": {
+          "box_shelf_A": { "weight_kg": 2.0 },
+          "box_shelf_B": { "weight_kg": 2.0 }
+        }
+      },
+      "chain_of_thought": {
+        "step_1_robot_model": "The single mobile robot executes its scheduled subtasks one by one along its route -> ST.",
+        "step_2_task_model": "Combined weight of boxes (2.0 kg + 2.0 kg = 4.0 kg) <= robot capacity (10.0 kg). All tasks are performed by a single robot -> SR.",
+        "step_3_time_horizon": "The robot plans a multi-stop routing itinerary across multiple shelves over time before returning to origin -> TA.",
+        "step_4_dependency": "The robot performs a multi-pickup tour where visiting shelf A precedes visiting shelf B within its own itinerary. The transit costs and accumulated payload depend on the intra-schedule sequence of visits -> ID."
+      },
+      "output_classification": {
+        "axes": {
+          "robot_model": "ST",
+          "task_model": "SR",
+          "time_horizon": "TA",
+          "dependency": "ID"
+        },
+        "subclass": "ID[ST-SR-TA]"
+      }
+    },
+    {
+      "id": "tax_example_004",
+      "name": "Cross-Schedule Delivery Precedence (XD[ST-SR-IA])",
+      "input": {
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the red box.",
+            "required_skills": ["pick"],
+            "args": { "object": "red_box" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the red box.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the red box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "red_box", "location": "origin" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_B" },
+            "dependencies": []
+          },
+          {
+            "id": "T6",
+            "description": "Pick up the blue box.",
+            "required_skills": ["pick"],
+            "args": { "object": "blue_box" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Navigate to origin with the blue box.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T6"]
+          },
+          {
+            "id": "T8",
+            "description": "Place the blue box at origin after the red box is placed.",
+            "required_skills": ["place"],
+            "args": { "object": "blue_box", "location": "origin" },
+            "dependencies": ["T7", "T4"]
+          }
+        ],
+        "fleet": {
+          "mobile_robot": {
+            "count": 2,
+            "payload_capacity_kg": 10.0,
+            "speed_m_s": 1.0,
+            "capabilities": ["navigation", "manipulation"]
+          }
+        },
+        "objects": {
+          "red_box": { "weight_kg": 2.0 },
+          "blue_box": { "weight_kg": 2.0 }
+        }
+      },
+      "chain_of_thought": {
+        "step_1_robot_model": "Mobile robots possess 1 base and 1 manipulator, constrained to executing 1 subtask at a time -> ST.",
+        "step_2_task_model": "Max object weight (2.0 kg) <= robot payload capacity (10.0 kg). Every subtask can be executed by a single robot -> SR.",
+        "step_3_time_horizon": "There are 2 delivery chains and 2 available robots. Both robots can be allocated concurrently right now -> IA.",
+        "step_4_dependency": "Task T8 (placing blue box) has an explicit dependency on T4 (placing red box). Since T1-T4 is allocated to Robot 1 and T5-T8 is allocated to Robot 2, T8 creates a cross-schedule temporal precedence constraint coupling Robot 2's schedule to Robot 1's schedule -> XD."
+      },
+      "output_classification": {
+        "axes": {
+          "robot_model": "ST",
+          "task_model": "SR",
+          "time_horizon": "IA",
+          "dependency": "XD"
+        },
+        "subclass": "XD[ST-SR-IA]"
+      }
+    },
+    {
+      "id": "tax_example_005",
+      "name": "Cross-Schedule Precedence over Multi-Trip Horizons (XD[ST-SR-TA])",
+      "input": {
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the first red box.",
+            "required_skills": ["pick"],
+            "args": { "object": "red_box_1" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the first red box.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the first red box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "red_box_1", "location": "origin" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_B" },
+            "dependencies": []
+          },
+          {
+            "id": "T6",
+            "description": "Pick up the second red box.",
+            "required_skills": ["pick"],
+            "args": { "object": "red_box_2" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Navigate to origin with the second red box.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T6"]
+          },
+          {
+            "id": "T8",
+            "description": "Place the second red box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "red_box_2", "location": "origin" },
+            "dependencies": ["T7"]
+          },
+          {
+            "id": "T9",
+            "description": "Navigate to shelf C.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_C" },
+            "dependencies": []
+          },
+          {
+            "id": "T10",
+            "description": "Pick up the blue box.",
+            "required_skills": ["pick"],
+            "args": { "object": "blue_box" },
+            "dependencies": ["T9"]
+          },
+          {
+            "id": "T11",
+            "description": "Navigate to origin with the blue box.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T10"]
+          },
+          {
+            "id": "T12",
+            "description": "Place the blue box at origin after all red boxes are placed.",
+            "required_skills": ["place"],
+            "args": { "object": "blue_box", "location": "origin" },
+            "dependencies": ["T11", "T4", "T8"]
+          }
+        ],
+        "fleet": {
+          "mobile_robot": {
+            "count": 2,
+            "payload_capacity_kg": 3.0,
+            "speed_m_s": 1.0,
+            "capabilities": ["navigation", "manipulation"]
+          }
+        },
+        "objects": {
+          "red_box_1": { "weight_kg": 3.0 },
+          "red_box_2": { "weight_kg": 3.0 },
+          "blue_box": { "weight_kg": 3.0 }
+        }
+      },
+      "chain_of_thought": {
+        "step_1_robot_model": "Each robot has single actuators executing one subtask at a time -> ST.",
+        "step_2_task_model": "All boxes weigh 3.0 kg <= 3.0 kg payload capacity. Each task is executable by a single robot -> SR.",
+        "step_3_time_horizon": "There are 3 separate delivery jobs and only 2 robots available. Since each robot has a capacity of 3.0 kg (1 box per trip), at least one robot must execute a sequential trip over time (|jobs| > |robots|) -> TA.",
+        "step_4_dependency": "Task T12 (placing blue box) requires both red boxes to be placed first (dependencies T4 and T8). Across the 2 robots and sequential trips, this inter-task precedence links different robots' schedules across time -> XD."
+      },
+      "output_classification": {
+        "axes": {
+          "robot_model": "ST",
+          "task_model": "SR",
+          "time_horizon": "TA",
+          "dependency": "XD"
+        },
+        "subclass": "XD[ST-SR-TA]"
+      }
+    },
+    {
+      "id": "tax_example_006",
+      "name": "Synchronized Multi-Robot Coalition (XD[ST-MR-IA])",
+      "input": {
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to storage A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "storage_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the heavy crate.",
+            "required_skills": ["pick"],
+            "args": { "object": "heavy_crate" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the heavy crate.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the heavy crate at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "heavy_crate", "location": "origin" },
+            "dependencies": ["T3"]
+          }
+        ],
+        "fleet": {
+          "mobile_robot": {
+            "count": 2,
+            "payload_capacity_kg": 10.0,
+            "speed_m_s": 1.0,
+            "capabilities": ["navigation", "manipulation"]
+          }
+        },
+        "objects": {
+          "heavy_crate": { "weight_kg": 20.0 }
+        }
+      },
+      "chain_of_thought": {
+        "step_1_robot_model": "Each mobile robot participates in only one subtask at a time -> ST.",
+        "step_2_task_model": "The heavy crate weighs 20.0 kg, which exceeds the 10.0 kg capacity of any individual robot in the fleet. Lifting and transporting the crate strictly requires a synchronized coalition of 2 robots -> MR.",
+        "step_3_time_horizon": "The entire fleet (2 robots) forms one coalition and executes the task immediately with no multi-trip queue backlog -> IA.",
+        "step_4_dependency": "Cooperative multi-robot execution (MR) inherently requires cross-schedule synchronization between the cooperating robots as they coordinate transit and manipulation -> XD."
+      },
+      "output_classification": {
+        "axes": {
+          "robot_model": "ST",
+          "task_model": "MR",
+          "time_horizon": "IA",
+          "dependency": "XD"
+        },
+        "subclass": "XD[ST-MR-IA]"
+      }
+    },
+    {
+      "id": "tax_example_007",
+      "name": "Time-Extended Multi-Robot Coalitional Operations (XD[ST-MR-TA])",
+      "input": {
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to storage A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "storage_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the first heavy crate.",
+            "required_skills": ["pick"],
+            "args": { "object": "heavy_crate_1" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the first heavy crate.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the first heavy crate at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "heavy_crate_1", "location": "origin" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to storage A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "storage_A" },
+            "dependencies": ["T4"]
+          },
+          {
+            "id": "T6",
+            "description": "Pick up the second heavy crate.",
+            "required_skills": ["pick"],
+            "args": { "object": "heavy_crate_2" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Navigate to origin with the second heavy crate.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T6"]
+          },
+          {
+            "id": "T8",
+            "description": "Place the second heavy crate at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "heavy_crate_2", "location": "origin" },
+            "dependencies": ["T7"]
+          }
+        ],
+        "fleet": {
+          "mobile_robot": {
+            "count": 2,
+            "payload_capacity_kg": 10.0,
+            "speed_m_s": 1.0,
+            "capabilities": ["navigation", "manipulation"]
+          }
+        },
+        "objects": {
+          "heavy_crate_1": { "weight_kg": 20.0 },
+          "heavy_crate_2": { "weight_kg": 20.0 }
+        }
+      },
+      "chain_of_thought": {
+        "step_1_robot_model": "Each robot performs single subtasks in sequence -> ST.",
+        "step_2_task_model": "Both heavy crates weigh 20.0 kg > 10.0 kg robot capacity, requiring a 2-robot synchronized coalition for each crate -> MR.",
+        "step_3_time_horizon": "Two heavy crates require 2 sequential coalition trips because the available fleet (2 robots) can only form one 2-robot coalition at a time. The operations must be scheduled sequentially over time -> TA.",
+        "step_4_dependency": "Both inter-robot coalition synchronization (MR) and cross-trip temporal dependencies (T5 depending on T4) couple the robots' temporal schedules -> XD."
+      },
+      "output_classification": {
+        "axes": {
+          "robot_model": "ST",
+          "task_model": "MR",
+          "time_horizon": "TA",
+          "dependency": "XD"
+        },
+        "subclass": "XD[ST-MR-TA]"
+      }
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "axes": {
+    "robot_model": {
+      "description": "Defines whether an individual robot is physically capable of executing at most one task at a time (ST) or multiple tasks simultaneously (MT).",
+      "values": {
+        "ST": {
+          "definition": "Single-task robot: The robot can execute at most one task at any given instant, constrained by shared physical resources (single manipulator, chassis locomotion, or computational focus).",
+          "example": "A mobile warehouse robot with a single gripper carrying one container to a packing station."
+        },
+        "MT": {
+          "definition": "Multi-task robot: The robot possesses independent hardware subsystems capable of executing multiple disjoint tasks simultaneously.",
+          "example": "A dual-arm mobile platform where one arm holds and inspects an item while the other arm sorts packages, or an autonomous vehicle mapping an environment while transporting cargo."
+        }
+      }
+    },
+    "task_model": {
+      "description": "Defines whether each subtask can be performed by an individual robot (SR) or strictly requires a synchronized team/coalition of robots (MR).",
+      "values": {
+        "SR": {
+          "definition": "Single-robot task: The task requires exactly one robot to perform it, falling within the physical and payload capabilities of a single agent.",
+          "example": "Transporting a 2.0 kg box when each available mobile robot has a maximum payload capacity of 10.0 kg."
+        },
+        "MR": {
+          "definition": "Multi-robot task: The task requires a synchronized coalition of two or more robots, exceeding the payload capacity or physical capabilities of any single robot.",
+          "example": "Lifting and transporting a 20.0 kg heavy pallet when every individual robot in the fleet has a maximum payload limit of 10.0 kg."
+        }
+      }
+    },
+    "time_horizon": {
+      "description": "Defines whether task allocation is instantaneous for immediate execution (IA) or time-extended planning over a future schedule (TA).",
+      "values": {
+        "IA": {
+"definition": "Instantaneous assignment: Allocation decisions are made in one immediate assignment event rather than being revised over a future schedule; an assigned task may still contain sequential subtasks or precedence constraints.",
+          "example": "2 pickup tasks dispatched concurrently to 2 idle mobile robots with no sequential backlog or capacity bottlenecks."
+        },
+        "TA": {
+          "definition": "Time-extended assignment: Tasks must be scheduled over time into a sequence or queue, due to task backlogs (|tasks| > |robots|), capacity bottlenecks forcing sequential trips, or multi-stop routing tours.",
+          "example": "3 boxes need to be moved by 2 robots, requiring at least one robot to execute a subsequent trip over time."
+        }
+      }
+    },
+    "dependency": {
+      "description": "Defines how task execution utilities and schedules interact: independent (ND), intra-schedule routing tours (ID), inter-schedule cross constraints (XD), or complex dependencies (CD).",
+      "values": {
+        "ND": {
+          "definition": "No dependencies: The utility and execution of a task depend solely on the assigned robot and task itself, with no inter-task precedence or routing coupling (e.g. independent trips returning to origin).",
+          "example": "2 independent mobile robots each picking up one box and returning to base, with zero ordering constraints between them."
+        },
+        "ID": {
+          "definition": "In-schedule dependencies: The execution cost or order of tasks depends on other tasks assigned to the same robot's schedule (e.g. multi-stop routing where pickup sequence affects total travel distance).",
+          "example": "A single mobile robot picking up Box A and then Box B in a combined multi-stop route before returning to drop-off."
+        },
+        "XD": {
+          "definition": "Cross-schedule dependencies: The execution or validity of a task depends on the schedule or status of tasks assigned to other robots (e.g. precedence ordering between robots or multi-robot coalition synchronization).",
+          "example": "Robot 2 must place the blue box only after Robot 1 has finished placing the red box, or two robots synchronizing to lift a heavy crate."
+        },
+        "CD": {
+          "definition": "Complex dependencies: Task allocation problems for which agent-task utilities have inter-schedule dependencies for complex tasks (in addition to any in-schedule and cross-schedule dependencies for simple or compound tasks). The effective utility of an agent for a task depends on the schedules of other agents in a manner determined by the chosen task decomposition.",
+          "example": "Disaster response where fire trucks require routes cleared by bulldozers, but which debris piles must be cleared depends on the chosen routing and decomposition of fire tasks across the fleet."
+        }
+      }
+    }
+  },
+  "subclasses": {
+    "ND[ST-SR-IA]": {
+      "canonical_notation": "ND[ST-SR-IA]",
+      "name": "No-Dependency Single-Task Single-Robot Instantaneous Assignment",
+      "complexity": "Polynomial, O(mn^2) or O(n^3)",
+      "theoretical_formulation": "Linear Sum Assignment Problem (LSAP) (Votaw and Orden, 1952)",
+      "criteria": "All tasks are SR (object weight <= single robot capacity), |qualified robots| >= |tasks| (all tasks executable concurrently), robots are ST, and no precedence or routing dependencies link the subtasks.",
+      "optimization_target": "Minimizing total makespan or aggregate transit cost for one-to-one simultaneous dispatch."
+    },
+    "ND[ST-SR-TA]": {
+      "canonical_notation": "ND[ST-SR-TA]",
+      "name": "No-Dependency Single-Task Single-Robot Time-Extended Assignment",
+      "complexity": "Polynomial, O(mn^2) or O(n^3)",
+      "theoretical_formulation": "Can be reformulated as Linear Sum Assignment Problem (LSAP) (Korsah et al., 2013)",
+      "criteria": "Tasks are independent and each is executable by a single robot with no cross-schedule or in-schedule routing dependencies, but the number of tasks exceeds available qualified robots (|tasks| > |qualified robots|) or capacity bottlenecks force robots to plan sequential trips over time.",
+      "optimization_target": "Minimizing schedule makespan or weighted completion time across robot job queues."
+    },
+    "ID[ST-SR-TA]": {
+      "canonical_notation": "ID[ST-SR-TA]",
+      "name": "In-Schedule Dependency Single-Task Single-Robot Time-Extended Assignment",
+      "complexity": "NP-hard",
+      "theoretical_formulation": "Multiple Traveling Salesman Problem (m-TSP) (Bektas, 2006) / Vehicle Routing Problem (VRP) (Toth and Vigo, 2001) / Scheduling on unrelated machines to minimize weighted sum of completion times (R || sum w_j C_j) (Brucker, 2011; Bruno et al., 1974)",
+      "criteria": "A robot performs multi-stop routing tours (e.g. visiting multiple pickup locations before returning to drop-off or base), where the execution cost/time depends on the permutation/ordering of visits within that robot's individual schedule.",
+      "optimization_target": "Minimizing cumulative tour distance or travel time across multi-stop routes."
+    },
+    "XD[ST-SR-IA]": {
+      "canonical_notation": "XD[ST-SR-IA]",
+      "name": "Cross-Schedule Dependency Single-Task Single-Robot Instantaneous Assignment",
+      "complexity": "NP-hard",
+      "theoretical_formulation": "Assignment Problem with Side Constraints (APSC) (Mazzola and Neebe, 1986)",
+      "criteria": "Tasks are executable by individual robots and can be dispatched concurrently, but inter-task precedence or cross-robot ordering constraints link the completion of a task on one robot's schedule to the start of a task on another robot's schedule.",
+      "optimization_target": "Satisfying inter-robot precedence constraints while minimizing overall completion time."
+    },
+    "XD[ST-SR-TA]": {
+      "canonical_notation": "XD[ST-SR-TA]",
+      "name": "Cross-Schedule Dependency Single-Task Single-Robot Time-Extended Assignment",
+      "complexity": "NP-hard",
+      "theoretical_formulation": "Scheduling, with precedence constraints, on unrelated machines to minimize weighted sum of completion times (R | prec | sum w_j C_j) (Brucker, 2001; Lenstra and Rinnooy Kan, 1978) / Vehicle Routing Problems with precedence or synchronization constraints (Bredström and Rönnqvist, 2007, 2008)",
+      "criteria": "Tasks require multi-trip time-extended scheduling (|tasks| > |robots| or capacity limits) AND possess cross-schedule precedence dependencies linking different robots' temporal schedules.",
+      "optimization_target": "Minimizing total schedule makespan under multi-trip robot routing and inter-robot temporal precedence."
+    },
+    "XD[ST-MR-IA]": {
+      "canonical_notation": "XD[ST-MR-IA]",
+      "name": "Cross-Schedule Dependency Single-Task Multi-Robot Instantaneous Assignment",
+      "complexity": "NP-hard",
+      "theoretical_formulation": "Set Partitioning Problem (SPP) (Balas and Padberg, 1976) / Coalition Formation",
+      "criteria": "At least one task exceeds single-robot capability or payload capacity (object weight > max single robot capacity), requiring a synchronized coalition of >= 2 robots working simultaneously in an immediate time horizon.",
+      "optimization_target": "Selecting and synchronizing optimal multi-robot coalitions to execute heavy or complex tasks concurrently."
+    },
+    "XD[ST-MR-TA]": {
+      "canonical_notation": "XD[ST-MR-TA]",
+      "name": "Cross-Schedule Dependency Single-Task Multi-Robot Time-Extended Assignment",
+      "complexity": "NP-hard",
+      "theoretical_formulation": "Multi-mode Multi-processor Task Scheduling (Brucker, 2001; Bianco et al., 1999) / Coalition Formation with Spatial and Temporal Constraints (CFSTP) (Ramchurn et al., 2010)",
+      "criteria": "Multiple multi-robot tasks or multi-trip requirements necessitate scheduling multi-robot coalitions over an extended time horizon with cross-schedule synchronization.",
+      "optimization_target": "Optimizing multi-agent coalition sequences, synchronization barriers, and makespan over extended time horizons."
+    }
+  }
+}
