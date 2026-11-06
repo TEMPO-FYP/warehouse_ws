@@ -28,7 +28,11 @@ RUN apt-get update -q && \
 # These packages help with building and managing ROS 2 workspaces
 RUN apt-get update -q && \
     apt-get install -y gnupg2 iputils-ping usbutils \
-    python3-argcomplete python3-colcon-common-extensions python3-networkx python3-pip python3-rosdep python3-vcstool
+    python3-argcomplete python3-colcon-common-extensions python3-networkx python3-pip python3-rosdep python3-vcstool \
+    python3-scipy python3-sklearn
+
+# Install TEMPO LLM Planner Python dependencies
+RUN pip install --no-cache-dir sentence-transformers groq google-genai
 
 # Set up the ROS 2 environment
 # This ensures that ROS 2 commands are available in the shell

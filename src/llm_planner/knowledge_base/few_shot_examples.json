@@ -1,0 +1,496 @@
+{
+  "examples": [
+    {
+      "id": "plan_001",
+      "instruction": "Retrieve the box from shelf A and the box from shelf B, and deliver them to origin.",
+      "output": {
+        "status": "ok",
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the box at shelf A.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_A" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the box from shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_A", "location": "origin" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_B" },
+            "dependencies": []
+          },
+          {
+            "id": "T6",
+            "description": "Pick up the box at shelf B.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_B" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Navigate to origin with the box from shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T6"]
+          },
+          {
+            "id": "T8",
+            "description": "Place the box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_B", "location": "origin" },
+            "dependencies": ["T7"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan_002",
+      "instruction": "Retrieve the boxes from shelf A, shelf B, and shelf C to origin. Each robot can only carry one box at a time.",
+      "output": {
+        "status": "ok",
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the box at shelf A.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_A" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the box from shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_A", "location": "origin" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_B" },
+            "dependencies": []
+          },
+          {
+            "id": "T6",
+            "description": "Pick up the box at shelf B.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_B" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Navigate to origin with the box from shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T6"]
+          },
+          {
+            "id": "T8",
+            "description": "Place the box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_B", "location": "origin" },
+            "dependencies": ["T7"]
+          },
+          {
+            "id": "T9",
+            "description": "Navigate to shelf C.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_C" },
+            "dependencies": []
+          },
+          {
+            "id": "T10",
+            "description": "Pick up the box at shelf C.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_C" },
+            "dependencies": ["T9"]
+          },
+          {
+            "id": "T11",
+            "description": "Navigate to origin with the box from shelf C.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T10"]
+          },
+          {
+            "id": "T12",
+            "description": "Place the box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_C", "location": "origin" },
+            "dependencies": ["T11"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan_003",
+      "instruction": "Collect the box from shelf A and the box from shelf B, then return both boxes to origin in a single trip.",
+      "output": {
+        "status": "ok",
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the box at shelf A.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_A" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_B" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Pick up the box at shelf B.",
+            "required_skills": ["pick"],
+            "args": { "object": "box_shelf_B" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to origin with both collected boxes.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T4"]
+          },
+          {
+            "id": "T6",
+            "description": "Place the first box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_A", "location": "origin" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Place the second box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "box_shelf_B", "location": "origin" },
+            "dependencies": ["T5"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan_004",
+      "instruction": "Deliver the red box from shelf A and the blue box from shelf B to origin. The red box must be placed at origin before the blue box is placed.",
+      "output": {
+        "status": "ok",
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the red box.",
+            "required_skills": ["pick"],
+            "args": { "object": "red_box" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the red box.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the red box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "red_box", "location": "origin" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_B" },
+            "dependencies": []
+          },
+          {
+            "id": "T6",
+            "description": "Pick up the blue box.",
+            "required_skills": ["pick"],
+            "args": { "object": "blue_box" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Navigate to origin with the blue box.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T6"]
+          },
+          {
+            "id": "T8",
+            "description": "Place the blue box at origin after the red box is placed.",
+            "required_skills": ["place"],
+            "args": { "object": "blue_box", "location": "origin" },
+            "dependencies": ["T7", "T4"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan_005",
+      "instruction": "Deliver the two red boxes from shelf A and shelf B, and the blue box from shelf C to origin. All red boxes must be delivered to origin before the blue box is placed.",
+      "output": {
+        "status": "ok",
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to shelf A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the first red box.",
+            "required_skills": ["pick"],
+            "args": { "object": "red_box_1" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the first red box.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the first red box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "red_box_1", "location": "origin" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to shelf B.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_B" },
+            "dependencies": []
+          },
+          {
+            "id": "T6",
+            "description": "Pick up the second red box.",
+            "required_skills": ["pick"],
+            "args": { "object": "red_box_2" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Navigate to origin with the second red box.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T6"]
+          },
+          {
+            "id": "T8",
+            "description": "Place the second red box at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "red_box_2", "location": "origin" },
+            "dependencies": ["T7"]
+          },
+          {
+            "id": "T9",
+            "description": "Navigate to shelf C.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "shelf_C" },
+            "dependencies": []
+          },
+          {
+            "id": "T10",
+            "description": "Pick up the blue box.",
+            "required_skills": ["pick"],
+            "args": { "object": "blue_box" },
+            "dependencies": ["T9"]
+          },
+          {
+            "id": "T11",
+            "description": "Navigate to origin with the blue box.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T10"]
+          },
+          {
+            "id": "T12",
+            "description": "Place the blue box at origin after all red boxes are placed.",
+            "required_skills": ["place"],
+            "args": { "object": "blue_box", "location": "origin" },
+            "dependencies": ["T11", "T4", "T8"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan_006",
+      "instruction": "Transport the heavy crate from storage A to origin.",
+      "output": {
+        "status": "ok",
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to storage A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "storage_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the heavy crate.",
+            "required_skills": ["pick"],
+            "args": { "object": "heavy_crate" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the heavy crate.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the heavy crate at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "heavy_crate", "location": "origin" },
+            "dependencies": ["T3"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan_007",
+      "instruction": "Clear storage A by delivering the two heavy crates to origin.",
+      "output": {
+        "status": "ok",
+        "subtasks": [
+          {
+            "id": "T1",
+            "description": "Navigate to storage A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "storage_A" },
+            "dependencies": []
+          },
+          {
+            "id": "T2",
+            "description": "Pick up the first heavy crate.",
+            "required_skills": ["pick"],
+            "args": { "object": "heavy_crate_1" },
+            "dependencies": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "Navigate to origin with the first heavy crate.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T2"]
+          },
+          {
+            "id": "T4",
+            "description": "Place the first heavy crate at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "heavy_crate_1", "location": "origin" },
+            "dependencies": ["T3"]
+          },
+          {
+            "id": "T5",
+            "description": "Navigate to storage A.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "storage_A" },
+            "dependencies": ["T4"]
+          },
+          {
+            "id": "T6",
+            "description": "Pick up the second heavy crate.",
+            "required_skills": ["pick"],
+            "args": { "object": "heavy_crate_2" },
+            "dependencies": ["T5"]
+          },
+          {
+            "id": "T7",
+            "description": "Navigate to origin with the second heavy crate.",
+            "required_skills": ["navigate_to"],
+            "args": { "location": "origin" },
+            "dependencies": ["T6"]
+          },
+          {
+            "id": "T8",
+            "description": "Place the second heavy crate at origin.",
+            "required_skills": ["place"],
+            "args": { "object": "heavy_crate_2", "location": "origin" },
+            "dependencies": ["T7"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan_008",
+      "instruction": "Move that box to the other room.",
+      "output": {
+        "status": "clarification_needed",
+        "reason": "Unresolved referents: 'that box' and 'the other room' cannot be grounded to any known object or location in the world map."
+      }
+    },
+    {
+      "id": "plan_009",
+      "instruction": "Weld the broken metal frame on shelf A.",
+      "output": {
+        "status": "infeasible",
+        "reason": "Welding is outside the robot fleet's capabilities; no welding skill exists in the registry."
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "robots": [
+    {
+      "robot_type": "mobile_robot",
+      "capabilities": [
+        "navigation",
+        "manipulation"
+      ],
+      "skill_ids": [
+        "navigate_to",
+        "pick",
+        "place"
+      ],
+      "specs": {
+        "payload_capacity_kg": 10.0,
+        "speed_m_s": 1.0
+      },
+      "status": "active"
+    },
+    {
+      "robot_type": "robotic_arm",
+      "capabilities": [
+        "manipulation"
+      ],
+      "skill_ids": [
+        "pick",
+        "place"
+      ],
+      "specs": {
+        "payload_capacity_kg": 15.0,
+        "speed_m_s": 0.0
+      },
+      "status": "active"
+    }
+  ]
+}
