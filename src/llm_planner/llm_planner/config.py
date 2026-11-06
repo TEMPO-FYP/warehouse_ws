@@ -28,15 +28,25 @@ def _load_env_file(env_path: str) -> None:
                 os.environ[key] = value
 
 
-# Load .env: uses ament_index inside ROS 2, falling back to package root for standalone tests
+# Load .env: resolves directly from workspace/source tree (keeps credentials out of install/)
 _PACKAGE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_CANDIDATE_PATHS = [
+    os.path.join(os.getcwd(), ".env"),
+    os.path.join(os.getcwd(), "src", "llm_planner", ".env"),
+    os.path.join(_PACKAGE_ROOT, ".env"),
+]
 try:
     from ament_index_python.packages import get_package_share_directory
-    _env_file = os.path.join(get_package_share_directory("llm_planner"), ".env")
+    _share_dir = get_package_share_directory("llm_planner")
+    # In standard colcon workspace: install/llm_planner/share/llm_planner -> src/llm_planner/.env
+    _CANDIDATE_PATHS.append(os.path.abspath(os.path.join(_share_dir, "../../../../src/llm_planner/.env")))
 except Exception:
-    _env_file = os.path.join(_PACKAGE_ROOT, ".env")
+    pass
 
-_load_env_file(_env_file)
+for _path in _CANDIDATE_PATHS:
+    if os.path.exists(_path):
+        _load_env_file(_path)
+        break
 
 
 def get_knowledge_base_dir() -> str:

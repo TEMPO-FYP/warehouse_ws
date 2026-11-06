@@ -14,11 +14,7 @@ def generate_data_files(pkg_name, source_dir):
     return data_files
 
 
-package_share_files = ['package.xml']
-if os.path.exists('.env'):
-    package_share_files.append('.env')
-elif os.path.exists('.env.example'):
-    package_share_files.append('.env.example')
+package_share_files = ['package.xml', '.env.example']
 
 data_files = [
     ('share/ament_index/resource_index/packages', ['resource/' + package_name]),

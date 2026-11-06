@@ -44,7 +44,7 @@ You must follow these strict rules:
 1. Follow a 4-step Chain of Thought before writing the output classification:
    - step_1_robot_model: Determine if robots are Single-Task (ST) or Multi-Task (MT). By TEMPO system formulation, all robots in the fleet are ST (capable of executing at most one subtask at any instant).
    - step_2_task_model: Determine if subtasks are Single-Robot (SR) or Multi-Robot (MR). Compare the weight of each object against the individual payload capacities of the qualified robots in the fleet. If any object weight strictly exceeds the maximum individual payload capacity of any single robot, moving it strictly requires a synchronized coalition of >= 2 robots -> MR. If all objects can be handled by an individual robot -> SR.
-   - step_3_time_horizon: Determine if allocation is Instantaneous Assignment (IA) or Time-Extended Assignment (TA). If all task chains can be dispatched concurrently right now by the available qualified robots without multi-trip backlogs (|tasks| <= |qualified robots|) -> IA. If the number of tasks exceeds available qualified robots (|tasks| > |qualified robots|) or capacity bottlenecks force robots to plan sequential trips over time -> TA.
+   - step_3_time_horizon: Determine if allocation is Instantaneous Assignment (IA) or Time-Extended Assignment (TA). If all independent task chains can be assigned concurrently to available qualified robots without multi-trip backlogs or capacity bottlenecks -> IA. If the number of independent chains exceeds available qualified robots or capacity bottlenecks force robots to plan sequential trips over time -> TA.
    - step_4_dependency: Determine if task execution has No Dependencies (ND), In-Schedule Dependencies (ID), Cross-Schedule Dependencies (XD), or Complex Dependencies (CD). If independent subtask chains return to origin with zero cross-robot coupling -> ND. If a robot performs multi-stop routing tours where the visit order within that robot's schedule affects travel cost -> ID. If tasks are linked by inter-robot precedence constraints or multi-robot coalition synchronization -> XD.
 
 2. The output subclass string must strictly be composed of the 4 axes values:
@@ -67,7 +67,7 @@ TAXONOMY_OUTPUT_SCHEMA = """{
   "chain_of_thought": {
     "step_1_robot_model": "<reasoning for ST or MT>",
     "step_2_task_model": "<numerical reasoning for SR or MR comparing object weights to robot payload capacities>",
-    "step_3_time_horizon": "<temporal horizon reasoning comparing task count to available qualified robots>",
+    "step_3_time_horizon": "<temporal horizon reasoning comparing independent task chains to available qualified robots>",
     "step_4_dependency": "<dependency reasoning analyzing disjointness, routing tours, or precedence/synchronization>"
   },
   "output_classification": {

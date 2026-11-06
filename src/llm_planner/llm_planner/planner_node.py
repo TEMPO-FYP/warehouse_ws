@@ -64,7 +64,6 @@ class LLMPlannerNode(Node):
         """Serializes and publishes the plan result to '/mission/plan'."""
         payload = {
             "status": result.status,
-            "is_success": result.is_success,
             "itax_subclass": result.itax_subclass,
             "axes": result.axes,
             "taxonomy_cot": result.taxonomy_cot,
