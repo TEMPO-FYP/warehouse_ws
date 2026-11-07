@@ -9,9 +9,11 @@ and publishes the validated plan payload to '/mission/plan' for the downstream S
 
 import json
 import rclpy
+from rclpy.action import ActionServer
 from rclpy.node import Node
 from std_msgs.msg import String
 
+from tempo_msgs.action import PlanMission
 from llm_planner.orchestrator import orchestrate_mission, MissionPlanResult
 
 
@@ -23,6 +25,14 @@ class LLMPlannerNode(Node):
 
     def __init__(self):
         super().__init__("llm_planner_node")
+
+        # Action server for interactive mission planning
+        self._action_server = ActionServer(
+            self,
+            PlanMission,
+            "plan_mission",
+            self.execute_mission_goal,
+        )
 
         # Input topic: receives natural language missions from the Instruction node
         self.sub_instruction = self.create_subscription(
@@ -41,9 +51,53 @@ class LLMPlannerNode(Node):
 
         self.get_logger().info(
             "TEMPO LLM Planner Node initialized successfully.\n"
+            "  -> Action Server:  'plan_mission' (PlanMission)\n"
             "  -> Subscribing to: '/mission/instruction'\n"
             "  -> Publishing to:  '/mission/plan'"
         )
+
+    def execute_mission_goal(self, goal_handle):
+        """Execute the 'plan_mission' action goal."""
+        instruction = goal_handle.request.mission_instruction.strip()
+        self.get_logger().info(f"Received mission instruction goal: '{instruction}'")
+
+        result = PlanMission.Result()
+
+        if not instruction:
+            result.status = "error"
+            result.reason = "Empty mission instruction received."
+            result.errors = ["Empty instruction string"]
+            goal_handle.abort()
+            return result
+
+        # Execute Stage 1 (Decomposition) & Stage 2 (Taxonomy Classification)
+        try:
+            mission_res: MissionPlanResult = orchestrate_mission(instruction)
+
+            result.status = mission_res.status
+            result.itax_subclass = mission_res.itax_subclass or ""
+            result.errors = mission_res.errors or []
+
+            if mission_res.plan and isinstance(mission_res.plan, dict):
+                result.reason = mission_res.plan.get("reason", "")
+                result.plan_json = json.dumps(mission_res.plan, indent=2)
+            else:
+                result.reason = ""
+                result.plan_json = ""
+
+            # Publish validated plan to /mission/plan for downstream solver if ok
+            if mission_res.status == "ok":
+                self._publish_plan(mission_res)
+
+            goal_handle.succeed()
+            return result
+        except Exception as e:
+            self.get_logger().error(f"Error executing mission goal: {e}")
+            result.status = "error"
+            result.reason = str(e)
+            result.errors = [str(e)]
+            goal_handle.abort()
+            return result
 
     def on_instruction_received(self, msg: String):
         """Callback triggered when an instruction is published to '/mission/instruction'."""
