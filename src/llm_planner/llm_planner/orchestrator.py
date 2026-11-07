@@ -53,6 +53,7 @@ class MissionPlanResult:
     itax_subclass: Optional[str] = None
     axes: Optional[Dict[str, str]] = None
     taxonomy_cot: Optional[Dict[str, str]] = None
+    fleet: Optional[Dict[str, Any]] = None
     decomposition_attempts: int = 1
     taxonomy_attempts: int = 1
     errors: List[str] = field(default_factory=list)
@@ -295,7 +296,12 @@ class MissionPlanner:
                 errors=decomp.errors,
             )
 
-        from llm_planner.taxonomy_classifier import classify_taxonomy
+        from llm_planner.taxonomy_classifier import (
+            classify_taxonomy,
+            load_fleet_instances,
+        )
+
+        fleet_instances = load_fleet_instances()
 
         subtasks = decomp.plan.get("subtasks", [])
         tax_result = classify_taxonomy(
@@ -317,6 +323,7 @@ class MissionPlanner:
             itax_subclass=tax_result.subclass,
             axes=tax_result.axes,
             taxonomy_cot=tax_result.chain_of_thought,
+            fleet=fleet_instances,
             decomposition_attempts=decomp.attempts,
             taxonomy_attempts=tax_result.attempts,
             errors=combined_errors,

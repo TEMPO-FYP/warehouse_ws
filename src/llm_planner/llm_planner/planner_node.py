@@ -67,6 +67,7 @@ class LLMPlannerNode(Node):
             "itax_subclass": result.itax_subclass,
             "axes": result.axes,
             "taxonomy_cot": result.taxonomy_cot,
+            "fleet": result.fleet,
             "plan": result.plan,
             "errors": result.errors,
             "attempts": {

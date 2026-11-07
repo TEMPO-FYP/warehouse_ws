@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional
 
 import rclpy
 from rclpy.node import Node
-from solver_node.fleet_loader import get_default_fleet_robots
 from solver_node.naive_solver import allocate_subtasks
 from std_msgs.msg import String
 
@@ -18,17 +17,13 @@ class SolverNode(Node):
     capable robot resources to each subtask.
     """
 
-    def __init__(self, fleet_robots: Optional[List[str]] = None):
-        """Initialize SolverNode subscriptions, publishers, and fleet."""
+    def __init__(self, default_fleet: Optional[List[str]] = None):
+        """Initialize SolverNode subscriptions and publishers."""
         super().__init__('solver_node')
 
-        self.fleet_robots = (
-            fleet_robots
-            if fleet_robots is not None
-            else get_default_fleet_robots()
-        )
+        self.default_fleet = default_fleet or []
 
-        # Input topic: receives validated plan DAG and iTax subclass from LLM planner
+        # Input topic: receives validated plan DAG, fleet, and iTax subclass
         self.sub_plan = self.create_subscription(
             String,
             '/mission/plan',
@@ -46,8 +41,7 @@ class SolverNode(Node):
         self.get_logger().info(
             'TEMPO Solver Node initialized successfully.\n'
             "  -> Subscribing to: '/mission/plan'\n"
-            "  -> Publishing to:  '/mission/assigned_plan'\n"
-            f"  -> Fleet:          {', '.join(self.fleet_robots)}"
+            "  -> Publishing to:  '/mission/assigned_plan'"
         )
 
     def on_plan_received(self, msg: String) -> None:
@@ -85,9 +79,15 @@ class SolverNode(Node):
             or 'unknown_plan'
         )
         itax_subclass = payload.get('itax_subclass', 'ND[ST-SR-IA]')
+        fleet_dict = payload.get('fleet', {})
+        fleet_robots = (
+            list(fleet_dict.keys())
+            if fleet_dict
+            else self.default_fleet
+        )
 
-        # Run allocation
-        assigned_subtasks = allocate_subtasks(subtasks, self.fleet_robots)
+        # Run allocation using fleet robots provided in mission plan
+        assigned_subtasks = allocate_subtasks(subtasks, fleet_robots)
 
         # Format assigned plan envelope for dispatcher_node
         assigned_plan_payload = {

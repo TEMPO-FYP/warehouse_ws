@@ -85,7 +85,8 @@ def test_single_chain_allocation():
 
 def test_two_chain_allocation():
     subtasks = _build_two_chain_subtasks()
-    assigned = allocate_subtasks(subtasks)
+    fleet = ['mobile_robot_1', 'mobile_robot_2']
+    assigned = allocate_subtasks(subtasks, fleet_robots=fleet)
     assert len(assigned) == 8
 
     # Chain 1 (T1-T4) allocated to mobile_robot_1
@@ -100,7 +101,8 @@ def test_two_chain_allocation():
 def test_single_task_per_wave_guarantee():
     """Verify that no robot is ever assigned more than one subtask per wave."""
     subtasks = _build_two_chain_subtasks()
-    assigned = allocate_subtasks(subtasks)
+    fleet = ['mobile_robot_1', 'mobile_robot_2']
+    assigned = allocate_subtasks(subtasks, fleet_robots=fleet)
 
     # Reconstruct DAG as dispatcher_node does
     G = nx.DiGraph()

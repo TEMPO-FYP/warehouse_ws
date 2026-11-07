@@ -21,7 +21,7 @@ class TestSolverNode(unittest.TestCase):
             rclpy.shutdown()
 
     def setUp(self):
-        self.node = SolverNode(fleet_robots=['mobile_robot_1', 'mobile_robot_2'])
+        self.node = SolverNode()
         self.node.pub_assigned_plan = MagicMock()
 
     def tearDown(self):
@@ -31,6 +31,20 @@ class TestSolverNode(unittest.TestCase):
         plan_input = {
             'status': 'ok',
             'itax_subclass': 'ND[ST-SR-IA]',
+            'fleet': {
+                'mobile_robot_1': {
+                    'robot_type': 'mobile_robot',
+                    'capabilities': ['navigation', 'manipulation'],
+                    'skills': ['navigate_to', 'pick', 'place'],
+                    'specs': {'payload_capacity_kg': 10.0, 'speed_m_s': 1.0},
+                },
+                'mobile_robot_2': {
+                    'robot_type': 'mobile_robot',
+                    'capabilities': ['navigation', 'manipulation'],
+                    'skills': ['navigate_to', 'pick', 'place'],
+                    'specs': {'payload_capacity_kg': 10.0, 'speed_m_s': 1.0},
+                },
+            },
             'plan': {
                 'plan_id': 'plan_001',
                 'status': 'ok',

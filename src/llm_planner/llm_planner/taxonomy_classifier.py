@@ -83,6 +83,55 @@ def load_default_fleet() -> Dict[str, Any]:
     return combined_fleet
 
 
+def load_fleet_instances() -> Dict[str, Any]:
+    """
+    Deterministically expands robot_fleet.json counts and robot_registry.json
+    specifications into concrete robot instance entries with skills and specs.
+    """
+    kb_dir = get_knowledge_base_dir()
+    fleet_file = os.path.join(kb_dir, "robot_fleet.json")
+    registry_file = os.path.join(kb_dir, "robot_registry.json")
+
+    fleet_counts = {}
+    if os.path.exists(fleet_file):
+        with open(fleet_file, "r", encoding="utf-8") as f:
+            fleet_counts = json.load(f).get("fleet", {})
+
+    specs_by_type = {}
+    if os.path.exists(registry_file):
+        with open(registry_file, "r", encoding="utf-8") as f:
+            robots_list = json.load(f).get("robots", [])
+            for r in robots_list:
+                rtype = r.get("robot_type")
+                if rtype:
+                    specs_by_type[rtype] = {
+                        "capabilities": r.get("capabilities", []),
+                        "skill_ids": r.get("skill_ids", []),
+                        "specs": r.get("specs", {}),
+                    }
+
+    instances = {}
+    for rtype, count in fleet_counts.items():
+        specs = specs_by_type.get(
+            rtype,
+            {
+                "capabilities": ["navigation", "manipulation"],
+                "skill_ids": ["navigate_to", "pick", "place"],
+                "specs": {"payload_capacity_kg": 10.0, "speed_m_s": 1.0},
+            },
+        )
+        for i in range(1, count + 1):
+            instance_id = f"{rtype}_{i}"
+            instances[instance_id] = {
+                "robot_type": rtype,
+                "capabilities": list(specs["capabilities"]),
+                "skills": list(specs["skill_ids"]),
+                "specs": dict(specs["specs"]),
+            }
+
+    return instances
+
+
 def infer_default_objects(subtasks: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Infers an objects specification dictionary from subtask arguments.

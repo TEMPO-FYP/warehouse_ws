@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional
 
 import networkx as nx
 
-from solver_node.fleet_loader import get_default_fleet_robots
-
 
 def allocate_subtasks(
     subtasks: List[Dict[str, Any]],
@@ -20,14 +18,14 @@ def allocate_subtasks(
     ensuring all subtasks in a sequential chain execute on the same robot.
 
     :param subtasks: List of subtask dictionaries from the LLM planner.
-    :param fleet_robots: Optional list of available robot IDs. Defaults to standard fleet.
+    :param fleet_robots: Optional list of available robot IDs.
     :return: A new list of subtask dictionaries with the 'robot' field populated.
     """
     if not subtasks:
         return []
 
-    if fleet_robots is None or len(fleet_robots) == 0:
-        fleet_robots = get_default_fleet_robots()
+    if not fleet_robots:
+        fleet_robots = ['mobile_robot_1']
 
     # Reconstruct the dependency DAG
     G = nx.DiGraph()

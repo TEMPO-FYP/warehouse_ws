@@ -213,6 +213,25 @@ class TestTaxonomyKnowledgeBase(unittest.TestCase):
             "Exemplars must cover all 7 target subclasses",
         )
 
+    def test_load_fleet_instances(self):
+        from llm_planner.taxonomy_classifier import load_fleet_instances
+
+        instances = load_fleet_instances()
+        self.assertIn("mobile_robot_1", instances)
+        self.assertIn("mobile_robot_2", instances)
+        self.assertIn("robotic_arm_1", instances)
+
+        mr1 = instances["mobile_robot_1"]
+        self.assertEqual(mr1["robot_type"], "mobile_robot")
+        self.assertIn("navigate_to", mr1["skills"])
+        self.assertIn("navigation", mr1["capabilities"])
+        self.assertEqual(mr1["specs"]["payload_capacity_kg"], 10.0)
+
+        arm = instances["robotic_arm_1"]
+        self.assertEqual(arm["robot_type"], "robotic_arm")
+        self.assertIn("manipulation", arm["capabilities"])
+        self.assertEqual(arm["specs"]["payload_capacity_kg"], 15.0)
+
 
 if __name__ == "__main__":
     unittest.main()
