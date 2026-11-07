@@ -1,0 +1,11 @@
+# Goal Definition
+string mission_instruction
+---
+# Result Definition
+string status
+string reason
+string itax_subclass
+string plan_json
+string[] errors
+---
+# Feedback Definition
