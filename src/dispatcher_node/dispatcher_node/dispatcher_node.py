@@ -24,13 +24,11 @@ Published:
 """
 
 import json
-import threading
 from typing import Any, Dict, List, Optional, Set
 
 import networkx as nx
 import rclpy
-from rclpy.callback_groups import ReentrantCallbackGroup
-from rclpy.executors import MultiThreadedExecutor
+from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import String
 
@@ -45,7 +43,7 @@ def _build_dag(subtasks: List[Dict[str, Any]]) -> nx.DiGraph:
     Edge A -> B = A must complete before B starts.
 
     The plan has already been validated upstream (orchestrator + dag_builder);
-    hence no re-validation is performed.
+    this reconstruction is purely structural, no re-validation is performed.
     """
     G = nx.DiGraph()
 
@@ -94,8 +92,8 @@ def _parse_feedback(
     """
     plan_id: Optional[str] = None
     task_id: Optional[str] = None
-    status:  Optional[str] = None
-    stage:   str            = "complete"
+    status: Optional[str] = None
+    stage: str = "complete"
 
     try:
         parsed = json.loads(raw)
@@ -110,7 +108,7 @@ def _parse_feedback(
             or parsed.get("id")
         )
         raw_status = parsed.get("status")
-        raw_stage  = parsed.get("stage")
+        raw_stage = parsed.get("stage")
 
         if raw_plan_id is not None:
             plan_id = str(raw_plan_id)
@@ -145,22 +143,18 @@ class DispatcherNode(Node):
     def __init__(self) -> None:
         super().__init__("dispatcher_node")
 
-        self._callback_group = ReentrantCallbackGroup()
-
         # Subscriptions
         self.create_subscription(
             String,
             "/mission/assigned_plan",
             self._plan_callback,
             10,
-            callback_group=self._callback_group,
         )
         self.create_subscription(
             String,
             "/mission/feedback",
             self._feedback_callback,
             10,
-            callback_group=self._callback_group,
         )
 
         # Publisher
@@ -171,14 +165,12 @@ class DispatcherNode(Node):
         )
 
         # Internal state
-        self._lock = threading.Lock()
-
-        self._active_plan_id:    Optional[str]              = None
-        self._task_map:          Dict[str, Dict[str, Any]]  = {}
-        self._waves:             List[List[str]]             = []
-        self._current_wave_idx:  int                        = 0
-        self._pending_feedback:  Set[str]                   = set()
-        self._completed_tasks:   Set[str]                   = set()
+        self._plan_id: Optional[str] = None
+        self._task_map: Dict[str, Dict[str, Any]] = {}
+        self._waves: List[List[str]] = []
+        self._current_wave_idx: int = 0
+        self._pending_feedback: Set[str] = set()
+        self._completed_tasks: Set[str] = set()
 
         self.get_logger().info(
             "DispatcherNode ready. "
@@ -189,12 +181,7 @@ class DispatcherNode(Node):
     # Plan ingestion
 
     def _plan_callback(self, msg: String) -> None:
-        """
-        Receives and parses an assigned plan from /mission/assigned_plan.
-
-        Rejects the incoming plan if another plan is still active, since the
-        dispatcher processes one mission at a time.
-        """
+        """Receives and parses an assigned plan from /mission/assigned_plan."""
         raw = msg.data.strip()
         if not raw:
             return
@@ -207,17 +194,9 @@ class DispatcherNode(Node):
             )
             return
 
-        with self._lock:
-            if self._active_plan_id is not None:
-                self.get_logger().warn(
-                    f"[plan_callback] Plan {self._active_plan_id} is still active. "
-                    "Ignoring incoming plan."
-                )
-                return
-
-        plan_id  = envelope.get("id", "unknown")
-        output   = envelope.get("output", {})
-        status   = output.get("status")
+        plan_id = envelope.get("id", "unknown")
+        output = envelope.get("output", {})
+        status = output.get("status")
         subtasks = output.get("subtasks", [])
 
         if status != "ok":
@@ -248,10 +227,9 @@ class DispatcherNode(Node):
         Initialises dispatcher state for a new plan and triggers the first wave.
 
         Builds the DAG from the subtask dependency lists and derives execution
-        waves via topological ordering. All state mutations are performed under
-        the lock before _publish_current_wave is called.
+        waves via topological ordering.
         """
-        dag   = _build_dag(subtasks)
+        dag = _build_dag(subtasks)
         waves = _build_waves(dag)
 
         self.get_logger().info(
@@ -259,13 +237,12 @@ class DispatcherNode(Node):
             f"{len(subtasks)} subtask(s) across {len(waves)} wave(s)."
         )
 
-        with self._lock:
-            self._active_plan_id   = plan_id
-            self._task_map         = {t["id"]: t for t in subtasks}
-            self._waves            = waves
-            self._current_wave_idx = 0
-            self._pending_feedback = set()
-            self._completed_tasks  = set()
+        self._plan_id = plan_id
+        self._task_map = {t["id"]: t for t in subtasks}
+        self._waves = waves
+        self._current_wave_idx = 0
+        self._pending_feedback = set()
+        self._completed_tasks = set()
 
         self._publish_current_wave()
 
@@ -277,50 +254,33 @@ class DispatcherNode(Node):
 
         Each message carries plan_id, task_id, robot, required_skills, and
         args so that robot controller nodes have everything they need.
-
-        Advances automatically if the wave is empty (should not occur with a
-        valid DAG, but handled defensively).
         """
-        with self._lock:
-            if self._active_plan_id is None:
-                return
-
-            if self._current_wave_idx >= len(self._waves):
-                self.get_logger().info(
-                    f"[publish_wave] Plan {self._active_plan_id} complete. "
-                    "All waves dispatched and acknowledged."
-                )
-                self._clear_plan()
-                return
-
-            wave       = self._waves[self._current_wave_idx]
-            wave_num   = self._current_wave_idx + 1
-            total      = len(self._waves)
-            plan_id    = self._active_plan_id
-
-            if not wave:
-                # Empty wave
-                self._current_wave_idx += 1
-
-        if not wave:
-            self._publish_current_wave()
+        if self._current_wave_idx >= len(self._waves):
+            self.get_logger().info(
+                f"[publish_wave] Plan {self._plan_id} complete. "
+                "All waves dispatched and acknowledged."
+            )
+            self._clear_plan()
             return
+
+        wave = self._waves[self._current_wave_idx]
+        wave_num = self._current_wave_idx + 1
+        total = len(self._waves)
 
         self.get_logger().info(
             f"[publish_wave] Dispatching wave {wave_num}/{total}: {wave}"
         )
 
-        with self._lock:
-            self._pending_feedback = set(wave)
+        self._pending_feedback = set(wave)
 
         for task_id in wave:
             task = self._task_map[task_id]
             payload = json.dumps({
-                "plan_id":         plan_id,
-                "task_id":         task["id"],
-                "robot":           task.get("robot", ""),
+                "plan_id": self._plan_id,
+                "task_id": task["id"],
+                "robot": task.get("robot", ""),
                 "required_skills": task.get("required_skills", []),
-                "args":            task.get("args", {}),
+                "args": task.get("args", {}),
             })
             out = String()
             out.data = payload
@@ -363,33 +323,28 @@ class DispatcherNode(Node):
         if not raw:
             return
 
-        with self._lock:
-            task_map   = self._task_map
-            plan_id    = self._active_plan_id
-
-        if plan_id is None:
+        if not self._task_map:
             self.get_logger().warn(
                 "[handle_feedback] Feedback received but no plan is active."
             )
             return
 
-        fb_plan_id, task_id, status, stage = _parse_feedback(raw, task_map)
+        fb_plan_id, task_id, status, stage = _parse_feedback(
+            raw, self._task_map
+        )
 
         # Reject feedback for a different plan
-        if fb_plan_id is not None and fb_plan_id != plan_id:
+        if fb_plan_id is not None and fb_plan_id != self._plan_id:
             self.get_logger().warn(
                 f"[handle_feedback] Ignoring feedback for plan {fb_plan_id}; "
-                f"active plan is {plan_id}."
+                f"active plan is {self._plan_id}."
             )
             return
 
         # Resolve task_id from pending set if the message omitted it
-        with self._lock:
-            pending = self._pending_feedback
-
         if task_id is None:
-            if len(pending) == 1:
-                task_id = next(iter(pending))
+            if len(self._pending_feedback) == 1:
+                task_id = next(iter(self._pending_feedback))
                 self.get_logger().warn(
                     f"[handle_feedback] Feedback had no task_id; "
                     f"inferred {task_id} from pending set."
@@ -397,7 +352,7 @@ class DispatcherNode(Node):
             else:
                 self.get_logger().warn(
                     "[handle_feedback] Could not resolve task_id from feedback. "
-                    f"Pending: {sorted(pending)}"
+                    f"Pending: {sorted(self._pending_feedback)}"
                 )
                 return
 
@@ -405,13 +360,12 @@ class DispatcherNode(Node):
         if status in {"failed", "failure", "error", "rejected"}:
             self.get_logger().error(
                 f"[handle_feedback] Task {task_id} reported '{status}'. "
-                f"Aborting plan {plan_id}."
+                f"Aborting plan {self._plan_id}."
             )
-            with self._lock:
-                self._clear_plan()
+            self._clear_plan()
             return
 
-        # Intermediate stage, log and wait
+        # Intermediate stage
         if stage != "complete":
             self.get_logger().info(
                 f"[handle_feedback] Task {task_id}: stage={stage}, status={status} "
@@ -420,47 +374,42 @@ class DispatcherNode(Node):
             return
 
         # Duplicate feedback guard
-        with self._lock:
-            if task_id in self._completed_tasks:
-                self.get_logger().info(
-                    f"[handle_feedback] Duplicate feedback for {task_id}; ignoring."
-                )
-                return
+        if task_id in self._completed_tasks:
+            self.get_logger().info(
+                f"[handle_feedback] Duplicate feedback for {task_id}; ignoring."
+            )
+            return
 
-            if task_id not in self._pending_feedback:
-                self.get_logger().warn(
-                    f"[handle_feedback] Feedback for {task_id} not in current wave. "
-                    f"Pending: {sorted(self._pending_feedback)}"
-                )
-                return
+        if task_id not in self._pending_feedback:
+            self.get_logger().warn(
+                f"[handle_feedback] Feedback for {task_id} not in current wave. "
+                f"Pending: {sorted(self._pending_feedback)}"
+            )
+            return
 
-            self._pending_feedback.discard(task_id)
-            self._completed_tasks.add(task_id)
-            remaining = set(self._pending_feedback)
+        self._pending_feedback.discard(task_id)
+        self._completed_tasks.add(task_id)
 
         self.get_logger().info(
             f"[handle_feedback] Task {task_id} complete. "
-            f"Remaining in wave: {sorted(remaining)}"
+            f"Remaining in wave: {sorted(self._pending_feedback)}"
         )
 
         # Advance to next wave when current wave is fully acknowledged
-        if not remaining:
-            with self._lock:
-                self._current_wave_idx += 1
+        if not self._pending_feedback:
+            self._current_wave_idx += 1
             self._publish_current_wave()
 
     # State reset
 
     def _clear_plan(self) -> None:
-        """
-        Resets all dispatcher state after a plan completes or is aborted.
-        """
-        self._active_plan_id   = None
-        self._task_map         = {}
-        self._waves            = []
+        """Resets all dispatcher state after a plan completes or is aborted."""
+        self._plan_id = None
+        self._task_map = {}
+        self._waves = []
         self._current_wave_idx = 0
         self._pending_feedback = set()
-        self._completed_tasks  = set()
+        self._completed_tasks = set()
         self.get_logger().info("[clear_plan] Dispatcher state reset.")
 
 
@@ -469,7 +418,7 @@ class DispatcherNode(Node):
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = DispatcherNode()
-    executor = MultiThreadedExecutor()
+    executor = SingleThreadedExecutor()
     executor.add_node(node)
     try:
         executor.spin()

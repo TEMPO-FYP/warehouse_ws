@@ -11,7 +11,7 @@ setup(
          [f"resource/{package_name}"]),
         (f"share/{package_name}", ["package.xml"]),
     ],
-    install_requires=["setuptools"],
+    install_requires=["setuptools", 'networkx'],
     zip_safe=True,
     maintainer="Abdullah Shaikh",
     maintainer_email="abdullahshheikh2@gmail.com",
