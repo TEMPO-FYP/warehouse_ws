@@ -93,7 +93,8 @@ def main():
                 continue
 
             # Fallback for unexpected error status
-            print(f'\n[Mission Error]: Status {result.status}. Reason: {result.reason}')
+            details = result.reason or ', '.join(result.errors) or 'Unknown error'
+            print(f'\n[Mission Error]: Status {result.status}. {details}')
             break
     finally:
         node.destroy_node()
