@@ -9,6 +9,7 @@ accompanied by automated consistency validation and retry handling.
 
 from dataclasses import dataclass, field
 import json
+import logging
 import os
 import sys
 from typing import Any, Dict, List, Optional
@@ -33,6 +34,8 @@ from llm_planner.taxonomy_validator import validate_taxonomy_classification
 
 DEFAULT_MODEL = GEMINI_MODEL if LLM_PROVIDER == "gemini" else GROQ_MODEL
 
+logger = logging.getLogger(__name__)
+
 
 def load_default_fleet() -> Dict[str, Any]:
     """
@@ -45,23 +48,39 @@ def load_default_fleet() -> Dict[str, Any]:
 
     fleet_counts = {}
     if os.path.exists(fleet_file):
-        with open(fleet_file, "r", encoding="utf-8") as f:
-            fleet_counts = json.load(f).get("fleet", {})
+        try:
+            with open(fleet_file, "r", encoding="utf-8") as f:
+                fleet_counts = json.load(f).get("fleet", {})
+        except Exception as exc:
+            logger.error(f"Failed to read fleet file '{fleet_file}': {exc}")
+    else:
+        logger.error(f"Fleet file does not exist: {fleet_file}")
+
+    if not fleet_counts:
+        logger.error(f"Fleet specification loaded as empty from: {fleet_file}")
 
     specs_by_type = {}
     if os.path.exists(registry_file):
-        with open(registry_file, "r", encoding="utf-8") as f:
-            robots_list = json.load(f).get("robots", [])
-            for r in robots_list:
-                rtype = r.get("robot_type")
-                if rtype:
-                    specs_by_type[rtype] = {
-                        "payload_capacity_kg": r.get("specs", {}).get(
-                            "payload_capacity_kg", 10.0
-                        ),
-                        "speed_m_s": r.get("specs", {}).get("speed_m_s", 1.0),
-                        "capabilities": r.get("capabilities", []),
-                    }
+        try:
+            with open(registry_file, "r", encoding="utf-8") as f:
+                robots_list = json.load(f).get("robots", [])
+                for r in robots_list:
+                    rtype = r.get("robot_type")
+                    if rtype:
+                        specs_by_type[rtype] = {
+                            "payload_capacity_kg": r.get("specs", {}).get(
+                                "payload_capacity_kg", 10.0
+                            ),
+                            "speed_m_s": r.get("specs", {}).get("speed_m_s", 1.0),
+                            "capabilities": r.get("capabilities", []),
+                        }
+        except Exception as exc:
+            logger.error(f"Failed to read registry file '{registry_file}': {exc}")
+    else:
+        logger.error(f"Registry file does not exist: {registry_file}")
+
+    if not specs_by_type:
+        logger.error(f"Robot registry loaded as empty from: {registry_file}")
 
     combined_fleet = {}
     for rtype, count in fleet_counts.items():
@@ -94,21 +113,37 @@ def load_fleet_instances() -> Dict[str, Any]:
 
     fleet_counts = {}
     if os.path.exists(fleet_file):
-        with open(fleet_file, "r", encoding="utf-8") as f:
-            fleet_counts = json.load(f).get("fleet", {})
+        try:
+            with open(fleet_file, "r", encoding="utf-8") as f:
+                fleet_counts = json.load(f).get("fleet", {})
+        except Exception as exc:
+            logger.error(f"Failed to read fleet file '{fleet_file}': {exc}")
+    else:
+        logger.error(f"Fleet file does not exist: {fleet_file}")
+
+    if not fleet_counts:
+        logger.error(f"Fleet specification loaded as empty from: {fleet_file}")
 
     specs_by_type = {}
     if os.path.exists(registry_file):
-        with open(registry_file, "r", encoding="utf-8") as f:
-            robots_list = json.load(f).get("robots", [])
-            for r in robots_list:
-                rtype = r.get("robot_type")
-                if rtype:
-                    specs_by_type[rtype] = {
-                        "capabilities": r.get("capabilities", []),
-                        "skill_ids": r.get("skill_ids", []),
-                        "specs": r.get("specs", {}),
-                    }
+        try:
+            with open(registry_file, "r", encoding="utf-8") as f:
+                robots_list = json.load(f).get("robots", [])
+                for r in robots_list:
+                    rtype = r.get("robot_type")
+                    if rtype:
+                        specs_by_type[rtype] = {
+                            "capabilities": r.get("capabilities", []),
+                            "skill_ids": r.get("skill_ids", []),
+                            "specs": r.get("specs", {}),
+                        }
+        except Exception as exc:
+            logger.error(f"Failed to read registry file '{registry_file}': {exc}")
+    else:
+        logger.error(f"Registry file does not exist: {registry_file}")
+
+    if not specs_by_type:
+        logger.error(f"Robot registry loaded as empty from: {registry_file}")
 
     instances = {}
     for rtype, count in fleet_counts.items():
