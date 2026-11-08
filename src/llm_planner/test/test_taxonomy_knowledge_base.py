@@ -213,6 +213,59 @@ class TestTaxonomyKnowledgeBase(unittest.TestCase):
             "Exemplars must cover all 7 target subclasses",
         )
 
+    def test_load_fleet_instances(self):
+        from llm_planner.taxonomy_classifier import load_fleet_instances
+
+        instances = load_fleet_instances()
+        self.assertIn("mobile_robot_1", instances)
+        self.assertIn("mobile_robot_2", instances)
+        self.assertIn("robotic_arm_1", instances)
+
+        mr1 = instances["mobile_robot_1"]
+        self.assertEqual(mr1["robot_type"], "mobile_robot")
+        self.assertIn("navigate_to", mr1["skills"])
+        self.assertIn("navigation", mr1["capabilities"])
+        self.assertEqual(mr1["specs"]["payload_capacity_kg"], 10.0)
+
+        arm = instances["robotic_arm_1"]
+        self.assertEqual(arm["robot_type"], "robotic_arm")
+        self.assertIn("manipulation", arm["capabilities"])
+        self.assertEqual(arm["specs"]["payload_capacity_kg"], 15.0)
+
+    def test_load_fleet_instances_empty_files_log_errors(self):
+        from unittest.mock import patch
+        import tempfile
+        from llm_planner.taxonomy_classifier import load_fleet_instances, logger
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with patch("llm_planner.taxonomy_classifier.get_knowledge_base_dir", return_value=tmp_dir):
+                with patch.object(logger, "error") as mock_err:
+                    instances = load_fleet_instances()
+                    self.assertEqual(instances, {})
+                    self.assertTrue(mock_err.called)
+                    logged = [call[0][0] for call in mock_err.call_args_list]
+                    self.assertTrue(any("Fleet file does not exist" in m or "empty" in m for m in logged))
+                    self.assertTrue(any("Registry file does not exist" in m or "empty" in m for m in logged))
+
+    def test_load_default_fleet_empty_files_log_errors(self):
+        from unittest.mock import patch
+        import tempfile
+        from llm_planner.taxonomy_classifier import load_default_fleet, logger
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            fleet_file = Path(tmp_dir) / "robot_fleet.json"
+            registry_file = Path(tmp_dir) / "robot_registry.json"
+            fleet_file.write_text(json.dumps({}))
+            registry_file.write_text(json.dumps({}))
+
+            with patch("llm_planner.taxonomy_classifier.get_knowledge_base_dir", return_value=tmp_dir):
+                with patch.object(logger, "error") as mock_err:
+                    fleet = load_default_fleet()
+                    self.assertEqual(fleet, {})
+                    self.assertTrue(mock_err.called)
+                    logged = [call[0][0] for call in mock_err.call_args_list]
+                    self.assertTrue(any("empty" in m for m in logged))
+
 
 if __name__ == "__main__":
     unittest.main()

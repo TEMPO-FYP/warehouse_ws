@@ -97,15 +97,16 @@ class LLMPlannerNode(Node):
     def _publish_plan(self, result: MissionPlanResult):
         """Serialize and publish the plan result to '/mission/plan'."""
         payload = {
-            'status': result.status,
-            'itax_subclass': result.itax_subclass,
-            'axes': result.axes,
-            'taxonomy_cot': result.taxonomy_cot,
-            'plan': result.plan,
-            'errors': result.errors,
-            'attempts': {
-                'decomposition': result.decomposition_attempts,
-                'taxonomy': result.taxonomy_attempts,
+            "status": result.status,
+            "itax_subclass": result.itax_subclass,
+            "axes": result.axes,
+            "taxonomy_cot": result.taxonomy_cot,
+            "fleet": result.fleet,
+            "plan": result.plan,
+            "errors": result.errors,
+            "attempts": {
+                "decomposition": result.decomposition_attempts,
+                "taxonomy": result.taxonomy_attempts,
             },
         }
 
