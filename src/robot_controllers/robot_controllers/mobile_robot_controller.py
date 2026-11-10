@@ -290,12 +290,6 @@ class MobileRobotController(Node):
                 f"[handle_subtask] Subtask {task_id} is assigned to '{robot}' "
                 f"which is not a '{ROBOT_TYPE}', ignoring."
             )
-            self._publish_feedback(
-                            plan_id, task_id, robot,
-                            status="failed",
-                            stage="config_error",
-                            detail=f"Unknown robot type: {robot}",
-            )
             return
 
         # Check robot instance is known
