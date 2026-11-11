@@ -107,8 +107,12 @@ class TestSceneGraphNavigator(unittest.TestCase):
         self.assertIn("small_box_001_1", valid_objs)
         self.assertIn("small_box_001_1", valid_locs)
         self.assertIn("Picking_Shelves.001", valid_locs)
+        self.assertIn("aisle_1", valid_locs)
         # Shelves in collapsed aisles (e.g. aisle_2 -> Picking_Shelves.014) must NOT be exposed
         self.assertNotIn("Picking_Shelves.014", valid_locs)
+        # Collapsed aisles and zones must NOT be in valid_locations
+        self.assertNotIn("aisle_2", valid_locs)
+        self.assertNotIn("staging_area", valid_locs)
         self.assertIn("Packing_Station", valid_locs)
         self.assertIn("packing_zone", valid_locs)
         self.assertIn("picking_zone", valid_locs)
@@ -193,6 +197,60 @@ class TestSceneGraphGrounder(unittest.TestCase):
         objs = extract_objects_dict(mock_result, subtasks)
         self.assertEqual(objs["small_box_001_1"]["weight_kg"], 2.0)
         self.assertEqual(objs["Pallet_Standard"]["weight_kg"], 25.0)
+
+        # Missing object should raise KeyError cleanly (no fallback)
+        missing_subtask = [{"id": "T3", "args": {"object": "non_existent_box"}}]
+        with self.assertRaises(KeyError):
+            extract_objects_dict(mock_result, missing_subtask)
+
+    @patch("llm_planner.scene_graph_grounder.call_llm_chat")
+    def test_ground_mission_retry_on_malformed_shape(self, mock_call_llm):
+        """Tests that malformed JSON shape (e.g. nodes: null) triggers corrective feedback and recovers."""
+        # Turn 1: Malformed nodes (null instead of list)
+        turn_1_resp = json.dumps({
+            "action": "expand",
+            "nodes": None,
+            "reasoning": "Need to check picking zone",
+        })
+        # Turn 2: Valid expand
+        turn_2_resp = json.dumps({
+            "action": "expand",
+            "nodes": ["picking_zone", "Packing_Station"],
+            "reasoning": "Need to check picking zone and packing station",
+        })
+        # Turn 3: Done
+        turn_3_resp = json.dumps({
+            "action": "done",
+            "nodes": [],
+            "reasoning": "Located entities",
+        })
+
+        mock_call_llm.side_effect = [turn_1_resp, turn_2_resp, turn_3_resp]
+
+        grounder = SceneGraphGrounder(client=MagicMock(), max_turns=6)
+        result = grounder.ground_mission("Move a box.")
+        self.assertIn("picking_zone", result.expanded_nodes)
+        self.assertEqual(result.turns_used, 3)
+
+    @patch("llm_planner.scene_graph_grounder.call_llm_chat")
+    def test_ground_mission_retry_on_unrecognized_action(self, mock_call_llm):
+        """Tests that unrecognized action triggers corrective retry feedback and recovers."""
+        turn_1_resp = json.dumps({
+            "action": "fly_to",
+            "nodes": ["picking_zone"],
+            "reasoning": "invalid action",
+        })
+        turn_2_resp = json.dumps({
+            "action": "done",
+            "nodes": [],
+            "reasoning": "done now",
+        })
+
+        mock_call_llm.side_effect = [turn_1_resp, turn_2_resp]
+
+        grounder = SceneGraphGrounder(client=MagicMock(), max_turns=6)
+        result = grounder.ground_mission("Move a box.")
+        self.assertEqual(result.turns_used, 2)
 
 
 class TestDAGValidatorCheck6(unittest.TestCase):

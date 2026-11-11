@@ -35,9 +35,9 @@ class DecompositionResult:
     """Encapsulates the result of a mission decomposition attempt."""
 
     status: str
+    grounded_scene: GroundedSceneResult
     plan: Optional[Dict[str, Any]] = None
     dag: Optional[nx.DiGraph] = None
-    grounded_scene: Optional[GroundedSceneResult] = None
     errors: List[str] = field(default_factory=list)
     attempts: int = 1
     raw_response: str = ""
@@ -54,9 +54,9 @@ class MissionPlanResult:
     """Encapsulates the unified end-to-end mission planning and taxonomy classification result."""
 
     status: str
+    grounded_scene: GroundedSceneResult
     plan: Optional[Dict[str, Any]] = None
     dag: Optional[nx.DiGraph] = None
-    grounded_scene: Optional[GroundedSceneResult] = None
     itax_subclass: Optional[str] = None
     axes: Optional[Dict[str, str]] = None
     taxonomy_cot: Optional[Dict[str, str]] = None
@@ -126,23 +126,17 @@ class MissionPlanner:
         )
         self.max_retries = max_retries
 
-    def plan_mission(
+    def _decompose(
         self,
         instruction: str,
-        environment: Optional[str] = None,
-        grounded_scene: Optional[GroundedSceneResult] = None,
+        grounded_scene: GroundedSceneResult,
     ) -> DecompositionResult:
         """
-        Decomposes a natural language mission instruction into an atomic task DAG
-        with automated validation and error-correcting retries.
+        Internal Stage 1 method: decomposes natural language instruction into an atomic task DAG
+        using the mandatory grounded scene graph environment and entities.
         """
-        # Step 0: Semantic grounding against the 3D Scene Graph
-        active_grounded = grounded_scene
-        if active_grounded is None:
-            active_grounded = self.grounder.ground_mission(instruction)
-
-        env_str = environment if environment else active_grounded.environment_prompt
-        grounded_entities = active_grounded.valid_entities
+        env_str = grounded_scene.environment_prompt
+        grounded_entities = grounded_scene.valid_entities
 
         # Step 1: RAG context retrieval and initial prompt assembly
         user_prompt, plan_id = prepare_prompt(
@@ -219,9 +213,9 @@ class MissionPlanner:
                 print(f"[Orchestrator] Mission categorized as '{status}': {plan.get('reason')}")
                 return DecompositionResult(
                     status=status,
+                    grounded_scene=grounded_scene,
                     plan=plan,
                     dag=None,
-                    grounded_scene=active_grounded,
                     errors=[],
                     attempts=attempt,
                     raw_response=raw_response,
@@ -259,9 +253,9 @@ class MissionPlanner:
                 )
                 return DecompositionResult(
                     status="ok",
+                    grounded_scene=grounded_scene,
                     plan=plan,
                     dag=dag,
-                    grounded_scene=active_grounded,
                     errors=[],
                     attempts=attempt,
                     raw_response=raw_response,
@@ -278,14 +272,25 @@ class MissionPlanner:
         print(f"[Orchestrator] Planning failed after {self.max_retries} attempts.")
         return DecompositionResult(
             status="failed_validation",
+            grounded_scene=grounded_scene,
             plan=last_plan,
             dag=last_dag,
-            grounded_scene=active_grounded,
             errors=last_errors,
             attempts=self.max_retries,
             raw_response=last_raw_response,
             plan_id=plan_id,
         )
+
+    def plan_mission(
+        self,
+        instruction: str,
+    ) -> DecompositionResult:
+        """
+        Decomposes a natural language mission instruction into an atomic task DAG
+        with mandatory Stage 0 3D Scene Graph semantic grounding.
+        """
+        grounded_scene = self.grounder.ground_mission(instruction)
+        return self._decompose(instruction, grounded_scene)
 
     def _append_retry_feedback(
         self, messages: List[Dict[str, str]], raw_response: str, errors: List[str]
@@ -303,35 +308,28 @@ class MissionPlanner:
     def plan_and_classify(
         self,
         instruction: str,
-        environment: Optional[str] = None,
         fleet: Optional[Dict[str, Any]] = None,
-        objects: Optional[Dict[str, Any]] = None,
-        grounded_scene: Optional[GroundedSceneResult] = None,
     ) -> MissionPlanResult:
         """
         Executes unified end-to-end mission planning:
-        1. Stage 0: Ground mission against 3D Scene Graph (if not passed).
+        1. Stage 0: Ground mission against 3D Scene Graph.
         2. Stage 1: Decomposes natural language instruction into a validated subtask DAG.
         3. Stage 2: Classifies the validated mission into an iTax subclass using exact object weights.
         """
-        active_grounded = grounded_scene
-        if active_grounded is None:
-            active_grounded = self.grounder.ground_mission(instruction)
+        grounded_scene = self.grounder.ground_mission(instruction)
+        decomp = self._decompose(instruction, grounded_scene)
 
-        decomp = self.plan_mission(
-            instruction, environment=environment, grounded_scene=active_grounded
-        )
         if not decomp.is_success or decomp.status != "ok":
             return MissionPlanResult(
                 status=decomp.status,
+                grounded_scene=decomp.grounded_scene,
                 plan=decomp.plan,
                 dag=None,
-                grounded_scene=decomp.grounded_scene,
                 itax_subclass=None,
                 axes=None,
                 taxonomy_cot=None,
                 fleet=None,
-                grounding_attempts=active_grounded.turns_used,
+                grounding_attempts=grounded_scene.turns_used,
                 decomposition_attempts=decomp.attempts,
                 taxonomy_attempts=0,
                 errors=decomp.errors,
@@ -343,16 +341,13 @@ class MissionPlanner:
         )
 
         fleet_instances = load_fleet_instances()
-
         subtasks = decomp.plan.get("subtasks", [])
-        active_objects = objects
-        if active_objects is None and decomp.grounded_scene is not None:
-            active_objects = extract_objects_dict(decomp.grounded_scene, subtasks)
+        active_objects = extract_objects_dict(grounded_scene, subtasks)
 
         tax_result = classify_taxonomy(
             subtasks,
-            fleet=fleet,
             objects=active_objects,
+            fleet=fleet,
             client=self.client,
             model=self.model,
             max_retries=self.max_retries,
@@ -363,14 +358,14 @@ class MissionPlanner:
 
         return MissionPlanResult(
             status=status,
+            grounded_scene=decomp.grounded_scene,
             plan=decomp.plan,
             dag=decomp.dag,
-            grounded_scene=decomp.grounded_scene,
             itax_subclass=tax_result.subclass,
             axes=tax_result.axes,
             taxonomy_cot=tax_result.chain_of_thought,
             fleet=fleet_instances,
-            grounding_attempts=active_grounded.turns_used,
+            grounding_attempts=grounded_scene.turns_used,
             decomposition_attempts=decomp.attempts,
             taxonomy_attempts=tax_result.attempts,
             errors=combined_errors,
@@ -383,26 +378,19 @@ _default_planner: Optional[MissionPlanner] = None
 
 def decompose_mission(
     instruction: str,
-    environment: Optional[str] = None,
-    grounded_scene: Optional[GroundedSceneResult] = None,
 ) -> DecompositionResult:
     """
-    Stage 1: Decomposes a mission instruction into an atomic DAG.
+    Stage 1: Decomposes a mission instruction into an atomic DAG with mandatory Stage 0 grounding.
     """
     global _default_planner
     if _default_planner is None:
         _default_planner = MissionPlanner()
-    return _default_planner.plan_mission(
-        instruction, environment=environment, grounded_scene=grounded_scene
-    )
+    return _default_planner.plan_mission(instruction)
 
 
 def orchestrate_mission(
     instruction: str,
-    environment: Optional[str] = None,
     fleet: Optional[Dict[str, Any]] = None,
-    objects: Optional[Dict[str, Any]] = None,
-    grounded_scene: Optional[GroundedSceneResult] = None,
 ) -> MissionPlanResult:
     """
     Unified Pipeline (Stage 0 + Stage 1 + Stage 2):
@@ -411,20 +399,14 @@ def orchestrate_mission(
     global _default_planner
     if _default_planner is None:
         _default_planner = MissionPlanner()
-    return _default_planner.plan_and_classify(
-        instruction,
-        environment=environment,
-        fleet=fleet,
-        objects=objects,
-        grounded_scene=grounded_scene,
-    )
+    return _default_planner.plan_and_classify(instruction, fleet=fleet)
 
 
 if __name__ == "__main__":
     query_mission = (
         sys.argv[1]
         if len(sys.argv) > 1
-        else "Retrieve the red box from shelf A and deliver it to origin."
+        else "Pick up a small box from aisle 1 in the picking zone and place it at a packing station."
     )
 
     print(f"\n==========================================")

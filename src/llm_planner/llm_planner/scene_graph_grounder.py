@@ -349,10 +349,13 @@ class SceneGraphNavigator:
         valid_locations: Set[str] = set()
         objects_metadata: Dict[str, Dict[str, Any]] = {}
 
-        # All zones and aisles are valid location referents
-        for zid in self.zones_dict:
+        # Only active zones and expanded aisles are valid location referents
+        active_zones = (
+            self.expanded_zones if self.expanded_zones else set(self.zones_dict.keys())
+        )
+        for zid in active_zones:
             valid_locations.add(zid)
-        for aid in self.aisle_to_zone:
+        for aid in self.expanded_aisles:
             valid_locations.add(aid)
 
         # Fixtures in expanded zones (zone-level fixtures) or expanded aisles (aisle-level fixtures)
@@ -422,6 +425,16 @@ class SceneGraphNavigator:
             lines.append(
                 f"   - Zone '{zid}' (Centroid: {zdata.get('centroid')}, Description: {zdata.get('description')})"
             )
+
+        if self.expanded_aisles:
+            lines.append("")
+            lines.append("1b. Grounded Aisles:")
+            for aid in sorted(self.expanded_aisles):
+                p_zone = self.aisle_to_zone.get(aid, "picking_zone")
+                adata = self.zones_dict.get(p_zone, {}).get("aisles", {}).get(aid, {})
+                lines.append(
+                    f"   - Aisle '{aid}' (Zone: '{p_zone}', Centroid: {adata.get('centroid')}, Description: {adata.get('description')})"
+                )
 
         lines.append("")
         lines.append("2. Grounded Fixtures (Locations):")
@@ -537,10 +550,20 @@ class SceneGraphGrounder:
         navigator = SceneGraphNavigator(self.scene_graph)
 
         print(f"[Stage 0 Grounder] Starting semantic grounding for instruction: '{instruction}'")
+        retry_feedback: Optional[str] = None
 
-        for turn in range(1, self.max_turns + 1):
+        turn = 0
+        while turn < self.max_turns:
+            turn += 1
             scene_view = navigator.render_scene_view()
             memory_trace = navigator.render_memory_trace()
+
+            feedback_block = ""
+            if retry_feedback:
+                feedback_block = (
+                    f"\n\nPREVIOUS ATTEMPT FAILED WITH ERROR:\n{retry_feedback}\n"
+                    "Please correct your action and output strictly valid JSON adhering to the schema."
+                )
 
             user_prompt = f"""Instruction to ground:
 "{instruction}"
@@ -548,7 +571,7 @@ class SceneGraphGrounder:
 {memory_trace}
 
 Current 3D Scene Graph State:
-{scene_view}
+{scene_view}{feedback_block}
 
 Choose your next action ("expand", "collapse", or "done"). Output ONLY raw JSON:"""
 
@@ -564,48 +587,58 @@ Choose your next action ("expand", "collapse", or "done"). Output ONLY raw JSON:
             try:
                 action_data = json.loads(clean_json)
             except json.JSONDecodeError as exc:
-                logger.warning(
-                    f"[Stage 0 Grounder] Malformed JSON on turn {turn}: {exc.msg}. Raw: {raw_response}"
-                )
+                err_msg = f"JSON_DECODE_ERROR: Model output was not valid JSON ({exc.msg} at line {exc.lineno}, col {exc.colno})."
+                logger.warning(f"[Stage 0 Grounder] {err_msg}")
+                retry_feedback = err_msg
                 continue
 
-            action = action_data.get("action", "").lower().strip()
-            reasoning = action_data.get("reasoning", "")
+            if not isinstance(action_data, dict):
+                err_msg = f"INVALID_ROOT_TYPE: Expected JSON object at root with keys 'action', 'nodes', 'reasoning', got {type(action_data).__name__}."
+                logger.warning(f"[Stage 0 Grounder] {err_msg}")
+                retry_feedback = err_msg
+                continue
+
+            raw_action = action_data.get("action")
+            if not isinstance(raw_action, str):
+                err_msg = f"INVALID_ACTION: 'action' field must be a string ('expand', 'collapse', or 'done'), got {raw_action}."
+                logger.warning(f"[Stage 0 Grounder] {err_msg}")
+                retry_feedback = err_msg
+                continue
+
+            action = raw_action.lower().strip()
+            reasoning = str(action_data.get("reasoning") or "")
+
             raw_nodes = action_data.get("nodes", [])
             if "node" in action_data and not raw_nodes:
                 raw_nodes = [action_data["node"]]
             if isinstance(raw_nodes, str):
                 raw_nodes = [raw_nodes]
+            elif raw_nodes is None:
+                raw_nodes = []
+            elif not isinstance(raw_nodes, list):
+                raw_nodes = []
 
             nodes = [str(n).strip() for n in raw_nodes if str(n).strip()]
 
+            if action not in ("expand", "collapse", "done"):
+                err_msg = f"UNRECOGNIZED_ACTION: 'action' must be 'expand', 'collapse', or 'done', got '{action}'."
+                logger.warning(f"[Stage 0 Grounder] {err_msg}")
+                retry_feedback = err_msg
+                continue
+
+            if action in ("expand", "collapse") and not nodes:
+                err_msg = f"MISSING_NODES: Action '{action}' requires a non-empty list of node IDs in 'nodes'."
+                logger.warning(f"[Stage 0 Grounder] {err_msg}")
+                retry_feedback = err_msg
+                continue
+
+            retry_feedback = None
             print(
                 f"[Stage 0 Grounder] Turn {turn}: action='{action}', nodes={nodes}, reasoning='{reasoning}'"
             )
             navigator.record_action(turn, action, nodes, reasoning)
 
             if action == "done":
-                # Safeguard: if any aisle was expanded to find shelf objects, ensure at least
-                # one shelf fixture in each expanded aisle is expanded so concrete object IDs are exposed.
-                for exp_aisle in list(navigator.expanded_aisles):
-                    p_zone = navigator.aisle_to_zone.get(exp_aisle)
-                    if not p_zone:
-                        continue
-                    aisle_fixtures = list(
-                        navigator.zones_dict[p_zone]
-                        .get("aisles", {})
-                        .get(exp_aisle, {})
-                        .get("fixtures", {})
-                        .keys()
-                    )
-                    if aisle_fixtures and not any(
-                        f in navigator.expanded_fixtures for f in aisle_fixtures
-                    ):
-                        auto_fix = aisle_fixtures[0]
-                        navigator.expand([auto_fix])
-                        print(
-                            f"[Stage 0 Grounder] Auto-expanded first fixture '{auto_fix}' in '{exp_aisle}' to expose child object IDs."
-                        )
                 print(f"[Stage 0 Grounder] Semantic grounding completed in {turn} turns.")
                 break
             elif action == "expand":
@@ -614,8 +647,28 @@ Choose your next action ("expand", "collapse", or "done"). Output ONLY raw JSON:
             elif action == "collapse":
                 collapsed = navigator.collapse(nodes)
                 print(f"[Stage 0 Grounder] Collapsed: {collapsed}")
-            else:
-                logger.warning(f"[Stage 0 Grounder] Unrecognized action '{action}' on turn {turn}.")
+
+        # Safeguard: if any aisle was expanded to find shelf objects, ensure at least
+        # one shelf fixture in each expanded aisle is expanded so concrete object IDs are exposed.
+        for exp_aisle in list(navigator.expanded_aisles):
+            p_zone = navigator.aisle_to_zone.get(exp_aisle)
+            if not p_zone:
+                continue
+            aisle_fixtures = list(
+                navigator.zones_dict[p_zone]
+                .get("aisles", {})
+                .get(exp_aisle, {})
+                .get("fixtures", {})
+                .keys()
+            )
+            if aisle_fixtures and not any(
+                f in navigator.expanded_fixtures for f in aisle_fixtures
+            ):
+                auto_fix = aisle_fixtures[0]
+                navigator.expand([auto_fix])
+                print(
+                    f"[Stage 0 Grounder] Auto-expanded first fixture '{auto_fix}' in '{exp_aisle}' to expose child object IDs."
+                )
 
         valid_objs, valid_locs, objs_meta = navigator.get_grounded_entities()
         env_prompt = navigator.format_grounded_environment()

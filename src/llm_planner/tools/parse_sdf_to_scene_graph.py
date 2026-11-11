@@ -427,40 +427,56 @@ def build_scene_graph(
 
 
 def main():
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    ws_root = os.path.abspath(os.path.join(tools_dir, "..", "..", ".."))
+
     parser = argparse.ArgumentParser(
         description="Parse warehouse SDF to a hierarchical 3D Scene Graph JSON"
     )
     parser.add_argument(
         "--sdf",
-        default="warehouse_ws/src/warehouse_sim/worlds/warehouse.sdf",
+        default="src/warehouse_sim/worlds/warehouse.sdf",
         help="Path to warehouse.sdf",
     )
     parser.add_argument(
         "--zones",
-        default="warehouse_ws/src/llm_planner/knowledge_base/zone_config.json",
+        default="src/llm_planner/tools/zone_config.json",
         help="Path to zone_config.json",
     )
     parser.add_argument(
         "--weights",
-        default="warehouse_ws/src/llm_planner/knowledge_base/model_weights.json",
+        default="src/llm_planner/tools/model_weights.json",
         help="Path to model_weights.json",
     )
     parser.add_argument(
         "--output",
-        default="warehouse_ws/src/llm_planner/knowledge_base/warehouse_scene_graph.json",
+        default="src/llm_planner/knowledge_base/warehouse_scene_graph.json",
         help="Path to output warehouse_scene_graph.json",
     )
 
     args = parser.parse_args()
 
-    print(f"Parsing SDF:   {args.sdf}")
-    print(f"Using zones:   {args.zones}")
-    print(f"Using weights: {args.weights}")
+    def resolve_path(p: str) -> str:
+        if os.path.exists(p):
+            return p
+        ws_path = os.path.join(ws_root, p)
+        if os.path.exists(ws_path):
+            return ws_path
+        return p
 
-    sg = build_scene_graph(args.sdf, args.zones, args.weights)
+    sdf_path = resolve_path(args.sdf)
+    zones_path = resolve_path(args.zones)
+    weights_path = resolve_path(args.weights)
+    output_path = resolve_path(args.output)
 
-    os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
-    with open(args.output, "w", encoding="utf-8") as f:
+    print(f"Parsing SDF:   {sdf_path}")
+    print(f"Using zones:   {zones_path}")
+    print(f"Using weights: {weights_path}")
+
+    sg = build_scene_graph(sdf_path, zones_path, weights_path)
+
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(sg, f, indent=2)
 
     wh = sg["warehouse"]

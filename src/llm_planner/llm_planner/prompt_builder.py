@@ -6,7 +6,7 @@ mission planner.
 
 Follows DART-LLM's P = (I, E, S, F) prompt structure:
   I = instruction
-  E = environment (TODO: replace placeholder once environment module is ready)
+  E = environment (grounded 3D Scene Graph context from Stage 0)
   S = skills (retrieved from skill_retriever)
   F = few-shot examples (retrieved from few_shot_retriever)
 """
@@ -154,7 +154,11 @@ def build_prompt(
     few_shot_block : formatted examples from format_examples_for_prompt().
     environment    : grounded 3D Scene Graph environment context.
     """
-    env_section = environment.strip() if environment else "None"
+    if not environment or not environment.strip():
+        raise ValueError(
+            "Grounded 3D Scene Graph environment context is required and cannot be empty."
+        )
+    env_section = environment.strip()
 
     schema_with_id = _SCHEMA.replace("<plan_id>", plan_id)
 
