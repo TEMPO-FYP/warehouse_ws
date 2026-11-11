@@ -88,7 +88,15 @@ Rules you must follow:
 16. The keys in a subtask's args must exactly match the input names
     listed for that skill in the skill list. For example, if a skill
     lists inputs [object, location], the args must be
-    { "object": "...", "location": "..." } with no other key names."""
+    { "object": "...", "location": "..." } with no other key names.
+
+17. A grounded 3D Scene Graph is provided in the ENVIRONMENT section.
+    Every "object" and "location" value in args MUST use an exact ID
+    listed in the ENVIRONMENT section (e.g., "small_box.036",
+    "Picking_Shelves.001", "Packing_Station", "staging_area"). Never
+    invent or guess entity IDs. If a requested object or location does
+    not exist in the environment, return status "clarification_needed"
+    or "infeasible"."""
 
 
 # Output schema
@@ -129,7 +137,7 @@ def build_prompt(
     skill_block: str,
     plan_id: str,
     few_shot_block: str,
-    environment: str = None,
+    environment: str,
 ) -> str:
     """
     Assembles the full prompt following P = (I, E, S, F).
@@ -138,15 +146,9 @@ def build_prompt(
     skill_block    : formatted skill list from build_skill_prompt_block().
     plan_id        : unique plan ID to embed in the schema.
     few_shot_block : formatted examples from format_examples_for_prompt().
-    environment    : environment context.
-                     TODO: replace with actual environment context once
-                     the environment module is ready.
+    environment    : grounded 3D Scene Graph environment context.
     """
-    env_section = environment if environment else (
-        "Environment: Not yet available. "
-        "Use generic location names from the instruction such as "
-        "zone_A, shelf_B, or origin,"
-    )
+    env_section = environment.strip() if environment else "None"
 
     schema_with_id = _SCHEMA.replace("<plan_id>", plan_id)
 
@@ -177,7 +179,7 @@ def prepare_prompt(
     instruction: str,
     few_shot_retriever: CosineFewShotRetriever,
     skill_retriever,
-    environment: str = None,
+    environment: str,
     few_shot_k: int = FEW_SHOT_K,
 ) -> tuple[str, str]:
     """

@@ -167,21 +167,6 @@ def load_fleet_instances() -> Dict[str, Any]:
     return instances
 
 
-def infer_default_objects(subtasks: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Infers an objects specification dictionary from subtask arguments.
-    Standard objects default to 2.0 kg; objects with 'heavy' in their name default to 20.0 kg.
-    """
-    objects = {}
-    for task in subtasks:
-        args = task.get("args", {})
-        obj_name = args.get("object")
-        if obj_name and obj_name not in objects:
-            weight = 20.0 if "heavy" in str(obj_name).lower() else 2.0
-            objects[obj_name] = {"weight_kg": weight}
-    return objects
-
-
 @dataclass
 class TaxonomyClassificationResult:
     """Encapsulates the result of a taxonomy classification attempt."""
@@ -234,9 +219,7 @@ class TaxonomyClassifier:
         taxonomy formalisms and exemplars, with automated validation and retry handling.
         """
         active_fleet = fleet if fleet is not None else load_default_fleet()
-        active_objects = (
-            objects if objects is not None else infer_default_objects(subtasks)
-        )
+        active_objects = objects if objects is not None else {}
 
         user_prompt = build_taxonomy_prompt(
             subtasks=subtasks,

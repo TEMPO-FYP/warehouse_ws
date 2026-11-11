@@ -74,9 +74,9 @@
     },
     "Generator": {
       "weight_kg": 120.0,
-      "role": "object",
+      "role": "static_infrastructure",
       "category": "heavy_equipment",
-      "description": "Heavy industrial backup power generator"
+      "description": "Elevated ceiling-mounted industrial backup power generator"
     },
     "Dumpster_Large": {
       "weight_kg": 300.0,
