@@ -1,0 +1,55 @@
+{
+  "zones": {
+    "picking_zone": {
+      "name": "Picking Zone",
+      "description": "Main storage area with picking shelves stocked with small inventory boxes",
+      "bounds": {
+        "x_min": -8.0,
+        "x_max": 17.5,
+        "y_min": -1.0,
+        "y_max": 7.0
+      },
+      "centroid": [5.0, 3.0]
+    },
+    "packing_zone": {
+      "name": "Packing Zone",
+      "description": "Order fulfilment area with packing stations where items are packed for shipment",
+      "bounds": {
+        "x_min": -5.0,
+        "x_max": 21.0,
+        "y_min": 12.0,
+        "y_max": 14.5
+      },
+      "centroid": [8.0, 13.1]
+    },
+    "staging_area": {
+      "name": "Staging Area",
+      "description": "Pallet staging area with standard pallets, pallet jack, and hand carts for bulk goods",
+      "bounds": {
+        "x_min": -1.0,
+        "x_max": 21.0,
+        "y_min": 15.0,
+        "y_max": 20.0
+      },
+      "centroid": [10.0, 17.5]
+    },
+    "hazmat_zone": {
+      "name": "Hazmat & Tool Zone",
+      "description": "Chemical and tool storage: 55-gallon drums, cordless drills on wall mount bracket",
+      "bounds": {
+        "x_min": 28.0,
+        "x_max": 31.5,
+        "y_min": -4.5,
+        "y_max": 0.5
+      },
+      "centroid": [30.0, -2.5]
+    },
+    "maintenance_zone": {
+      "name": "Maintenance Zone",
+      "description": "Maintenance equipment zone: ladders, hand trucks, generators, dumpster across the warehouse perimeter",
+      "bounds": null,
+      "centroid": [0.0, 25.0],
+      "is_catchall": true
+    }
+  }
+}
