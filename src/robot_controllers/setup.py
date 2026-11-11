@@ -1,5 +1,4 @@
 from setuptools import find_packages, setup
-import os
 
 package_name = 'robot_controllers'
 

@@ -40,6 +40,7 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from control_msgs.action import GripperCommand
 from geometry_msgs.msg import PoseStamped
+from rclpy.callback_groups import ReentrantCallbackGroup
 from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import (
     BoundingVolume,
@@ -50,11 +51,12 @@ from moveit_msgs.msg import (
 )
 from nav2_msgs.action import NavigateToPose
 from rclpy.action import ActionClient
-from rclpy.executors import SingleThreadedExecutor
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from shape_msgs.msg import SolidPrimitive
 from std_msgs.msg import String
 from tf2_msgs.msg import TFMessage
+from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import Point, Quaternion
 
 
@@ -138,6 +140,7 @@ class MobileRobotController(Node):
         self._gripper_closed: float = config["manipulation"]["gripper_closed_position"]
         self._moveit_timeout: float = config["manipulation"]["moveit_timeout_sec"]
         self._world_name: str = config["world"]["name"]
+        self._cb_group = ReentrantCallbackGroup()
 
         # World pose registry
         # Populated by _pose_callback from /world/default/pose/info
@@ -150,6 +153,7 @@ class MobileRobotController(Node):
             "/mission/subtask",
             self._subtask_callback,
             10,
+            callback_group=self._cb_group,
         )
 
         # Gazebo world pose topic (bridged via ros_gz_bridge as tf2_msgs/msg/TFMessage
@@ -159,6 +163,7 @@ class MobileRobotController(Node):
             f"/world/{self._world_name}/pose/info",
             self._pose_callback,
             10,
+            callback_group=self._cb_group,
         )
 
         # Publisher
@@ -194,16 +199,19 @@ class MobileRobotController(Node):
                 self,
                 NavigateToPose,
                 f"{namespace}/navigate_to_pose",
+                callback_group=self._cb_group,
             )
             self._moveit_clients[instance_id] = ActionClient(
                 self,
                 MoveGroup,
                 f"{namespace}/move_group",
+                callback_group=self._cb_group,
             )
             self._gripper_clients[instance_id] = ActionClient(
                 self,
                 GripperCommand,
                 f"{namespace}/robotiq_gripper_controller/gripper_cmd",
+                callback_group=self._cb_group,
             )
             self.get_logger().info(
                 f"[init] Action clients ready for {instance_id} "
@@ -442,11 +450,25 @@ class MobileRobotController(Node):
 
         result = result_future.result()
         if result is None:
+            goal_handle.cancel_goal_async()
             self._publish_feedback(
                 plan_id, task_id, robot,
                 status="failed",
                 stage="navigate_to",
                 detail="Nav2 result timed out.",
+            )
+            return
+
+        if result.status != GoalStatus.STATUS_SUCCEEDED:
+            self.get_logger().error(
+                f"[navigate_to] Task {task_id}: navigation failed "
+                f"with status {result.status}."
+            )
+            self._publish_feedback(
+                plan_id, task_id, robot,
+                status="failed",
+                stage="navigate_to",
+                detail=f"Navigation failed with status {result.status}.",
             )
             return
 
@@ -719,6 +741,7 @@ class MobileRobotController(Node):
 
         result = result_future.result()
         if result is None:
+            goal_handle.cancel_goal_async()
             self.get_logger().error(
                 f"[moveit] MoveGroup result timed out for task {task_id}."
             )
@@ -778,12 +801,13 @@ class MobileRobotController(Node):
 
         result = result_future.result()
         if result is None:
+            goal_handle.cancel_goal_async()
             self.get_logger().error(
                 f"[gripper] Gripper result timed out for task {task_id}."
             )
             return False
 
-        return True
+        return result.result.reached_goal or result.result.stalled
 
     # Feedback publisher
 
@@ -831,7 +855,7 @@ class MobileRobotController(Node):
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = MobileRobotController()
-    executor = SingleThreadedExecutor()
+    executor = MultiThreadedExecutor()
     executor.add_node(node)
     try:
         executor.spin()
