@@ -378,7 +378,7 @@ class MobileRobotController(Node):
             return
 
         x, y, z, yaw = pose
-        nav_x, nav_y, nav_z = _apply_standoff(x, y, z, yaw, self._standoff)
+        nav_x, nav_y, _ = _apply_standoff(x, y, z, yaw, self._standoff)
 
         self.get_logger().info(
             f"[navigate_to] Task {task_id}: navigating to '{location}' "
