@@ -213,27 +213,27 @@ class MobileRobotController(Node):
     # World pose subscription
 
     def _pose_callback(self, msg: TFMessage) -> None:
-      """
-      Updates the pose registry from the Gazebo world pose topic.
+        """
+        Updates the pose registry from the Gazebo world pose topic.
 
-      /world/default/pose/info is bridged via ros_gz_bridge as
-      tf2_msgs/TFMessage. Each transform's child_frame_id is the
-      Gazebo entity name and the transform gives its pose.
-      """
-      for transform in msg.transforms:
-          name = transform.child_frame_id
-          if not name:
-              continue
+        /world/default/pose/info is bridged via ros_gz_bridge as
+        tf2_msgs/TFMessage. Each transform's child_frame_id is the
+        Gazebo entity name and the transform gives its pose.
+        """
+        for transform in msg.transforms:
+            name = transform.child_frame_id
+            if not name:
+                continue
 
-          x = transform.transform.translation.x
-          y = transform.transform.translation.y
-          z = transform.transform.translation.z
+            x = transform.transform.translation.x
+            y = transform.transform.translation.y
+            z = transform.transform.translation.z
 
-          qz = transform.transform.rotation.z
-          qw = transform.transform.rotation.w
-          yaw = 2.0 * math.atan2(qz, qw)
+            qz = transform.transform.rotation.z
+            qw = transform.transform.rotation.w
+            yaw = 2.0 * math.atan2(qz, qw)
 
-          self._pose_registry[name] = (x, y, z, yaw)
+            self._pose_registry[name] = (x, y, z, yaw)
 
     def _get_pose(self, entity_name: str) -> Optional[Tuple[float, float, float, float]]:
         """
