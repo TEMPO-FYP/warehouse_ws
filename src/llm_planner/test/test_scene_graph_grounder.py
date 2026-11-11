@@ -107,6 +107,8 @@ class TestSceneGraphNavigator(unittest.TestCase):
         self.assertIn("small_box_001_1", valid_objs)
         self.assertIn("small_box_001_1", valid_locs)
         self.assertIn("Picking_Shelves.001", valid_locs)
+        # Shelves in collapsed aisles (e.g. aisle_2 -> Picking_Shelves.014) must NOT be exposed
+        self.assertNotIn("Picking_Shelves.014", valid_locs)
         self.assertIn("Packing_Station", valid_locs)
         self.assertIn("packing_zone", valid_locs)
         self.assertIn("picking_zone", valid_locs)

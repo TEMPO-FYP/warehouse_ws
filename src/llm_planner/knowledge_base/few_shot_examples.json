@@ -494,7 +494,7 @@
     },
     {
       "id": "plan_010",
-      "instruction": "Pick up small_box_001_1 from Picking_Shelves.001 in aisle 1 and place it at Packing_Station.",
+      "instruction": "Pick up a small box from aisle 1 in the picking zone and place it at a packing station.",
       "output": {
         "status": "ok",
         "subtasks": [
@@ -531,7 +531,7 @@
     },
     {
       "id": "plan_011",
-      "instruction": "Retrieve cordless_drill from wall_mount_bracket in hazmat_zone and deliver it to Packing_Station.001.",
+      "instruction": "Retrieve the cordless drill from the wall mount bracket in the hazmat zone and deliver it to a packing station.",
       "output": {
         "status": "ok",
         "subtasks": [
@@ -568,15 +568,15 @@
     },
     {
       "id": "plan_012",
-      "instruction": "Transport Pallet_Standard and Pallet_Standard.005 from staging_area to Packing_Station.002 and Packing_Station.003 respectively.",
+      "instruction": "Transport two pallets from the staging area to two packing stations.",
       "output": {
         "status": "ok",
         "subtasks": [
           {
             "id": "T1",
-            "description": "Navigate to staging_area.",
+            "description": "Navigate to Pallet_Standard in staging_area.",
             "required_skills": ["navigate_to"],
-            "args": { "location": "staging_area" },
+            "args": { "location": "Pallet_Standard" },
             "dependencies": []
           },
           {
@@ -602,9 +602,9 @@
           },
           {
             "id": "T5",
-            "description": "Navigate to staging_area.",
+            "description": "Navigate to Pallet_Standard.005 in staging_area.",
             "required_skills": ["navigate_to"],
-            "args": { "location": "staging_area" },
+            "args": { "location": "Pallet_Standard.005" },
             "dependencies": []
           },
           {

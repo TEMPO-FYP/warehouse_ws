@@ -355,11 +355,14 @@ class SceneGraphNavigator:
         for aid in self.aisle_to_zone:
             valid_locations.add(aid)
 
-        # Fixtures in expanded zones or expanded aisles
+        # Fixtures in expanded zones (zone-level fixtures) or expanded aisles (aisle-level fixtures)
         for fix_id, fentry in self.fixture_lookup.items():
             z_id = fentry.get("zone_id")
             a_id = fentry.get("aisle_id")
-            if z_id in self.expanded_zones or (a_id and a_id in self.expanded_aisles):
+            if a_id:
+                if a_id in self.expanded_aisles:
+                    valid_locations.add(fix_id)
+            elif z_id in self.expanded_zones:
                 valid_locations.add(fix_id)
 
         # Objects exposed (free objects in expanded zones + children of expanded fixtures)
@@ -370,7 +373,7 @@ class SceneGraphNavigator:
                 valid_objects.add(oid)
                 valid_locations.add(oid)  # May navigate directly to an object's pose
                 objects_metadata[oid] = {
-                    "weight_kg": fobj.get("weight_kg", 2.0),
+                    "weight_kg": fobj["weight_kg"],
                     "pose": fobj.get("pose"),
                     "zone_id": zid,
                     "parent_location": None,
@@ -387,7 +390,7 @@ class SceneGraphNavigator:
                 valid_objects.add(cid)
                 valid_locations.add(cid)
                 objects_metadata[cid] = {
-                    "weight_kg": child.get("weight_kg", 2.0),
+                    "weight_kg": child["weight_kg"],
                     "pose": child.get("pose"),
                     "zone_id": child.get("zone_id"),
                     "parent_location": fix_id,
@@ -430,8 +433,13 @@ class SceneGraphNavigator:
         if grounded_fixtures:
             for fid in grounded_fixtures:
                 fentry = self.fixture_lookup[fid]
+                aisle_str = (
+                    f", aisle: '{fentry['aisle_id']}'"
+                    if fentry.get("aisle_id")
+                    else ""
+                )
                 lines.append(
-                    f"   - Fixture '{fid}' ({fentry['model_type']}) at pose [{fentry['pose']['x']}, {fentry['pose']['y']}], zone: '{fentry['zone_id']}'"
+                    f"   - Fixture '{fid}' ({fentry['model_type']}) at pose [{fentry['pose']['x']}, {fentry['pose']['y']}], zone: '{fentry['zone_id']}'{aisle_str}"
                 )
         else:
             lines.append("   - (No individual fixtures expanded)")
@@ -440,11 +448,16 @@ class SceneGraphNavigator:
         lines.append("3. Grounded Objects (Movable items with exact IDs and weights):")
         if objs_meta:
             for oid, meta in sorted(objs_meta.items()):
-                p_loc = (
-                    f"on fixture '{meta['parent_location']}'"
-                    if meta.get("parent_location")
-                    else f"on floor in zone '{meta['zone_id']}'"
-                )
+                if meta.get("parent_location"):
+                    parent_fix = self.fixture_lookup.get(meta["parent_location"], {})
+                    aisle_note = (
+                        f" in aisle '{parent_fix['aisle_id']}'"
+                        if parent_fix.get("aisle_id")
+                        else ""
+                    )
+                    p_loc = f"on fixture '{meta['parent_location']}'{aisle_note} (zone '{meta['zone_id']}')"
+                else:
+                    p_loc = f"on floor in zone '{meta['zone_id']}'"
                 tier_str = (
                     f", tier: {meta['shelf_tier']}" if meta.get("shelf_tier") else ""
                 )
@@ -478,14 +491,14 @@ To explore, output JSON with one of three actions:
 2. "collapse": Folds previously expanded nodes that are no longer needed to save tokens.
    {"action": "collapse", "nodes": ["aisle_2"], "reasoning": "Not relevant to mission"}
 3. "done": Call when all target objects and destination fixtures are fully expanded and visible.
-   {"action": "done", "reasoning": "Located target box small_box.036 on Picking_Shelves.001 and destination Packing_Station"}
+   {"action": "done", "reasoning": "Located target box small_box_001_1 on Picking_Shelves.001 and destination Packing_Station"}
 
 Rules:
 - Output ONLY a JSON object with keys "action", "nodes" (list of node IDs), and "reasoning".
 - For "done", "nodes" can be empty [].
 - Never guess entity IDs; only expand nodes visible in the current scene graph.
-- When expanding picking shelves to find small boxes, expand picking_zone -> target aisle (e.g. aisle_1) -> target shelf fixture (e.g. Picking_Shelves.001).
-- Call "done" as soon as the target objects and locations are visible. Do not over-expand.
+- CRITICAL: A "[COLLAPSED] Fixture" only shows aggregate counts (e.g. Contains: {'small_box': 6}), NOT the actual object IDs! When looking for objects stored on shelves or brackets (like small_box on Picking_Shelves or cordless_drill on wall_mount_bracket), you MUST expand at least one specific fixture (e.g. "Picking_Shelves.027" or "wall_mount_bracket") so that individual "- Object '...'" lines are visible before calling "done".
+- Call "done" only after the specific target "- Object '...'" entries and destination fixtures are visible.
 """
 
 
@@ -572,6 +585,27 @@ Choose your next action ("expand", "collapse", or "done"). Output ONLY raw JSON:
             navigator.record_action(turn, action, nodes, reasoning)
 
             if action == "done":
+                # Safeguard: if any aisle was expanded to find shelf objects, ensure at least
+                # one shelf fixture in each expanded aisle is expanded so concrete object IDs are exposed.
+                for exp_aisle in list(navigator.expanded_aisles):
+                    p_zone = navigator.aisle_to_zone.get(exp_aisle)
+                    if not p_zone:
+                        continue
+                    aisle_fixtures = list(
+                        navigator.zones_dict[p_zone]
+                        .get("aisles", {})
+                        .get(exp_aisle, {})
+                        .get("fixtures", {})
+                        .keys()
+                    )
+                    if aisle_fixtures and not any(
+                        f in navigator.expanded_fixtures for f in aisle_fixtures
+                    ):
+                        auto_fix = aisle_fixtures[0]
+                        navigator.expand([auto_fix])
+                        print(
+                            f"[Stage 0 Grounder] Auto-expanded first fixture '{auto_fix}' in '{exp_aisle}' to expose child object IDs."
+                        )
                 print(f"[Stage 0 Grounder] Semantic grounding completed in {turn} turns.")
                 break
             elif action == "expand":
@@ -614,10 +648,11 @@ def extract_objects_dict(
         obj_name = args.get("object")
         if not obj_name:
             continue
-        if obj_name in grounded.objects_metadata:
-            meta = grounded.objects_metadata[obj_name]
-            objects[obj_name] = {"weight_kg": meta["weight_kg"]}
-        else:
-            # Fallback to 2.0 kg default if somehow unmapped
-            objects[obj_name] = {"weight_kg": 2.0}
+        if obj_name not in grounded.objects_metadata:
+            raise KeyError(
+                f"Object '{obj_name}' referenced in subtask '{task.get('id')}' "
+                f"is missing from grounded objects_metadata."
+            )
+        meta = grounded.objects_metadata[obj_name]
+        objects[obj_name] = {"weight_kg": meta["weight_kg"]}
     return objects
