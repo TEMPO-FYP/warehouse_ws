@@ -105,6 +105,30 @@ class TestOrchestrator(unittest.TestCase):
         self.mock_ground_mission = self.grounder_patcher.start()
         self.addCleanup(self.grounder_patcher.stop)
 
+        self.skill_bank_patcher = patch(
+            "llm_planner.orchestrator.load_skill_bank", return_value=self.mock_skill_bank
+        )
+        self.mock_load_skill_bank = self.skill_bank_patcher.start()
+        self.addCleanup(self.skill_bank_patcher.stop)
+
+        self.skill_retriever_patcher = patch(
+            "llm_planner.orchestrator.CosineSkillRetriever", return_value=self.mock_skill_retriever
+        )
+        self.mock_skill_retriever_cls = self.skill_retriever_patcher.start()
+        self.addCleanup(self.skill_retriever_patcher.stop)
+
+        self.few_shot_retriever_patcher = patch(
+            "llm_planner.orchestrator.CosineFewShotRetriever", return_value=self.mock_few_shot_retriever
+        )
+        self.mock_few_shot_retriever_cls = self.few_shot_retriever_patcher.start()
+        self.addCleanup(self.few_shot_retriever_patcher.stop)
+
+        self.client_patcher = patch(
+            "llm_planner.orchestrator.get_client", return_value=MagicMock()
+        )
+        self.mock_get_client = self.client_patcher.start()
+        self.addCleanup(self.client_patcher.stop)
+
         self.valid_plan = {
             "status": "ok",
             "plan_id": "plan_test_001",
@@ -158,14 +182,7 @@ class TestOrchestrator(unittest.TestCase):
     def test_plan_immediate_success(self, mock_call_llm):
         mock_call_llm.return_value = json.dumps(self.valid_plan)
 
-        planner = MissionPlanner(
-            skill_bank=self.mock_skill_bank,
-            skill_retriever=self.mock_skill_retriever,
-            few_shot_examples=[],
-            few_shot_retriever=self.mock_few_shot_retriever,
-            client=MagicMock(),
-            max_retries=3,
-        )
+        planner = MissionPlanner(max_retries=3)
 
         result = planner.plan_mission(
             "Retrieve small box from shelf 001 to packing station."
@@ -189,14 +206,7 @@ class TestOrchestrator(unittest.TestCase):
         }
         mock_call_llm.return_value = json.dumps(rejection_output)
 
-        planner = MissionPlanner(
-            skill_bank=self.mock_skill_bank,
-            skill_retriever=self.mock_skill_retriever,
-            few_shot_examples=[],
-            few_shot_retriever=self.mock_few_shot_retriever,
-            client=MagicMock(),
-            max_retries=3,
-        )
+        planner = MissionPlanner(max_retries=3)
 
         result = planner.plan_mission("Go to that shelf.")
         self.assertEqual(result.status, "clarification_needed")
@@ -212,14 +222,7 @@ class TestOrchestrator(unittest.TestCase):
         }
         mock_call_llm.return_value = json.dumps(infeasible_output)
 
-        planner = MissionPlanner(
-            skill_bank=self.mock_skill_bank,
-            skill_retriever=self.mock_skill_retriever,
-            few_shot_examples=[],
-            few_shot_retriever=self.mock_few_shot_retriever,
-            client=MagicMock(),
-            max_retries=3,
-        )
+        planner = MissionPlanner(max_retries=3)
 
         result = planner.plan_mission("Weld the door.")
         self.assertEqual(result.status, "infeasible")
@@ -234,14 +237,7 @@ class TestOrchestrator(unittest.TestCase):
             json.dumps(self.valid_plan),
         ]
 
-        planner = MissionPlanner(
-            skill_bank=self.mock_skill_bank,
-            skill_retriever=self.mock_skill_retriever,
-            few_shot_examples=[],
-            few_shot_retriever=self.mock_few_shot_retriever,
-            client=MagicMock(),
-            max_retries=3,
-        )
+        planner = MissionPlanner(max_retries=3)
 
         result = planner.plan_mission("Retrieve box from shelf 001 to packing station.")
         self.assertEqual(result.status, "ok")
@@ -281,14 +277,7 @@ class TestOrchestrator(unittest.TestCase):
             json.dumps(self.valid_plan),
         ]
 
-        planner = MissionPlanner(
-            skill_bank=self.mock_skill_bank,
-            skill_retriever=self.mock_skill_retriever,
-            few_shot_examples=[],
-            few_shot_retriever=self.mock_few_shot_retriever,
-            client=MagicMock(),
-            max_retries=3,
-        )
+        planner = MissionPlanner(max_retries=3)
 
         result = planner.plan_mission("Retrieve box from shelf 001 to packing station.")
         self.assertEqual(result.status, "ok")
@@ -316,14 +305,7 @@ class TestOrchestrator(unittest.TestCase):
 
         mock_call_llm.return_value = json.dumps(invalid_plan)
 
-        planner = MissionPlanner(
-            skill_bank=self.mock_skill_bank,
-            skill_retriever=self.mock_skill_retriever,
-            few_shot_examples=[],
-            few_shot_retriever=self.mock_few_shot_retriever,
-            client=MagicMock(),
-            max_retries=3,
-        )
+        planner = MissionPlanner(max_retries=3)
 
         result = planner.plan_mission("Retrieve box from shelf 001 to packing station.")
         self.assertEqual(result.status, "failed_validation")
@@ -349,14 +331,7 @@ class TestOrchestrator(unittest.TestCase):
         mock_tax_result.errors = []
         mock_classify.return_value = mock_tax_result
 
-        planner = MissionPlanner(
-            skill_bank=self.mock_skill_bank,
-            skill_retriever=self.mock_skill_retriever,
-            few_shot_examples=[],
-            few_shot_retriever=self.mock_few_shot_retriever,
-            client=MagicMock(),
-            max_retries=3,
-        )
+        planner = MissionPlanner(max_retries=3)
 
         mission_res = planner.plan_and_classify(
             "Retrieve small box from shelf 001 to packing station."

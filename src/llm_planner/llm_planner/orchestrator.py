@@ -92,34 +92,15 @@ class MissionPlanner:
     re-embedding across repeated planning queries.
     """
 
-    def __init__(
-        self,
-        skill_bank: Optional[List[Dict[str, Any]]] = None,
-        skill_retriever: Optional[CosineSkillRetriever] = None,
-        few_shot_examples: Optional[List[Dict[str, Any]]] = None,
-        few_shot_retriever: Optional[CosineFewShotRetriever] = None,
-        client: Optional[Any] = None,
-        model: Optional[str] = None,
-        max_retries: int = MAX_RETRIES,
-    ):
-        self.skill_bank = skill_bank if skill_bank is not None else load_skill_bank()
-        self.skill_retriever = (
-            skill_retriever
-            if skill_retriever is not None
-            else CosineSkillRetriever(self.skill_bank)
-        )
-        self.few_shot_examples = (
-            few_shot_examples if few_shot_examples is not None else load_examples()
-        )
-        self.few_shot_retriever = (
-            few_shot_retriever
-            if few_shot_retriever is not None
-            else CosineFewShotRetriever(self.few_shot_examples)
-        )
-        self.client = client if client is not None else get_client()
-        self.model = model or DEFAULT_MODEL
-        self.grounder = SceneGraphGrounder(client=self.client, model=self.model)
+    def __init__(self, max_retries: int = MAX_RETRIES):
         self.max_retries = max_retries
+        self.skill_bank = load_skill_bank()
+        self.skill_retriever = CosineSkillRetriever(self.skill_bank)
+        self.few_shot_examples = load_examples()
+        self.few_shot_retriever = CosineFewShotRetriever(self.few_shot_examples)
+        self.client = get_client()
+        self.model = DEFAULT_MODEL
+        self.grounder = SceneGraphGrounder(client=self.client, model=self.model)
 
     def _decompose(
         self,
