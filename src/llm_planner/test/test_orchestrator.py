@@ -19,7 +19,7 @@ from llm_planner.orchestrator import (
     MissionPlanner,
     sanitize_json_response,
 )
-from llm_planner.scene_graph_grounder import GroundedSceneResult
+from llm_planner.scene_graph_grounder import GroundedSceneResult, SceneGraphGrounder
 
 
 class TestOrchestrator(unittest.TestCase):
@@ -99,8 +99,11 @@ class TestOrchestrator(unittest.TestCase):
             turns_used=3,
         )
 
-        self.mock_grounder = MagicMock()
-        self.mock_grounder.ground_mission.return_value = self.mock_grounded_scene
+        self.grounder_patcher = patch.object(
+            SceneGraphGrounder, "ground_mission", return_value=self.mock_grounded_scene
+        )
+        self.mock_ground_mission = self.grounder_patcher.start()
+        self.addCleanup(self.grounder_patcher.stop)
 
         self.valid_plan = {
             "status": "ok",
@@ -160,7 +163,6 @@ class TestOrchestrator(unittest.TestCase):
             skill_retriever=self.mock_skill_retriever,
             few_shot_examples=[],
             few_shot_retriever=self.mock_few_shot_retriever,
-            grounder=self.mock_grounder,
             client=MagicMock(),
             max_retries=3,
         )
@@ -192,7 +194,6 @@ class TestOrchestrator(unittest.TestCase):
             skill_retriever=self.mock_skill_retriever,
             few_shot_examples=[],
             few_shot_retriever=self.mock_few_shot_retriever,
-            grounder=self.mock_grounder,
             client=MagicMock(),
             max_retries=3,
         )
@@ -216,7 +217,6 @@ class TestOrchestrator(unittest.TestCase):
             skill_retriever=self.mock_skill_retriever,
             few_shot_examples=[],
             few_shot_retriever=self.mock_few_shot_retriever,
-            grounder=self.mock_grounder,
             client=MagicMock(),
             max_retries=3,
         )
@@ -239,7 +239,6 @@ class TestOrchestrator(unittest.TestCase):
             skill_retriever=self.mock_skill_retriever,
             few_shot_examples=[],
             few_shot_retriever=self.mock_few_shot_retriever,
-            grounder=self.mock_grounder,
             client=MagicMock(),
             max_retries=3,
         )
@@ -287,7 +286,6 @@ class TestOrchestrator(unittest.TestCase):
             skill_retriever=self.mock_skill_retriever,
             few_shot_examples=[],
             few_shot_retriever=self.mock_few_shot_retriever,
-            grounder=self.mock_grounder,
             client=MagicMock(),
             max_retries=3,
         )
@@ -323,7 +321,6 @@ class TestOrchestrator(unittest.TestCase):
             skill_retriever=self.mock_skill_retriever,
             few_shot_examples=[],
             few_shot_retriever=self.mock_few_shot_retriever,
-            grounder=self.mock_grounder,
             client=MagicMock(),
             max_retries=3,
         )
@@ -357,7 +354,6 @@ class TestOrchestrator(unittest.TestCase):
             skill_retriever=self.mock_skill_retriever,
             few_shot_examples=[],
             few_shot_retriever=self.mock_few_shot_retriever,
-            grounder=self.mock_grounder,
             client=MagicMock(),
             max_retries=3,
         )

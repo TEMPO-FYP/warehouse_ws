@@ -98,7 +98,6 @@ class MissionPlanner:
         skill_retriever: Optional[CosineSkillRetriever] = None,
         few_shot_examples: Optional[List[Dict[str, Any]]] = None,
         few_shot_retriever: Optional[CosineFewShotRetriever] = None,
-        grounder: Optional[SceneGraphGrounder] = None,
         client: Optional[Any] = None,
         model: Optional[str] = None,
         max_retries: int = MAX_RETRIES,
@@ -119,11 +118,7 @@ class MissionPlanner:
         )
         self.client = client if client is not None else get_client()
         self.model = model or DEFAULT_MODEL
-        self.grounder = (
-            grounder
-            if grounder is not None
-            else SceneGraphGrounder(client=self.client, model=self.model)
-        )
+        self.grounder = SceneGraphGrounder(client=self.client, model=self.model)
         self.max_retries = max_retries
 
     def _decompose(
