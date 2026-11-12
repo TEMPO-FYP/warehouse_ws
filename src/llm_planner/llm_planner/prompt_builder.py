@@ -6,7 +6,7 @@ mission planner.
 
 Follows DART-LLM's P = (I, E, S, F) prompt structure:
   I = instruction
-  E = environment (TODO: replace placeholder once environment module is ready)
+  E = environment (grounded 3D Scene Graph context from Stage 0)
   S = skills (retrieved from skill_retriever)
   F = few-shot examples (retrieved from few_shot_retriever)
 """
@@ -43,9 +43,14 @@ Rules you must follow:
 2. Use "ok" only when the instruction is clear, physically executable,
    and can be decomposed using only the provided skills.
 
-3. Use "clarification_needed" when the instruction contains unresolved
-   referents such as "it", "that thing", or "over there" that cannot
-   be grounded to a known object or location.
+3. Use "clarification_needed" ONLY when the instruction contains unresolvable
+   deictic pronouns such as "it", "that thing", or "over there" where the
+   object type or target zone itself is unknown, or when a requested object
+   type does not exist anywhere in the grounded ENVIRONMENT.
+   IMPORTANT: Indefinite referring expressions (e.g., "a box from the storage area",
+   "a delivery station", or "any pallet") are NOT ambiguous. When the user requests
+   an indefinite entity of a given type or region, select the first available
+   grounded entity ID matching that type and location from the ENVIRONMENT section.
 
 4. Use "infeasible" when the instruction is unambiguous but cannot be
    executed using the available skills, is physically impossible,
@@ -88,7 +93,13 @@ Rules you must follow:
 16. The keys in a subtask's args must exactly match the input names
     listed for that skill in the skill list. For example, if a skill
     lists inputs [object, location], the args must be
-    { "object": "...", "location": "..." } with no other key names."""
+    { "object": "...", "location": "..." } with no other key names.
+
+17. A grounded 3D Scene Graph is provided in the ENVIRONMENT section.
+    Every "object" and "location" value in subtask args MUST strictly match
+    an exact ID listed in the ENVIRONMENT section. Never invent, hallucinate,
+    or guess entity IDs. If a requested object or location does not exist in
+    the environment, return status "clarification_needed" or "infeasible"."""
 
 
 # Output schema
@@ -129,7 +140,7 @@ def build_prompt(
     skill_block: str,
     plan_id: str,
     few_shot_block: str,
-    environment: str = None,
+    environment: str,
 ) -> str:
     """
     Assembles the full prompt following P = (I, E, S, F).
@@ -138,15 +149,13 @@ def build_prompt(
     skill_block    : formatted skill list from build_skill_prompt_block().
     plan_id        : unique plan ID to embed in the schema.
     few_shot_block : formatted examples from format_examples_for_prompt().
-    environment    : environment context.
-                     TODO: replace with actual environment context once
-                     the environment module is ready.
+    environment    : grounded 3D Scene Graph environment context.
     """
-    env_section = environment if environment else (
-        "Environment: Not yet available. "
-        "Use generic location names from the instruction such as "
-        "zone_A, shelf_B, or origin,"
-    )
+    if not environment or not environment.strip():
+        raise ValueError(
+            "Grounded 3D Scene Graph environment context is required and cannot be empty."
+        )
+    env_section = environment.strip()
 
     schema_with_id = _SCHEMA.replace("<plan_id>", plan_id)
 
@@ -177,7 +186,7 @@ def prepare_prompt(
     instruction: str,
     few_shot_retriever: CosineFewShotRetriever,
     skill_retriever,
-    environment: str = None,
+    environment: str,
     few_shot_k: int = FEW_SHOT_K,
 ) -> tuple[str, str]:
     """

@@ -1,0 +1,106 @@
+{
+  "zones": {
+    "picking_zone": {
+      "name": "Picking Zone",
+      "description": "Main storage area organized into 7 picking aisles (aisle_1 to aisle_7) stocked with small inventory boxes on multi-tier shelves, plus utility handtrucks, a hand cart, and ladders",
+      "bounds": {
+        "x_min": -11.0,
+        "x_max": 19.0,
+        "y_min": -2.0,
+        "y_max": 7.5
+      },
+      "centroid": [5.0, 3.0],
+      "aisles": {
+        "aisle_1": {
+          "name": "Aisle 1 (West)",
+          "description": "Picking aisle 1 containing 14 multi-tier storage shelves stocked with small inventory boxes",
+          "tags": ["general_inventory", "west_aisle"],
+          "bounds": { "x_min": -8.0, "x_max": -4.0, "y_min": -1.0, "y_max": 7.0 },
+          "centroid": [-5.76, 2.95]
+        },
+        "aisle_2": {
+          "name": "Aisle 2",
+          "description": "Picking aisle 2 containing 14 multi-tier storage shelves stocked with small inventory boxes",
+          "tags": ["general_inventory"],
+          "bounds": { "x_min": -4.0, "x_max": -0.5, "y_min": -1.0, "y_max": 7.0 },
+          "centroid": [-2.26, 2.95]
+        },
+        "aisle_3": {
+          "name": "Aisle 3",
+          "description": "Picking aisle 3 containing 14 multi-tier storage shelves stocked with small inventory boxes",
+          "tags": ["general_inventory"],
+          "bounds": { "x_min": -0.5, "x_max": 3.0, "y_min": -1.0, "y_max": 7.0 },
+          "centroid": [1.24, 2.95]
+        },
+        "aisle_4": {
+          "name": "Aisle 4 (Center)",
+          "description": "Picking aisle 4 containing 14 multi-tier storage shelves stocked with small inventory boxes",
+          "tags": ["general_inventory", "center_aisle"],
+          "bounds": { "x_min": 3.0, "x_max": 6.5, "y_min": -1.0, "y_max": 7.0 },
+          "centroid": [4.74, 2.95]
+        },
+        "aisle_5": {
+          "name": "Aisle 5",
+          "description": "Picking aisle 5 containing 14 multi-tier storage shelves stocked with small inventory boxes",
+          "tags": ["general_inventory"],
+          "bounds": { "x_min": 6.5, "x_max": 10.0, "y_min": -1.0, "y_max": 7.0 },
+          "centroid": [8.24, 2.95]
+        },
+        "aisle_6": {
+          "name": "Aisle 6",
+          "description": "Picking aisle 6 containing 14 multi-tier storage shelves stocked with small inventory boxes",
+          "tags": ["general_inventory"],
+          "bounds": { "x_min": 10.0, "x_max": 13.5, "y_min": -1.0, "y_max": 7.0 },
+          "centroid": [11.74, 2.95]
+        },
+        "aisle_7": {
+          "name": "Aisle 7 (East)",
+          "description": "Picking aisle 7 containing 14 multi-tier storage shelves stocked with small inventory boxes",
+          "tags": ["general_inventory", "east_aisle"],
+          "bounds": { "x_min": 13.5, "x_max": 17.5, "y_min": -1.0, "y_max": 7.0 },
+          "centroid": [15.24, 2.95]
+        }
+      }
+    },
+    "packing_zone": {
+      "name": "Packing Zone",
+      "description": "Order fulfilment area with 10 packing station workbenches, a handtruck, and a utility hand cart where items are packed for shipment",
+      "bounds": {
+        "x_min": -5.0,
+        "x_max": 22.5,
+        "y_min": 12.0,
+        "y_max": 14.8
+      },
+      "centroid": [8.0, 13.1]
+    },
+    "staging_area": {
+      "name": "Staging Area",
+      "description": "Bulk goods staging area with standard wooden pallets (including a 3-pallet stack) and a manual hydraulic pallet jack",
+      "bounds": {
+        "x_min": -1.0,
+        "x_max": 21.0,
+        "y_min": 15.0,
+        "y_max": 20.0
+      },
+      "centroid": [10.0, 17.5]
+    },
+    "hazmat_zone": {
+      "name": "Hazmat & Tool Zone",
+      "description": "Chemical and tool storage area with 55-gallon steel drums on the floor and cordless power drills mounted on a wall bracket",
+      "bounds": {
+        "x_min": 28.0,
+        "x_max": 31.5,
+        "y_min": -4.5,
+        "y_max": 0.5
+      },
+      "centroid": [30.0, -2.5]
+    },
+    "maintenance_zone": {
+      "name": "Maintenance & Waste Zone",
+      "description": "Perimeter maintenance equipment and waste disposal zone with a large industrial waste dumpster, portable ladders, and handtrucks",
+      "bounds": null,
+      "centroid": [11.0, 28.0],
+      "is_catchall": true
+    }
+  }
+}
