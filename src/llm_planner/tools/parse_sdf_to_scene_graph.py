@@ -10,7 +10,6 @@ using zone/aisle bounding boxes, SDF joint plugins, and a model metadata registr
 Outputs: warehouse_scene_graph.json
 """
 
-import argparse
 import json
 import math
 import os
@@ -427,47 +426,10 @@ def build_scene_graph(
 
 
 def main():
-    tools_dir = os.path.dirname(os.path.abspath(__file__))
-    ws_root = os.path.abspath(os.path.join(tools_dir, "..", "..", ".."))
-
-    parser = argparse.ArgumentParser(
-        description="Parse warehouse SDF to a hierarchical 3D Scene Graph JSON"
-    )
-    parser.add_argument(
-        "--sdf",
-        default="src/warehouse_sim/worlds/warehouse.sdf",
-        help="Path to warehouse.sdf",
-    )
-    parser.add_argument(
-        "--zones",
-        default="src/llm_planner/tools/zone_config.json",
-        help="Path to zone_config.json",
-    )
-    parser.add_argument(
-        "--weights",
-        default="src/llm_planner/tools/model_weights.json",
-        help="Path to model_weights.json",
-    )
-    parser.add_argument(
-        "--output",
-        default="src/llm_planner/knowledge_base/warehouse_scene_graph.json",
-        help="Path to output warehouse_scene_graph.json",
-    )
-
-    args = parser.parse_args()
-
-    def resolve_path(p: str) -> str:
-        if os.path.exists(p):
-            return p
-        ws_path = os.path.join(ws_root, p)
-        if os.path.exists(ws_path):
-            return ws_path
-        return p
-
-    sdf_path = resolve_path(args.sdf)
-    zones_path = resolve_path(args.zones)
-    weights_path = resolve_path(args.weights)
-    output_path = resolve_path(args.output)
+    sdf_path = "src/warehouse_sim/worlds/warehouse.sdf"
+    zones_path = "src/llm_planner/tools/zone_config.json"
+    weights_path = "src/llm_planner/tools/model_weights.json"
+    output_path = "src/llm_planner/knowledge_base/warehouse_scene_graph.json"
 
     print(f"Parsing SDF:   {sdf_path}")
     print(f"Using zones:   {zones_path}")
@@ -480,7 +442,7 @@ def main():
         json.dump(sg, f, indent=2)
 
     wh = sg["warehouse"]
-    print(f"\nSuccessfully generated: {args.output}")
+    print(f"\nSuccessfully generated: {output_path}")
     print(
         f"Total mapped models: {wh['total_models']} "
         f"({wh['summary']['total_fixtures']} fixtures, "

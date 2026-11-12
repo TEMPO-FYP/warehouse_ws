@@ -47,11 +47,10 @@ Rules you must follow:
    deictic pronouns such as "it", "that thing", or "over there" where the
    object type or target zone itself is unknown, or when a requested object
    type does not exist anywhere in the grounded ENVIRONMENT.
-   IMPORTANT: Indefinite phrases like "a small box from aisle 3", "a pallet
-   from the staging area", or "a packing station" are NOT ambiguous! When the
-   user asks for "a" or "any" item/station of a given type, deterministically
-   select the first available grounded ID matching that type/aisle/zone from
-   the ENVIRONMENT section (e.g., "small_box_027_1", "Packing_Station").
+   IMPORTANT: Indefinite referring expressions (e.g., "a box from the storage area",
+   "a delivery station", or "any pallet") are NOT ambiguous. When the user requests
+   an indefinite entity of a given type or region, select the first available
+   grounded entity ID matching that type and location from the ENVIRONMENT section.
 
 4. Use "infeasible" when the instruction is unambiguous but cannot be
    executed using the available skills, is physically impossible,
@@ -97,12 +96,10 @@ Rules you must follow:
     { "object": "...", "location": "..." } with no other key names.
 
 17. A grounded 3D Scene Graph is provided in the ENVIRONMENT section.
-    Every "object" and "location" value in args MUST use an exact ID
-    listed in the ENVIRONMENT section (e.g., "small_box_001_1",
-    "Picking_Shelves.001", "Packing_Station", "staging_area"). Never
-    invent or guess entity IDs. If a requested object or location does
-    not exist in the environment, return status "clarification_needed"
-    or "infeasible"."""
+    Every "object" and "location" value in subtask args MUST strictly match
+    an exact ID listed in the ENVIRONMENT section. Never invent, hallucinate,
+    or guess entity IDs. If a requested object or location does not exist in
+    the environment, return status "clarification_needed" or "infeasible"."""
 
 
 # Output schema

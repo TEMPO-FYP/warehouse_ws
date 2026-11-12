@@ -492,11 +492,11 @@ class SceneGraphNavigator:
         return "\n".join(lines)
 
 
-STAGE0_SYSTEM_PROMPT = """You are a 3D Scene Graph semantic grounding agent for a warehouse robot fleet (SayPlan paradigm).
+STAGE0_SYSTEM_PROMPT = """You are a 3D Scene Graph semantic grounding agent for a warehouse robot fleet.
 Your job is to explore the warehouse 3D Scene Graph to locate the exact objects and locations required by a mission instruction.
 
 The warehouse graph has 4 levels:
-Warehouse -> Zone (5 zones) -> Aisle / Fixture -> Object
+Warehouse -> Zone -> Aisle / Fixture -> Object
 
 To explore, output JSON with one of three actions:
 1. "expand": Unfolds one or more collapsed nodes to inspect their contents.
@@ -504,14 +504,13 @@ To explore, output JSON with one of three actions:
 2. "collapse": Folds previously expanded nodes that are no longer needed to save tokens.
    {"action": "collapse", "nodes": ["aisle_2"], "reasoning": "Not relevant to mission"}
 3. "done": Call when all target objects and destination fixtures are fully expanded and visible.
-   {"action": "done", "reasoning": "Located target box small_box_001_1 on Picking_Shelves.001 and destination Packing_Station"}
+   {"action": "done", "reasoning": "Located required target objects and destination fixtures"}
 
 Rules:
 - Output ONLY a JSON object with keys "action", "nodes" (list of node IDs), and "reasoning".
 - For "done", "nodes" can be empty [].
 - Never guess entity IDs; only expand nodes visible in the current scene graph.
-- CRITICAL: A "[COLLAPSED] Fixture" only shows aggregate counts (e.g. Contains: {'small_box': 6}), NOT the actual object IDs! When looking for objects stored on shelves or brackets (like small_box on Picking_Shelves or cordless_drill on wall_mount_bracket), you MUST expand at least one specific fixture (e.g. "Picking_Shelves.027" or "wall_mount_bracket") so that individual "- Object '...'" lines are visible before calling "done".
-- Call "done" only after the specific target "- Object '...'" entries and destination fixtures are visible.
+- Termination Condition: Nodes in [COLLAPSED] state show only aggregate summaries, not concrete object IDs. You must call "done" ONLY when all target objects and destination fixtures are fully expanded and explicitly visible as leaf nodes in the scene view. If a target object is stored inside a collapsed container or fixture, you must expand that fixture first to expose its object IDs before terminating.
 """
 
 
