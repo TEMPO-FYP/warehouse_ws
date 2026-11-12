@@ -252,6 +252,48 @@ class TestSceneGraphGrounder(unittest.TestCase):
         result = grounder.ground_mission("Move a box.")
         self.assertEqual(result.turns_used, 2)
 
+    @patch("llm_planner.scene_graph_grounder.call_llm_chat")
+    def test_ground_mission_retry_on_premature_done_in_aisle(self, mock_call_llm):
+        """Tests that premature 'done' with an unexpanded aisle triggers interactive rejection and self-corrects."""
+        # Turn 1: Expand picking_zone and aisle_1
+        turn_1_resp = json.dumps({
+            "action": "expand",
+            "nodes": ["picking_zone", "aisle_1"],
+            "reasoning": "Need to check picking zone aisle 1",
+        })
+        # Turn 2: Premature done (no shelf fixture expanded yet)
+        turn_2_resp = json.dumps({
+            "action": "done",
+            "nodes": [],
+            "reasoning": "Found aisle 1 containing boxes",
+        })
+        # Turn 3: Self-correction: expand Picking_Shelves.001
+        turn_3_resp = json.dumps({
+            "action": "expand",
+            "nodes": ["Picking_Shelves.001"],
+            "reasoning": "Expanding Picking_Shelves.001 to reveal box IDs",
+        })
+        # Turn 4: Valid done
+        turn_4_resp = json.dumps({
+            "action": "done",
+            "nodes": [],
+            "reasoning": "Located small_box_001_1 on Picking_Shelves.001",
+        })
+
+        mock_call_llm.side_effect = [
+            turn_1_resp,
+            turn_2_resp,
+            turn_3_resp,
+            turn_4_resp,
+        ]
+
+        grounder = SceneGraphGrounder(client=MagicMock(), max_turns=6)
+        result = grounder.ground_mission("Pick up a small box from aisle 1.")
+
+        self.assertEqual(result.turns_used, 4)
+        self.assertIn("Picking_Shelves.001", result.expanded_nodes)
+        self.assertIn("small_box_001_1", result.valid_entities["objects"])
+
 
 class TestDAGValidatorCheck6(unittest.TestCase):
     def setUp(self):

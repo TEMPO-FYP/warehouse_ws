@@ -638,6 +638,41 @@ Choose your next action ("expand", "collapse", or "done"). Output ONLY raw JSON:
             navigator.record_action(turn, action, nodes, reasoning)
 
             if action == "done":
+                # Check for premature termination: did the LLM open aisles but expand zero fixtures across them?
+                all_aisle_fixtures = [
+                    fid
+                    for exp_aisle in navigator.expanded_aisles
+                    for fid in navigator.zones_dict.get(
+                        navigator.aisle_to_zone.get(exp_aisle, ""), {}
+                    )
+                    .get("aisles", {})
+                    .get(exp_aisle, {})
+                    .get("fixtures", {})
+                ]
+                has_expanded_any_aisle_fixture = any(
+                    fid in navigator.expanded_fixtures for fid in all_aisle_fixtures
+                )
+
+                if (
+                    navigator.expanded_aisles
+                    and not has_expanded_any_aisle_fixture
+                    and turn < self.max_turns
+                ):
+                    warn_msg = (
+                        f"[Stage 0 Grounder] ⚠️ PREMATURE TERMINATION DETECTED on Turn {turn}: "
+                        f"LLM called 'done' after expanding aisle(s) {sorted(navigator.expanded_aisles)}, "
+                        f"but did not expand any shelf fixture inside them. "
+                        f"Rejecting 'done' and prompting LLM to expand a specific fixture."
+                    )
+                    print(warn_msg)
+                    retry_feedback = (
+                        f"TERMINATION_REJECTED: You called 'done', but you have not expanded any specific shelf "
+                        f"fixture in the expanded aisle(s) ({sorted(navigator.expanded_aisles)}). Collapsed fixtures "
+                        f"only show aggregate counts, not concrete object IDs. You must expand at least one specific "
+                        f"fixture to expose concrete object IDs before calling 'done'."
+                    )
+                    continue
+
                 print(f"[Stage 0 Grounder] Semantic grounding completed in {turn} turns.")
                 break
             elif action == "expand":
@@ -646,28 +681,6 @@ Choose your next action ("expand", "collapse", or "done"). Output ONLY raw JSON:
             elif action == "collapse":
                 collapsed = navigator.collapse(nodes)
                 print(f"[Stage 0 Grounder] Collapsed: {collapsed}")
-
-        # Safeguard: if any aisle was expanded to find shelf objects, ensure at least
-        # one shelf fixture in each expanded aisle is expanded so concrete object IDs are exposed.
-        for exp_aisle in list(navigator.expanded_aisles):
-            p_zone = navigator.aisle_to_zone.get(exp_aisle)
-            if not p_zone:
-                continue
-            aisle_fixtures = list(
-                navigator.zones_dict[p_zone]
-                .get("aisles", {})
-                .get(exp_aisle, {})
-                .get("fixtures", {})
-                .keys()
-            )
-            if aisle_fixtures and not any(
-                f in navigator.expanded_fixtures for f in aisle_fixtures
-            ):
-                auto_fix = aisle_fixtures[0]
-                navigator.expand([auto_fix])
-                print(
-                    f"[Stage 0 Grounder] Auto-expanded first fixture '{auto_fix}' in '{exp_aisle}' to expose child object IDs."
-                )
 
         valid_objs, valid_locs, objs_meta = navigator.get_grounded_entities()
         env_prompt = navigator.format_grounded_environment()
