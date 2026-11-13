@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- Gazebo Sim Harmonic Joint State Publisher -->
+    <gazebo>
+        <plugin filename="gz-sim-joint-state-publisher-system"
+                name="gz::sim::systems::JointStatePublisher">
+            <topic>/joint_states</topic>
+            <update_rate>50</update_rate>
+        </plugin>
+    </gazebo>
+
+    <!-- Ground contact friction on all 4 feet -->
+    <gazebo reference="FR_foot">
+        <mu1>1.2</mu1>
+        <mu2>1.2</mu2>
+        <kp>1000000.0</kp>
+        <kd>1.0</kd>
+    </gazebo>
+
+    <gazebo reference="FL_foot">
+        <mu1>1.2</mu1>
+        <mu2>1.2</mu2>
+        <kp>1000000.0</kp>
+        <kd>1.0</kd>
+    </gazebo>
+
+    <gazebo reference="RR_foot">
+        <mu1>1.2</mu1>
+        <mu2>1.2</mu2>
+        <kp>1000000.0</kp>
+        <kd>1.0</kd>
+    </gazebo>
+
+    <gazebo reference="RL_foot">
+        <mu1>1.2</mu1>
+        <mu2>1.2</mu2>
+        <kp>1000000.0</kp>
+        <kd>1.0</kd>
+    </gazebo>
+
+    <!-- Metallic styling for Z1 Arm in Gazebo -->
+    <gazebo reference="link00">
+        <visual>
+            <material>
+                <ambient>0.2 0.2 0.2 1.0</ambient>
+                <diffuse>0.25 0.25 0.25 1.0</diffuse>
+                <specular>0.6 0.6 0.6 1.0</specular>
+            </material>
+        </visual>
+    </gazebo>
+    <gazebo reference="link01">
+        <visual>
+            <material>
+                <ambient>0.2 0.2 0.2 1.0</ambient>
+                <diffuse>0.25 0.25 0.25 1.0</diffuse>
+                <specular>0.6 0.6 0.6 1.0</specular>
+            </material>
+        </visual>
+    </gazebo>
+    <gazebo reference="link02">
+        <visual>
+            <material>
+                <ambient>0.4 0.4 0.4 1.0</ambient>
+                <diffuse>0.55 0.55 0.55 1.0</diffuse>
+                <specular>0.8 0.8 0.8 1.0</specular>
+            </material>
+        </visual>
+    </gazebo>
+    <gazebo reference="link03">
+        <visual>
+            <material>
+                <ambient>0.4 0.4 0.4 1.0</ambient>
+                <diffuse>0.55 0.55 0.55 1.0</diffuse>
+                <specular>0.8 0.8 0.8 1.0</specular>
+            </material>
+        </visual>
+    </gazebo>
+    <gazebo reference="link04">
+        <visual>
+            <material>
+                <ambient>0.2 0.2 0.2 1.0</ambient>
+                <diffuse>0.25 0.25 0.25 1.0</diffuse>
+                <specular>0.6 0.6 0.6 1.0</specular>
+            </material>
+        </visual>
+    </gazebo>
+    <gazebo reference="link05">
+        <visual>
+            <material>
+                <ambient>0.2 0.2 0.2 1.0</ambient>
+                <diffuse>0.25 0.25 0.25 1.0</diffuse>
+                <specular>0.6 0.6 0.6 1.0</specular>
+            </material>
+        </visual>
+    </gazebo>
+    <gazebo reference="link06">
+        <visual>
+            <material>
+                <ambient>0.4 0.4 0.4 1.0</ambient>
+                <diffuse>0.55 0.55 0.55 1.0</diffuse>
+                <specular>0.8 0.8 0.8 1.0</specular>
+            </material>
+        </visual>
+    </gazebo>
+    <gazebo reference="gripperStator">
+        <visual>
+            <material>
+                <ambient>0.2 0.2 0.2 1.0</ambient>
+                <diffuse>0.25 0.25 0.25 1.0</diffuse>
+                <specular>0.5 0.5 0.5 1.0</specular>
+            </material>
+        </visual>
+    </gazebo>
+    <gazebo reference="gripperMover">
+        <visual>
+            <material>
+                <ambient>0.1 0.1 0.1 1.0</ambient>
+                <diffuse>0.15 0.15 0.15 1.0</diffuse>
+                <specular>0.4 0.4 0.4 1.0</specular>
+            </material>
+        </visual>
+    </gazebo>
+
+</robot>

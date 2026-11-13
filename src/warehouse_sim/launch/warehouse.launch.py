@@ -17,6 +17,13 @@ def generate_launch_description():
     models_path = os.path.join(pkg_warehouse_sim, 'models')
     worlds_path = os.path.join(pkg_warehouse_sim, 'worlds')
 
+    # Resolve b1z1_description paths if available
+    try:
+        pkg_b1z1 = get_package_share_directory('b1z1_description')
+        b1z1_paths = [os.path.dirname(pkg_b1z1), pkg_b1z1]
+    except Exception:
+        b1z1_paths = []
+
     # Declare world argument
     world_arg = DeclareLaunchArgument(
         'world',
@@ -28,7 +35,7 @@ def generate_launch_description():
     existing_resource_path = os.environ.get('GZ_SIM_RESOURCE_PATH', '')
     gz_resource_path = SetEnvironmentVariable(
         name='GZ_SIM_RESOURCE_PATH',
-        value=':'.join(filter(None, [models_path, worlds_path, existing_resource_path]))
+        value=':'.join(filter(None, [models_path, worlds_path] + b1z1_paths + [existing_resource_path]))
     )
 
     # Launch Gazebo Sim unpaused (-r)

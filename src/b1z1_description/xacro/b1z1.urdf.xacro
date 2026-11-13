@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<robot name="b1z1" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- Include subcomponents -->
+    <xacro:include filename="$(find b1z1_description)/xacro/materials.xacro"/>
+    <xacro:include filename="$(find b1z1_description)/xacro/b1_const.xacro"/>
+    <xacro:include filename="$(find b1z1_description)/xacro/b1_leg.xacro"/>
+    <xacro:include filename="$(find b1z1_description)/xacro/z1_arm.xacro"/>
+    <xacro:include filename="$(find b1z1_description)/xacro/b1z1_gazebo.xacro"/>
+
+    <!-- Base link (projection on ground or root frame) -->
+    <link name="base_link"/>
+
+    <joint name="base_to_trunk" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <parent link="base_link"/>
+        <child link="trunk"/>
+    </joint>
+
+    <!-- B1 Trunk -->
+    <link name="trunk">
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <mesh filename="package://b1z1_description/meshes/b1/trunkb.dae" scale="1 1 1"/>
+            </geometry>
+            <material name="dark_grey"/>
+        </visual>
+        <collision>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <box size="${trunk_length} ${trunk_width} ${trunk_height}"/>
+            </geometry>
+        </collision> 
+        <inertial>
+            <origin rpy="0 0 0" xyz="${trunk_com_x} ${trunk_com_y} ${trunk_com_z}"/>
+            <mass value="${trunk_mass}"/>
+            <inertia
+                ixx="${trunk_ixx}" ixy="${trunk_ixy}" ixz="${trunk_ixz}"
+                iyy="${trunk_iyy}" iyz="${trunk_iyz}"
+                izz="${trunk_izz}"/>  
+        </inertial>
+    </link>
+
+    <!-- IMU sensor frame -->
+    <joint name="imu_joint" type="fixed">
+        <parent link="trunk"/>
+        <child link="imu_link"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+    </joint>
+
+    <link name="imu_link">
+        <inertial>
+            <mass value="0.001"/>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+        </inertial>
+    </link>
+
+    <!-- Instantiate the 4 B1 Quadruped Legs -->
+    <xacro:leg name="FR" mirror="-1" mirror_dae="False" front_hind="1"  front_hind_dae="True"/>
+    <xacro:leg name="FL" mirror="1"  mirror_dae="True"  front_hind="1"  front_hind_dae="True"/>
+    <xacro:leg name="RR" mirror="-1" mirror_dae="False" front_hind="-1" front_hind_dae="False"/>
+    <xacro:leg name="RL" mirror="1"  mirror_dae="True"  front_hind="-1" front_hind_dae="False"/>
+
+    <!-- Mount the Unitree Z1 6-DOF Manipulator on the front-top of the B1 Trunk -->
+    <xacro:z1_arm parent="trunk" UnitreeGripper="true">
+        <origin xyz="0.20 0.0 0.08" rpy="0 0 0"/>
+    </xacro:z1_arm>
+
+</robot>
