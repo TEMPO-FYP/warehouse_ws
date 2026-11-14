@@ -1,0 +1,15 @@
+robot_instances:
+  mobile_robot_1: "/a200_0000"
+
+navigation:
+  standoff_distance: 1.0
+  nav_timeout_sec: 60.0
+
+manipulation:
+  move_group_name: "arm_0"
+  gripper_open_position: 0.0
+  gripper_closed_position: 0.8
+  moveit_timeout_sec: 30.0
+
+world:
+  name: "default"
