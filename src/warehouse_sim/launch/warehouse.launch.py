@@ -1,12 +1,16 @@
 import os
+
 from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, SetEnvironmentVariable
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+    SetEnvironmentVariable,
+)
+from launch.launch_description import LaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-
-# testing xyz
 
 
 def _launch_gz_sim(context, pkg_warehouse_sim, pkg_ros_gz_sim):
@@ -18,8 +22,15 @@ def _launch_gz_sim(context, pkg_warehouse_sim, pkg_ros_gz_sim):
     else:
         resolved_world = world_val
 
-    headless_val = LaunchConfiguration('headless').perform(context).strip().lower() in ('true', '1', 'yes')
-    gz_flags = '-r -s' if headless_val else '-r'
+    headless = LaunchConfiguration('headless').perform(context)
+    if headless == 'true':
+        gz_flags = '-r -s'
+    elif headless == 'false':
+        gz_flags = '-r'
+    else:
+        raise ValueError(
+            f"Invalid 'headless' value '{headless}'; expected 'true' or 'false'"
+        )
 
     return [
         IncludeLaunchDescription(
@@ -42,12 +53,9 @@ def generate_launch_description():
     models_path = os.path.join(pkg_warehouse_sim, 'models')
     worlds_path = os.path.join(pkg_warehouse_sim, 'worlds')
 
-    # Resolve b1z1_description paths if available
-    try:
-        pkg_b1z1 = get_package_share_directory('b1z1_description')
-        b1z1_paths = [os.path.dirname(pkg_b1z1), pkg_b1z1]
-    except Exception:
-        b1z1_paths = []
+    # Resolve b1z1_description parent share path for package:// URI resolution
+    pkg_b1z1 = get_package_share_directory('b1z1_description')
+    b1z1_share_parent = os.path.dirname(pkg_b1z1)
 
     # Declare world argument
     world_arg = DeclareLaunchArgument(
@@ -58,14 +66,21 @@ def generate_launch_description():
     headless_arg = DeclareLaunchArgument(
         'headless',
         default_value='false',
+        choices=['true', 'false'],
         description='Run Gazebo Sim server headless (-s)'
     )
 
     # Set GZ_SIM_RESOURCE_PATH so Gazebo Sim finds all local models
     existing_resource_path = os.environ.get('GZ_SIM_RESOURCE_PATH', '')
+    resource_paths = [
+        models_path,
+        worlds_path,
+        b1z1_share_parent,
+        existing_resource_path,
+    ]
     gz_resource_path = SetEnvironmentVariable(
         name='GZ_SIM_RESOURCE_PATH',
-        value=':'.join(filter(None, [models_path, worlds_path] + b1z1_paths + [existing_resource_path]))
+        value=':'.join(filter(None, resource_paths)),
     )
 
     # Launch Gazebo Sim unpaused (-r)
