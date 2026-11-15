@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Generate a ROS 2 2D occupancy grid map from Gazebo SDF collision geometry.
 
-Parses warehouse.sdf and referenced model.sdf <collision> primitives directly,
-without reading warehouse_scene_graph.json.
+Parses warehouse.sdf and referenced model.sdf <collision> primitives directly.
 """
 
 import argparse

@@ -24,18 +24,14 @@ def generate_launch_description():
     x_arg = DeclareLaunchArgument('x', default_value='0.0', description='Spawn X position')
     y_arg = DeclareLaunchArgument(
         'y',
-        default_value=PythonExpression(
-            ["'16.0' if 'warehouse' in '", LaunchConfiguration('world'), "' else '0.0'"]
-        ),
+        default_value='16.0',
         description='Spawn Y position',
     )
     z_arg = DeclareLaunchArgument('z', default_value='0.65', description='Spawn Z position')
     yaw_arg = DeclareLaunchArgument('yaw', default_value='0.0', description='Spawn Yaw rotation')
     spawn_test_target_arg = DeclareLaunchArgument(
         'spawn_test_target',
-        default_value=PythonExpression(
-            ["'false' if 'warehouse' in '", LaunchConfiguration('world'), "' else 'true'"]
-        ),
+        default_value='false',
         description='Spawn static pedestal and graspable_box in front of b1z1',
     )
     test_target_dist_arg = DeclareLaunchArgument(
