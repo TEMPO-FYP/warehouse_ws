@@ -15,8 +15,7 @@
 """Bridge named Gazebo Pose_V messages to ROS 2 TFMessage."""
 
 from collections import Counter
-import threading
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from geometry_msgs.msg import TransformStamped
 from gz.msgs10.pose_v_pb2 import Pose_V  # type: ignore[import-not-found]
@@ -61,10 +60,7 @@ class GzPoseBridgeNode(Node):
         rate_hz = max(0.5, float(self.get_parameter('rate_hz').value))
         topic = f'/world/{self._world_name}/pose/info'
 
-        self._lock = threading.Lock()
         self._latest_msg: Optional[Any] = None
-        self._cached_len: int = -1
-        self._cached_indices: List[int] = []
         self._last_poses: Dict[str, Tuple[float, ...]] = {}
         self._tick_count: int = 0
 
@@ -79,25 +75,14 @@ class GzPoseBridgeNode(Node):
         self._timer = self.create_timer(1.0 / rate_hz, self._publish_latest)
 
     def _on_gz_pose(self, msg: Any) -> None:
-        with self._lock:
-            self._latest_msg = msg
+        self._latest_msg = msg
 
     def _publish_latest(self) -> None:
-        with self._lock:
-            msg = self._latest_msg
+        msg = self._latest_msg
         if msg is None:
             return
 
-        n_poses = len(msg.pose)
-        if n_poses != self._cached_len:
-            counts = Counter(pose.name for pose in msg.pose)
-            self._cached_indices = [
-                idx
-                for idx, pose in enumerate(msg.pose)
-                if _is_model_pose_name(pose.name, counts[pose.name])
-            ]
-            self._cached_len = n_poses
-            self._last_poses.clear()
+        counts = Counter(pose.name for pose in msg.pose)
 
         full_sync = (self._tick_count % 5 == 0)
         self._tick_count += 1
@@ -106,8 +91,9 @@ class GzPoseBridgeNode(Node):
         sec = int(msg.header.stamp.sec)
         nsec = int(msg.header.stamp.nsec)
 
-        for idx in self._cached_indices:
-            pose = msg.pose[idx]
+        for pose in msg.pose:
+            if not _is_model_pose_name(pose.name, counts[pose.name]):
+                continue
             cur = _pose_tuple(pose)
             prev = self._last_poses.get(pose.name)
             if not full_sync and prev is not None:
