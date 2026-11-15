@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+    ${xacro.warning('2f_common.ros2_control.xacro is deprecated since 1.4.0 and removed in the next major release; use common.ros2_control.xacro')}
+    <xacro:include filename="$(find robotiq_description)/urdf/common.ros2_control.xacro" />
+
+    <xacro:macro name="robotiq_2f_hardware" params="
+        sim_gazebo
+        sim_topic_based
+        sim_joint_commands_topic
+        sim_joint_states_topic
+        use_fake_hardware
+        mock_sensor_commands
+        com_port
+        baudrate
+        gripper_speed_multiplier
+        gripper_force_multiplier
+        gripper_max_speed
+        gripper_max_force
+        gripper_closed_position">
+        ${xacro.warning('robotiq_2f_hardware is deprecated since 1.4.0 and removed in the next major release; use robotiq_hardware')}
+        <xacro:robotiq_hardware
+            sim_gazebo="${sim_gazebo}"
+            sim_topic_based="${sim_topic_based}"
+            sim_joint_commands_topic="${sim_joint_commands_topic}"
+            sim_joint_states_topic="${sim_joint_states_topic}"
+            use_fake_hardware="${use_fake_hardware}"
+            mock_sensor_commands="${mock_sensor_commands}"
+            com_port="${com_port}"
+            baudrate="${baudrate}"
+            gripper_speed_multiplier="${gripper_speed_multiplier}"
+            gripper_force_multiplier="${gripper_force_multiplier}"
+            gripper_max_speed="${gripper_max_speed}"
+            gripper_max_force="${gripper_max_force}"
+            gripper_closed_position="${gripper_closed_position}"/>
+    </xacro:macro>
+
+    <xacro:macro name="robotiq_2f_sim_mimic_joint" params="name sim_gazebo">
+        ${xacro.warning('robotiq_2f_sim_mimic_joint is deprecated since 1.4.0 and removed in the next major release; use robotiq_sim_mimic_joint')}
+        <xacro:robotiq_sim_mimic_joint name="${name}" sim_gazebo="${sim_gazebo}"/>
+    </xacro:macro>
+</robot>

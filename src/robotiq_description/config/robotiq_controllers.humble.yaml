@@ -1,0 +1,64 @@
+# Humble EOL: delete this file, and the HUMBLE_* selection in launch/robotiq_control.launch.py with it.
+# Humble controller configuration.
+#
+# Humble has no `parallel_gripper_controller` package — it arrived in Jazzy — so
+# the gripper controller here is `robotiq_controllers/GripperCommandController`,
+# Humble's stock `position_controllers/GripperActionController` from
+# `gripper_controllers` with `use_object_status` added, taking a
+# `control_msgs/action/GripperCommand` goal. That is the action PickNik's
+# `humble` branch shipped, so a PickNik/Humble workspace keeps its action clients
+# unchanged. See config/robotiq_controllers.yaml for the Jazzy/Lyrical config;
+# the mock and the topic_based plugin have robotiq_controllers.mock.humble.yaml
+# and robotiq_controllers.topic_based.humble.yaml. launch/robotiq_control.launch.py
+# selects per $ROS_DISTRO and hardware flag.
+#
+# Consequence, matching PickNik/Humble exactly: this controller cannot claim the
+# hardware's `set_gripper_max_effort` / `set_gripper_max_velocity` command
+# interfaces (it has no `max_effort_interface` / `max_velocity_interface`
+# parameters), so per-goal speed and force come from the xacro's
+# `gripper_speed_multiplier` / `gripper_force_multiplier` instead. PickNik's
+# `use_effort_interface` / `use_speed_interface` entries are omitted because
+# Humble's controller never declared them — they were silently ignored.
+controller_manager:
+  ros__parameters:
+    update_rate: 500  # Hz
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    robotiq_gripper_controller:
+      type: robotiq_controllers/GripperCommandController
+    robotiq_activation_controller:
+      type: robotiq_controllers/RobotiqActivationController
+    robotiq_gripper_status_broadcaster:
+      type: robotiq_controllers/GripperStatusBroadcaster
+    robotiq_normalized_position_broadcaster:
+      type: robotiq_controllers/NormalizedPositionBroadcaster
+
+robotiq_gripper_controller:
+  ros__parameters:
+    joint: $(var gripper_joint)
+    # Turn a goal into the register count the driver sends; the Jazzy
+    # controller reads them from the robot description instead.
+    gripper_closed_position: $(var gripper_closed_position)
+    gripper_profile: $(var gripper_profile)
+
+    max_effort: 50.0   # TODO tune
+
+    allow_stalling: true
+    stall_timeout: 0.05
+    goal_tolerance: $(var gripper_goal_tolerance)
+    # Hz; how often a decided goal is relayed to the client (stock: 20).
+    action_monitor_rate: 100.0
+    use_object_status: true
+    # Aborts a goal the gripper has not decided within this many seconds of
+    # its acceptance or of the last motion seen.
+    object_status_timeout: 10.0
+
+robotiq_activation_controller:
+  ros__parameters:
+    default: true
+
+robotiq_normalized_position_broadcaster:
+  ros__parameters:
+    joint: $(var gripper_joint)
+    gripper_closed_position: $(var gripper_closed_position)
+    gripper_profile: $(var gripper_profile)

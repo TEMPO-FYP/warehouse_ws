@@ -43,6 +43,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'teleop_arm = warehouse_sim.teleop_arm:main',
         ],
     },
 )

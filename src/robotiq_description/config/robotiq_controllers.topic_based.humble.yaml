@@ -1,0 +1,45 @@
+# Humble EOL: delete this file, and the HUMBLE_* selection in launch/robotiq_control.launch.py with it.
+# Humble controller configuration for the topic_based_ros2_control plugin
+# (`sim_topic_based:=true`).
+# Not for the `use_fake_hardware` mock, which teleports to the commanded
+# position and has robotiq_controllers.mock.humble.yaml. Same controller as
+# robotiq_controllers.humble.yaml — robotiq_controllers/GripperCommandController,
+# on Humble's stock position_controllers/GripperActionController, since
+# parallel_gripper_controller only arrived in Jazzy — with the departures
+# robotiq_controllers.topic_based.yaml explains: no activation controller (no reactivate GPIO to claim), a status
+# broadcaster that activates with nothing to publish, and a stall that aborts
+# rather than succeeds (a simulator without joint velocities would otherwise
+# pass every failed grasp).
+controller_manager:
+  ros__parameters:
+    update_rate: 500  # Hz
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    robotiq_gripper_controller:
+      type: robotiq_controllers/GripperCommandController
+    robotiq_gripper_status_broadcaster:
+      type: robotiq_controllers/GripperStatusBroadcaster
+    robotiq_normalized_position_broadcaster:
+      type: robotiq_controllers/NormalizedPositionBroadcaster
+
+robotiq_gripper_controller:
+  ros__parameters:
+    joint: $(var gripper_joint)
+    gripper_closed_position: $(var gripper_closed_position)
+    gripper_profile: $(var gripper_profile)
+
+    max_effort: 50.0
+
+    allow_stalling: false
+    stall_timeout: 0.5
+    stall_velocity_threshold: $(var gripper_stall_velocity_threshold)
+    goal_tolerance: $(var gripper_goal_tolerance)
+    # Hz; how often a decided goal is relayed to the client (stock: 20).
+    action_monitor_rate: 100.0
+    use_object_status: false  # the plugin exports no object_status
+
+robotiq_normalized_position_broadcaster:
+  ros__parameters:
+    joint: $(var gripper_joint)
+    gripper_closed_position: $(var gripper_closed_position)
+    gripper_profile: $(var gripper_profile)

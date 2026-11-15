@@ -1,0 +1,44 @@
+# Humble EOL: delete this file, and the HUMBLE_* selection in launch/robotiq_control.launch.py with it.
+# Humble controller configuration for `use_fake_hardware:=true`, the
+# ros2_control mock (mock_components/GenericSystem). Selected by
+# launch/robotiq_control.launch.py whenever that argument is set. It is
+# robotiq_controllers.humble.yaml with use_object_status off, for the reason
+# robotiq_controllers.mock.yaml gives.
+controller_manager:
+  ros__parameters:
+    update_rate: 500  # Hz
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    robotiq_gripper_controller:
+      type: robotiq_controllers/GripperCommandController
+    robotiq_activation_controller:
+      type: robotiq_controllers/RobotiqActivationController
+    robotiq_gripper_status_broadcaster:
+      type: robotiq_controllers/GripperStatusBroadcaster
+    robotiq_normalized_position_broadcaster:
+      type: robotiq_controllers/NormalizedPositionBroadcaster
+
+robotiq_gripper_controller:
+  ros__parameters:
+    joint: $(var gripper_joint)
+    gripper_closed_position: $(var gripper_closed_position)
+    gripper_profile: $(var gripper_profile)
+
+    max_effort: 50.0   # TODO tune
+
+    allow_stalling: true
+    stall_timeout: 0.05
+    goal_tolerance: $(var gripper_goal_tolerance)
+    # Hz; how often a decided goal is relayed to the client (stock: 20).
+    action_monitor_rate: 100.0
+    use_object_status: false
+
+robotiq_activation_controller:
+  ros__parameters:
+    default: true
+
+robotiq_normalized_position_broadcaster:
+  ros__parameters:
+    joint: $(var gripper_joint)
+    gripper_closed_position: $(var gripper_closed_position)
+    gripper_profile: $(var gripper_profile)

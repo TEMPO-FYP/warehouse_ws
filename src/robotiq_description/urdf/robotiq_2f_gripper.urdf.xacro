@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="robotiq_gripper">
+    ${xacro.warning('robotiq_2f_gripper.urdf.xacro is deprecated since 1.4.0 and removed in the next major release; use robotiq_gripper.urdf.xacro')}
+    <xacro:include filename="$(find robotiq_description)/urdf/robotiq_gripper.urdf.xacro" />
+</robot>
