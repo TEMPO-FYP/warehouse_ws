@@ -108,7 +108,6 @@ def generate_launch_description():
                     'y': LaunchConfiguration('y'),
                     'z': LaunchConfiguration('z'),
                     'yaw': LaunchConfiguration('yaw'),
-                    'bridge_clock': 'false',
                     'spawn_test_target': LaunchConfiguration('spawn_test_target'),
                     'test_target_dist': LaunchConfiguration('test_target_dist'),
                 }.items(),

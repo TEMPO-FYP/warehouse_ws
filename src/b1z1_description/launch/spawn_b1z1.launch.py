@@ -3,7 +3,6 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetEnvironmentVariable
-from launch.conditions import IfCondition
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -74,11 +73,6 @@ def generate_launch_description():
     y_arg = DeclareLaunchArgument('y', default_value='16.0', description='Spawn Y position (staging area)')
     z_arg = DeclareLaunchArgument('z', default_value='0.65', description='Spawn Z position (clears bent crouch legs before settling)')
     yaw_arg = DeclareLaunchArgument('yaw', default_value='0.0', description='Spawn Yaw rotation')
-    bridge_clock_arg = DeclareLaunchArgument(
-        'bridge_clock',
-        default_value='false',
-        description='Bridge /clock from Gazebo (leave false when warehouse.launch.py already bridges /clock)',
-    )
     test_target_arg = DeclareLaunchArgument(
         'spawn_test_target',
         default_value='false',
@@ -127,15 +121,6 @@ def generate_launch_description():
         parameters=[{'config_file': bridge_config}]
     )
 
-    clock_bridge_node = Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        name='b1z1_clock_bridge',
-        output='screen',
-        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
-        condition=IfCondition(LaunchConfiguration('bridge_clock')),
-    )
-
     return LaunchDescription([
         gz_resource_path,
         name_arg,
@@ -143,12 +128,10 @@ def generate_launch_description():
         y_arg,
         z_arg,
         yaw_arg,
-        bridge_clock_arg,
         test_target_arg,
         test_target_dist_arg,
         robot_state_publisher_node,
         spawn_entity_node,
         b1z1_bridge_node,
-        clock_bridge_node,
         OpaqueFunction(function=_spawn_test_targets, args=[pkg_b1z1]),
     ])
