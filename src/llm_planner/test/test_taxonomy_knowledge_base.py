@@ -217,20 +217,13 @@ class TestTaxonomyKnowledgeBase(unittest.TestCase):
         from llm_planner.taxonomy_classifier import load_fleet_instances
 
         instances = load_fleet_instances()
-        self.assertIn("mobile_robot_1", instances)
-        self.assertIn("mobile_robot_2", instances)
-        self.assertIn("robotic_arm_1", instances)
+        self.assertEqual(list(instances.keys()), ["mobile_robot_1"])
 
         mr1 = instances["mobile_robot_1"]
         self.assertEqual(mr1["robot_type"], "mobile_robot")
         self.assertIn("navigate_to", mr1["skills"])
         self.assertIn("navigation", mr1["capabilities"])
         self.assertEqual(mr1["specs"]["payload_capacity_kg"], 10.0)
-
-        arm = instances["robotic_arm_1"]
-        self.assertEqual(arm["robot_type"], "robotic_arm")
-        self.assertIn("manipulation", arm["capabilities"])
-        self.assertEqual(arm["specs"]["payload_capacity_kg"], 15.0)
 
     def test_load_fleet_instances_empty_files_log_errors(self):
         from unittest.mock import patch

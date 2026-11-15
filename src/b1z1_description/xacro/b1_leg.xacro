@@ -1,8 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-    <xacro:include filename="$(find b1z1_description)/xacro/transmission.xacro"/>
-
     <xacro:macro name="leg" params="name mirror mirror_dae front_hind front_hind_dae">
 
         <joint name="${name}_hip_joint" type="revolute">
@@ -67,20 +65,9 @@
                 <material name="orange"/>
             </visual>
             <collision>
-                <xacro:if value="${(mirror_dae == True) and (front_hind_dae == True)}">
-                    <origin rpy="0 0 0" xyz="0 0 0"/>
-                </xacro:if>
-                <xacro:if value="${(mirror_dae == False) and (front_hind_dae == True)}">
-                    <origin rpy="${PI} 0 0" xyz="0 0 0"/>
-                </xacro:if>
-                <xacro:if value="${(mirror_dae == True) and (front_hind_dae == False)}">
-                    <origin rpy="0 ${PI} 0" xyz="0 0 0"/>
-                </xacro:if>
-                <xacro:if value="${(mirror_dae == False) and (front_hind_dae == False)}">
-                    <origin rpy="${PI} ${PI} 0" xyz="0 0 0"/>
-                </xacro:if>
+                <origin rpy="${PI/2.0} 0 0" xyz="0 ${hip_offset*mirror} 0"/>
                 <geometry>
-                    <mesh filename="package://b1z1_description/meshes/b1/hipb.dae" scale="1 1 1"/>
+                    <cylinder length="${hip_length}" radius="${hip_radius}"/>
                 </geometry>
             </collision>
             <inertial>
@@ -140,14 +127,9 @@
                 <material name="orange"/>
             </visual>
             <collision>
-                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <origin rpy="0 ${PI/2.0} 0" xyz="0 0 ${-thigh_length/2.0}"/>
                 <geometry>
-                    <xacro:if value="${mirror_dae == True}">
-                        <mesh filename="package://b1z1_description/meshes/b1/thighb.dae" scale="1 1 1"/>
-                    </xacro:if>
-                    <xacro:if value="${mirror_dae == False}">
-                        <mesh filename="package://b1z1_description/meshes/b1/thigh_mirrorb.dae" scale="1 1 1"/>
-                    </xacro:if>
+                    <box size="${thigh_length} ${thigh_width} ${thigh_height}"/>
                 </geometry>
             </collision>
             <inertial>
@@ -202,9 +184,9 @@
                 <material name="orange"/>
             </visual>
             <collision>
-                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <origin rpy="0 ${PI/2.0} 0" xyz="0 0 ${-calf_length/2.0}"/>
                 <geometry>
-                    <mesh filename="package://b1z1_description/meshes/b1/calfb.dae" scale="1 1 1"/>
+                    <box size="${calf_length} ${calf_width} ${calf_height}"/>
                 </geometry>
             </collision>
             <inertial>
@@ -263,7 +245,5 @@
                     izz="${(2*foot_mass)/5.0*(foot_radius*foot_radius)}"/>             
             </inertial>
         </link>
-
-        <xacro:leg_transmission name="${name}"/>
     </xacro:macro>
 </robot>

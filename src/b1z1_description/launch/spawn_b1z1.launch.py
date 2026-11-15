@@ -1,15 +1,64 @@
+import math
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
-from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetEnvironmentVariable
+from launch.conditions import IfCondition
+from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
+from launch_ros.parameter_descriptions import ParameterValue
+
+
+def _spawn_test_targets(context, pkg_b1z1):
+    """Optionally spawn a pedestal and scaled graspable box ahead of b1z1."""
+    if LaunchConfiguration('spawn_test_target').perform(context).strip().lower() != 'true':
+        return []
+
+    x = float(LaunchConfiguration('x').perform(context))
+    y = float(LaunchConfiguration('y').perform(context))
+    yaw = float(LaunchConfiguration('yaw').perform(context))
+
+    def make_spawner(node_name, model_name, sdf_rel_path, dist, pos_z):
+        px = f'{x + dist * math.cos(yaw):.4f}'
+        py = f'{y + dist * math.sin(yaw):.4f}'
+        return Node(
+            package='ros_gz_sim',
+            executable='create',
+            name=node_name,
+            output='screen',
+            arguments=[
+                '-file', os.path.join(pkg_b1z1, sdf_rel_path),
+                '-name', model_name,
+                '-x', px,
+                '-y', py,
+                '-z', f'{pos_z:.4f}',
+                '-Y', f'{yaw:.4f}',
+            ],
+        )
+
+    box_dist = float(LaunchConfiguration('test_target_dist').perform(context))
+    return [
+        make_spawner(
+            'test_pedestal_spawner',
+            'test_pedestal',
+            os.path.join('models', 'test_pedestal', 'model.sdf'),
+            dist=box_dist + 0.05,
+            pos_z=0.35,
+        ),
+        make_spawner(
+            'graspable_box_spawner',
+            'graspable_box',
+            os.path.join('models', 'graspable_box', 'model.sdf'),
+            dist=box_dist,
+            pos_z=0.731,
+        ),
+    ]
 
 
 def generate_launch_description():
     pkg_b1z1 = get_package_share_directory('b1z1_description')
     xacro_file = os.path.join(pkg_b1z1, 'xacro', 'b1z1.urdf.xacro')
+    bridge_config = os.path.join(pkg_b1z1, 'config', 'b1z1_bridge.yaml')
 
     # Ensure Gazebo Sim finds meshes in install share directory
     pkg_share_parent = os.path.dirname(pkg_b1z1)
@@ -19,15 +68,30 @@ def generate_launch_description():
         value=':'.join(filter(None, [pkg_share_parent, pkg_b1z1, existing_resource_path]))
     )
 
-    # Launch arguments for spawn pose
+    # Launch arguments for spawn pose and optional test pick target
     name_arg = DeclareLaunchArgument('name', default_value='b1z1', description='Model name in Gazebo')
     x_arg = DeclareLaunchArgument('x', default_value='0.0', description='Spawn X position')
     y_arg = DeclareLaunchArgument('y', default_value='16.0', description='Spawn Y position (staging area)')
-    z_arg = DeclareLaunchArgument('z', default_value='0.70', description='Spawn Z position')
+    z_arg = DeclareLaunchArgument('z', default_value='0.65', description='Spawn Z position (clears bent crouch legs before settling)')
     yaw_arg = DeclareLaunchArgument('yaw', default_value='0.0', description='Spawn Yaw rotation')
+    bridge_clock_arg = DeclareLaunchArgument(
+        'bridge_clock',
+        default_value='false',
+        description='Bridge /clock from Gazebo (leave false when warehouse.launch.py already bridges /clock)',
+    )
+    test_target_arg = DeclareLaunchArgument(
+        'spawn_test_target',
+        default_value='false',
+        description='Spawn static pedestal and scaled graspable_box in front of b1z1',
+    )
+    test_target_dist_arg = DeclareLaunchArgument(
+        'test_target_dist',
+        default_value='0.73',
+        description='Forward offset from b1z1 spawn for optional test target box',
+    )
 
     # Generate robot_description from xacro
-    robot_description = Command(['xacro ', xacro_file])
+    robot_description = ParameterValue(Command(['xacro ', xacro_file]), value_type=str)
 
     # Robot State Publisher
     robot_state_publisher_node = Node(
@@ -54,15 +118,22 @@ def generate_launch_description():
         ]
     )
 
-    # ROS 2 <-> Gazebo Bridge for Joint States
-    joint_state_bridge = Node(
+    # ROS 2 <-> Gazebo Bridge for IMU and Gazebo Odometry
+    b1z1_bridge_node = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
-        name='b1z1_joint_state_bridge',
+        name='b1z1_bridge',
         output='screen',
-        arguments=[
-            '/joint_states@sensor_msgs/msg/JointState[gz.msgs.Model'
-        ]
+        parameters=[{'config_file': bridge_config}]
+    )
+
+    clock_bridge_node = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='b1z1_clock_bridge',
+        output='screen',
+        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
+        condition=IfCondition(LaunchConfiguration('bridge_clock')),
     )
 
     return LaunchDescription([
@@ -72,7 +143,12 @@ def generate_launch_description():
         y_arg,
         z_arg,
         yaw_arg,
+        bridge_clock_arg,
+        test_target_arg,
+        test_target_dist_arg,
         robot_state_publisher_node,
         spawn_entity_node,
-        joint_state_bridge
+        b1z1_bridge_node,
+        clock_bridge_node,
+        OpaqueFunction(function=_spawn_test_targets, args=[pkg_b1z1]),
     ])

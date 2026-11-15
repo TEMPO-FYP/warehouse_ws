@@ -6,3 +6,4 @@ pkill -9 -f "ros2|gazebo|gz|nav2|amcl|bt_navigator|nav_to_pose|rviz2|assisted_te
 alias sim='ros2 launch warehouse_sim warehouse.launch.py'
 alias ws='cd /root/warehouse_ws'
 alias src='cd /root/warehouse_ws/src'
+export GZ_SIM_RESOURCE_PATH="/root/warehouse_ws/install/b1z1_description/share:/root/warehouse_ws/install/b1z1_description/share/b1z1_description:${GZ_SIM_RESOURCE_PATH}"

@@ -7,10 +7,13 @@
   <maintainer email="tz09220@st.habib.edu.pk">Taha Zahid</maintainer>
   <license>Apache-2.0</license>
 
+  <depend>geometry_msgs</depend>
+  <depend>rclpy</depend>
   <depend>ros_gz_sim</depend>
   <depend>ros_gz_bridge</depend>
   <depend>ros2launch</depend>
   <depend>rosgraph_msgs</depend>
+  <depend>tf2_msgs</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

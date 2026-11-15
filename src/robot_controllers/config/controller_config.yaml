@@ -1,0 +1,46 @@
+robot_instances:
+  mobile_robot_1: ""
+
+world:
+  name: "default"
+  robot_model_name: "b1z1"
+
+navigation:
+  standoff_distance: 0.90
+  manipulation_standoff: 0.73
+  nav_timeout_sec: 150.0
+  map_package: "b1z1_control"
+  map_yaml_relpath: "maps/warehouse_map.yaml"
+  robot_clearance_radius: 0.36
+  named_locations:
+    staging_area: [0.0, 16.0, 0.0]
+    picking_zone: [5.0, 9.0, 0.0]
+    packing_zone: [8.0, 10.5, 0.0]
+    hazmat_zone: [28.0, -2.5, 0.0]
+    maintenance_zone: [11.0, 28.0, 0.0]
+    aisle_1: [-5.76, 2.95, 0.0]
+    aisle_2: [-2.26, 2.95, 0.0]
+    aisle_3: [1.24, 2.95, 0.0]
+    aisle_4: [4.74, 2.95, 0.0]
+    aisle_5: [8.24, 2.95, 0.0]
+    aisle_6: [11.74, 2.95, 0.0]
+    aisle_7: [15.24, 2.95, 0.0]
+
+manipulation:
+  move_group_name: "z1_arm"
+  gripper_group_name: "z1_gripper"
+  gripper_open_position: -1.50
+  gripper_closed_position: 0.0
+  gripper_open_tolerance: 0.08
+  gripper_closed_tolerance: 0.05
+  arm_joint_tolerance: 0.005
+  moveit_timeout_sec: 45.0
+  min_reach_m: 0.40
+  max_reach_m: 0.80
+  place_drop_standoff: 0.72
+  place_clear_z_offset: 0.055
+  fixture_surface_z:
+    Packing_Station: 0.914
+    Picking_Shelves: 0.686
+    test_pedestal: 0.700
+    Pallet_Standard: 0.145

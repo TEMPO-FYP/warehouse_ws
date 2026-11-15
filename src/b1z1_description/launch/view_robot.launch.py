@@ -4,6 +4,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -28,7 +29,7 @@ def generate_launch_description():
     )
 
     # Command substitution to run xacro
-    robot_description = Command(['xacro ', LaunchConfiguration('model')])
+    robot_description = ParameterValue(Command(['xacro ', LaunchConfiguration('model')]), value_type=str)
 
     # Robot State Publisher Node
     robot_state_publisher_node = Node(

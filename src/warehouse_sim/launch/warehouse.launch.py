@@ -1,12 +1,37 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, SetEnvironmentVariable
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 # testing xyz
+
+
+def _launch_gz_sim(context, pkg_warehouse_sim, pkg_ros_gz_sim):
+    """Resolve relative world filenames against warehouse_sim/worlds/ when present."""
+    world_val = LaunchConfiguration('world').perform(context).strip()
+    local_world = os.path.join(pkg_warehouse_sim, 'worlds', world_val)
+    if not os.path.isabs(world_val) and os.path.isfile(local_world):
+        resolved_world = local_world
+    else:
+        resolved_world = world_val
+
+    headless_val = LaunchConfiguration('headless').perform(context).strip().lower() in ('true', '1', 'yes')
+    gz_flags = '-r -s' if headless_val else '-r'
+
+    return [
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')
+            ),
+            launch_arguments={
+                'gz_args': f'{gz_flags} {resolved_world}'
+            }.items(),
+        )
+    ]
+
 
 def generate_launch_description():
     pkg_warehouse_sim = get_package_share_directory('warehouse_sim')
@@ -30,6 +55,11 @@ def generate_launch_description():
         default_value=default_world_path,
         description='Path to the SDF world file to load'
     )
+    headless_arg = DeclareLaunchArgument(
+        'headless',
+        default_value='false',
+        description='Run Gazebo Sim server headless (-s)'
+    )
 
     # Set GZ_SIM_RESOURCE_PATH so Gazebo Sim finds all local models
     existing_resource_path = os.environ.get('GZ_SIM_RESOURCE_PATH', '')
@@ -39,13 +69,9 @@ def generate_launch_description():
     )
 
     # Launch Gazebo Sim unpaused (-r)
-    gz_sim = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')
-        ),
-        launch_arguments={
-            'gz_args': ['-r ', LaunchConfiguration('world')]
-        }.items(),
+    gz_sim = OpaqueFunction(
+        function=_launch_gz_sim,
+        args=[pkg_warehouse_sim, pkg_ros_gz_sim],
     )
 
     # Bridge simulation clock to ROS 2
@@ -57,9 +83,19 @@ def generate_launch_description():
         arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
     )
 
+    # Bridge Gazebo world entity poses to ROS 2 (/world/default/pose/info)
+    pose_bridge = Node(
+        package='warehouse_sim',
+        executable='gz_pose_bridge',
+        name='pose_bridge',
+        output='screen',
+    )
+
     return LaunchDescription([
         world_arg,
+        headless_arg,
         gz_resource_path,
         gz_sim,
         clock_bridge,
+        pose_bridge,
     ])

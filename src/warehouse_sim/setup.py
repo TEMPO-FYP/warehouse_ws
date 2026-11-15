@@ -43,6 +43,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'gz_pose_bridge = warehouse_sim.gz_pose_bridge:main',
         ],
     },
 )
