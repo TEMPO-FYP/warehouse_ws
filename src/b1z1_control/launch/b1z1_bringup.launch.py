@@ -1,32 +1,21 @@
 import os
+
 from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.conditions import IfCondition
+from launch.launch_description import LaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
 
 
 def generate_launch_description():
-    """Launch Gazebo Sim, spawn b1z1, start ros2_control + CHAMP + EKF, and optionally MoveIt 2."""
-    pkg_warehouse_sim = get_package_share_directory('warehouse_sim')
+    """Spawn b1z1 into a running Gazebo world and start control, MoveIt 2, and Nav2."""
     pkg_b1z1_description = get_package_share_directory('b1z1_description')
     pkg_b1z1_control = get_package_share_directory('b1z1_control')
     pkg_b1z1_moveit = get_package_share_directory('b1z1_moveit_config')
 
-    default_map_yaml = os.path.join(pkg_b1z1_control, 'maps', 'warehouse_map.yaml')
-
-    world_arg = DeclareLaunchArgument(
-        'world',
-        default_value='empty.sdf',
-        description='SDF world name or path passed to warehouse_sim/warehouse.launch.py',
-    )
     x_arg = DeclareLaunchArgument('x', default_value='0.0', description='Spawn X position')
-    y_arg = DeclareLaunchArgument(
-        'y',
-        default_value='16.0',
-        description='Spawn Y position',
-    )
+    y_arg = DeclareLaunchArgument('y', default_value='16.0', description='Spawn Y position')
     z_arg = DeclareLaunchArgument('z', default_value='0.65', description='Spawn Z position')
     yaw_arg = DeclareLaunchArgument('yaw', default_value='0.0', description='Spawn Yaw rotation')
     spawn_test_target_arg = DeclareLaunchArgument(
@@ -51,45 +40,24 @@ def generate_launch_description():
     )
     use_static_map_arg = DeclareLaunchArgument(
         'use_static_map',
-        default_value=PythonExpression(
-            ["'true' if 'warehouse' in '", LaunchConfiguration('world'), "' else 'false'"]
-        ),
-        description='Use known static 2D map via nav2_map_server and static_layer',
-    )
-    map_yaml_arg = DeclareLaunchArgument(
-        'map_yaml',
-        default_value=default_map_yaml,
-        description='Path to static 2D occupancy map YAML',
-    )
-    headless_arg = DeclareLaunchArgument(
-        'headless',
-        default_value='false',
-        description='Run Gazebo Sim server headless (-s)',
+        default_value='true',
+        description='Enable global_costmap static_layer for the shared /map topic',
     )
     spawn_delay_arg = DeclareLaunchArgument(
         'spawn_delay',
-        default_value='40.0',
+        default_value='0.0',
         description=(
-            'Seconds to wait before spawning b1z1 when the Gazebo GUI is enabled '
-            '(headless:=false). The GUI takes ~15 s after the world loads to apply its '
-            'initial world-state snapshot; a robot created before that finishes is never '
-            'added to the Entity Tree / 3D scene. Ignored (0 s) when headless:=true.'
+            'Seconds to wait before spawning b1z1. Keep 0.0 when Gazebo is already running; '
+            'set ~40.0 when launched simultaneously with Gazebo GUI.'
         ),
     )
 
-    warehouse_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_warehouse_sim, 'launch', 'warehouse.launch.py')
-        ),
-        launch_arguments={
-            'world': LaunchConfiguration('world'),
-            'headless': LaunchConfiguration('headless'),
-        }.items(),
-    )
-
-    spawn_period = PythonExpression([
-        "0.0 if '", LaunchConfiguration('headless'), "' == 'true' else float('",
-        LaunchConfiguration('spawn_delay'), "')",
+    spawn_period = PythonExpression(["float('", LaunchConfiguration('spawn_delay'), "')"])
+    move_group_period = PythonExpression([
+        "float('", LaunchConfiguration('spawn_delay'), "') + 8.0",
+    ])
+    nav2_period = PythonExpression([
+        "float('", LaunchConfiguration('spawn_delay'), "') + 10.0",
     ])
 
     spawn_launch = TimerAction(
@@ -112,7 +80,7 @@ def generate_launch_description():
     )
 
     # Controller spawners wait for /controller_manager, which only exists once b1z1 is
-    # spawned (gz_ros2_control plugin), so start them together with the delayed spawn.
+    # spawned (gz_ros2_control plugin), so start them together with spawn_launch.
     control_launch = TimerAction(
         period=spawn_period,
         actions=[
@@ -125,7 +93,7 @@ def generate_launch_description():
     )
 
     move_group_launch = TimerAction(
-        period=8.0,
+        period=move_group_period,
         actions=[
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -137,7 +105,7 @@ def generate_launch_description():
     )
 
     nav2_launch = TimerAction(
-        period=10.0,
+        period=nav2_period,
         actions=[
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -145,7 +113,6 @@ def generate_launch_description():
                 ),
                 launch_arguments={
                     'use_static_map': LaunchConfiguration('use_static_map'),
-                    'map_yaml': LaunchConfiguration('map_yaml'),
                 }.items(),
                 condition=IfCondition(LaunchConfiguration('use_nav2')),
             )
@@ -153,7 +120,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        world_arg,
         x_arg,
         y_arg,
         z_arg,
@@ -163,10 +129,7 @@ def generate_launch_description():
         use_moveit_arg,
         use_nav2_arg,
         use_static_map_arg,
-        map_yaml_arg,
-        headless_arg,
         spawn_delay_arg,
-        warehouse_launch,
         spawn_launch,
         control_launch,
         move_group_launch,

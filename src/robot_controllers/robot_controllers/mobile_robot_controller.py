@@ -156,7 +156,7 @@ class MobileRobotController(Node):
         self._robot_model_name: str = world_cfg.get('robot_model_name', 'b1z1')
 
         self._occ_map = self._load_occupancy_map(
-            nav_cfg.get('map_package', 'b1z1_control'),
+            nav_cfg.get('map_package', 'warehouse_sim'),
             nav_cfg.get('map_yaml_relpath', 'maps/warehouse_map.yaml'),
         )
 

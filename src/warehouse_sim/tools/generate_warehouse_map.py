@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""Generate a ROS 2 2D occupancy grid map from Gazebo SDF collision geometry.
-
-Parses warehouse.sdf and referenced model.sdf <collision> primitives directly.
-"""
+"""Generate a ROS 2 2D occupancy grid map from Gazebo SDF <collision> geometry."""
 
 import argparse
 import math
 import os
+from typing import Any, Dict, List, Optional, Set, Tuple
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 
@@ -28,7 +25,7 @@ def parse_pose(text: Optional[str]) -> Tuple[float, float, float, float, float, 
     vals = [float(v) for v in text.strip().split()]
     while len(vals) < 6:
         vals.append(0.0)
-    return tuple(vals[:6])
+    return (vals[0], vals[1], vals[2], vals[3], vals[4], vals[5])
 
 
 def pose_to_matrix(pose: Tuple[float, float, float, float, float, float]) -> np.ndarray:
@@ -50,15 +47,15 @@ def pose_to_matrix(pose: Tuple[float, float, float, float, float, float]) -> np.
 
 def load_model_collisions(
     models_dir: str,
-) -> Dict[str, List[Tuple[np.ndarray, str, Tuple[float, ...]]]]:
+) -> Dict[str, List[Tuple[np.ndarray, str, Tuple[Any, ...]]]]:
     """Parse all <collision> primitives for each model under models_dir."""
-    cache: Dict[str, List[Tuple[np.ndarray, str, Tuple[float, ...]]]] = {}
+    cache: Dict[str, List[Tuple[np.ndarray, str, Tuple[Any, ...]]]] = {}
     for model_name in sorted(os.listdir(models_dir)):
         sdf_path = os.path.join(models_dir, model_name, 'model.sdf')
         if not os.path.isfile(sdf_path):
             continue
         root = ET.parse(sdf_path).getroot()
-        primitives: List[Tuple[np.ndarray, str, Tuple[float, ...]]] = []
+        primitives: List[Tuple[np.ndarray, str, Tuple[Any, ...]]] = []
         for link in root.findall('.//link'):
             t_link = pose_to_matrix(parse_pose(link.findtext('pose')))
             for col in link.findall('collision'):
@@ -164,7 +161,7 @@ def _rasterize_box(
             in_z = True
         hit |= (np.abs(lx) <= (hx + 1e-4)) & (np.abs(ly) <= (hy + 1e-4)) & in_z
 
-    grid[r0 : r1 + 1, c0 : c1 + 1][hit] = True
+    grid[r0:r1 + 1, c0:c1 + 1][hit] = True
 
 
 def _rasterize_cylinder(
@@ -220,7 +217,7 @@ def _rasterize_cylinder(
     ys = y_min + (np.arange(r0, r1 + 1, dtype=np.float64) + 0.5) * resolution
     gx, gy = np.meshgrid(xs, ys)
     hit = ((gx - cx) ** 2 + (gy - cy) ** 2) <= (radius * radius)
-    grid[r0 : r1 + 1, c0 : c1 + 1][hit] = True
+    grid[r0:r1 + 1, c0:c1 + 1][hit] = True
 
 
 def build_occupancy_grid(

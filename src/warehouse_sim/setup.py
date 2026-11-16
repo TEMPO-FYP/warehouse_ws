@@ -20,8 +20,9 @@ data_files = [
     ('share/' + package_name, ['package.xml']),
 ]
 
-# Add launch, worlds, and models recursively
+# Add launch, maps, worlds, and models recursively
 data_files.extend(generate_data_files(package_name, 'launch'))
+data_files.extend(generate_data_files(package_name, 'maps'))
 data_files.extend(generate_data_files(package_name, 'worlds'))
 data_files.extend(generate_data_files(package_name, 'models'))
 

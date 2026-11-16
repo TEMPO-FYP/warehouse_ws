@@ -44,12 +44,43 @@ def _launch_gz_sim(context, pkg_warehouse_sim, pkg_ros_gz_sim):
     ]
 
 
+def _launch_map_server(context):
+    """Launch shared nav2_map_server when static warehouse map is enabled."""
+    mode = LaunchConfiguration('use_static_map').perform(context)
+    world_val = LaunchConfiguration('world').perform(context).strip().lower()
+    if mode == 'false' or (mode == 'auto' and 'warehouse' not in world_val):
+        return []
+
+    map_yaml = LaunchConfiguration('map_yaml').perform(context).strip()
+    return [
+        Node(
+            package='nav2_map_server',
+            executable='map_server',
+            name='map_server',
+            output='screen',
+            parameters=[{'use_sim_time': True, 'yaml_filename': map_yaml}],
+        ),
+        Node(
+            package='nav2_lifecycle_manager',
+            executable='lifecycle_manager',
+            name='lifecycle_manager_map',
+            output='screen',
+            parameters=[
+                {'use_sim_time': True},
+                {'autostart': True},
+                {'node_names': ['map_server']},
+            ],
+        ),
+    ]
+
+
 def generate_launch_description():
     pkg_warehouse_sim = get_package_share_directory('warehouse_sim')
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
 
-    # Path to SDF world
+    # Path to SDF world and shared static 2D map
     default_world_path = os.path.join(pkg_warehouse_sim, 'worlds', 'warehouse.sdf')
+    default_map_yaml = os.path.join(pkg_warehouse_sim, 'maps', 'warehouse_map.yaml')
     models_path = os.path.join(pkg_warehouse_sim, 'models')
     worlds_path = os.path.join(pkg_warehouse_sim, 'worlds')
 
@@ -68,6 +99,17 @@ def generate_launch_description():
         default_value='false',
         choices=['true', 'false'],
         description='Run Gazebo Sim server headless (-s)'
+    )
+    use_static_map_arg = DeclareLaunchArgument(
+        'use_static_map',
+        default_value='auto',
+        choices=['auto', 'true', 'false'],
+        description='Serve shared /map via nav2_map_server (auto enables for warehouse worlds)',
+    )
+    map_yaml_arg = DeclareLaunchArgument(
+        'map_yaml',
+        default_value=default_map_yaml,
+        description='Path to the static 2D occupancy map YAML',
     )
 
     # Set GZ_SIM_RESOURCE_PATH so Gazebo Sim finds all local models
@@ -106,11 +148,16 @@ def generate_launch_description():
         output='screen',
     )
 
+    map_server_action = OpaqueFunction(function=_launch_map_server)
+
     return LaunchDescription([
         world_arg,
         headless_arg,
+        use_static_map_arg,
+        map_yaml_arg,
         gz_resource_path,
         gz_sim,
         clock_bridge,
         pose_bridge,
+        map_server_action,
     ])

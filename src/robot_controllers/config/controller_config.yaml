@@ -9,7 +9,7 @@ navigation:
   standoff_distance: 0.90
   manipulation_standoff: 0.73
   nav_timeout_sec: 150.0
-  map_package: "b1z1_control"
+  map_package: "warehouse_sim"
   map_yaml_relpath: "maps/warehouse_map.yaml"
   robot_clearance_radius: 0.36
   named_locations:

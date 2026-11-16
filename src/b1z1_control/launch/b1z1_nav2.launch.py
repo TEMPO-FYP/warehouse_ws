@@ -1,12 +1,13 @@
 import os
+
 from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     GroupAction,
     OpaqueFunction,
     SetEnvironmentVariable,
 )
+from launch.launch_description import LaunchDescription
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter
 
@@ -19,35 +20,21 @@ def _build_nav2_nodes(context, default_override_file):
     use_static_map = (
         LaunchConfiguration('use_static_map').perform(context).strip().lower() == 'true'
     )
-    map_yaml = LaunchConfiguration('map_yaml').perform(context)
 
     nav_params = [params_file]
-    nodes = []
-    lifecycle_nodes = []
-
     if use_static_map:
         nav_params.append(default_override_file)
-        nodes.append(
-            Node(
-                package='nav2_map_server',
-                executable='map_server',
-                name='map_server',
-                output='screen',
-                parameters=[nav_params[0], default_override_file, {'yaml_filename': map_yaml}],
-            )
-        )
-        lifecycle_nodes.append('map_server')
 
-    lifecycle_nodes.extend([
+    lifecycle_nodes = [
         'controller_server',
         'smoother_server',
         'planner_server',
         'behavior_server',
         'bt_navigator',
         'velocity_smoother',
-    ])
+    ]
 
-    nodes.extend([
+    nodes = [
         Node(
             package='nav2_controller',
             executable='controller_server',
@@ -106,7 +93,7 @@ def _build_nav2_nodes(context, default_override_file):
                 {'node_names': lifecycle_nodes},
             ],
         ),
-    ])
+    ]
 
     return [
         GroupAction(
@@ -122,7 +109,6 @@ def generate_launch_description():
     default_override_file = os.path.join(
         pkg_b1z1_control, 'config', 'nav2', 'nav2_warehouse_override.yaml'
     )
-    default_map_yaml = os.path.join(pkg_b1z1_control, 'maps', 'warehouse_map.yaml')
 
     return LaunchDescription([
         SetEnvironmentVariable('RCUTILS_LOGGING_BUFFERED_STREAM', '1'),
@@ -144,12 +130,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_static_map',
             default_value='false',
-            description='Serve known static 2D map via nav2_map_server + static_layer',
-        ),
-        DeclareLaunchArgument(
-            'map_yaml',
-            default_value=default_map_yaml,
-            description='Full path to the static map YAML when use_static_map is true',
+            description='Enable global_costmap static_layer for the shared /map topic',
         ),
         OpaqueFunction(function=_build_nav2_nodes, args=[default_override_file]),
     ])

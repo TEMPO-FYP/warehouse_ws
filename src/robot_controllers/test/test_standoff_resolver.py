@@ -27,7 +27,7 @@ from robot_controllers.z1_ik import (
 
 
 def _get_warehouse_map() -> OccupancyMap:
-    pkg_dir = get_package_share_directory('b1z1_control')
+    pkg_dir = get_package_share_directory('warehouse_sim')
     return OccupancyMap(os.path.join(pkg_dir, 'maps', 'warehouse_map.yaml'))
 
 
