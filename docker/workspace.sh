@@ -13,6 +13,11 @@ apt-get update && apt-get install -y \
     curl \
     libpcap-dev
 
+# Add Clearpath rosdep sources
+wget https://raw.githubusercontent.com/clearpathrobotics/public-rosdistro/master/rosdep/50-clearpath.list \
+    -O /etc/ros/rosdep/sources.list.d/50-clearpath.list
+rosdep update
+
 # Navigate to workspace root
 cd /root/warehouse_ws
 

@@ -63,5 +63,17 @@ cd
 # Source .bashrc again to ensure any changes made during the build are applied
 source /root/.bashrc
 
+# Set up Clearpath robot config for transport Husky
+mkdir -p /root/clearpath
+if [ ! -f /root/clearpath/robot.yaml ]; then
+    ln -s /root/warehouse_ws/src/warehouse_sim/config/husky_transport.yaml /root/clearpath/robot.yaml
+fi
+ros2 run clearpath_generator_common generate_bash -s /root/clearpath
+
+# Source Clearpath setup
+if ! grep -q "source /root/clearpath/setup.bash" /root/.bashrc; then
+    echo "source /root/clearpath/setup.bash" >> /root/.bashrc
+fi
+
 # Any command you run after this script runs in the environment set up by the script.
 exec "$@"
