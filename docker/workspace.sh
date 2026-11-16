@@ -30,10 +30,6 @@ apt-get install -y \
     python3-scipy \
     python3-sklearn
 
-# Install Python dependencies for LLM planner
-echo "Installing LLM Planner Python dependencies..."
-pip install --no-cache-dir sentence-transformers groq google-genai
-
 # Fix PCL warning if PCL is installed
 echo "Fixing PCL warnings..."
 if ls -d /usr/include/pcl* 1> /dev/null 2>&1; then
