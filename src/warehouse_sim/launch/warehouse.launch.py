@@ -84,9 +84,11 @@ def generate_launch_description():
     models_path = os.path.join(pkg_warehouse_sim, 'models')
     worlds_path = os.path.join(pkg_warehouse_sim, 'worlds')
 
-    # Resolve b1z1_description parent share path for package:// URI resolution
+    # Resolve robot description parent share paths for package:// URI resolution
     pkg_b1z1 = get_package_share_directory('b1z1_description')
     b1z1_share_parent = os.path.dirname(pkg_b1z1)
+    pkg_b2_cargo = get_package_share_directory('b2_cargo_description')
+    b2_cargo_share_parent = os.path.dirname(pkg_b2_cargo)
 
     # Declare world argument
     world_arg = DeclareLaunchArgument(
@@ -118,6 +120,7 @@ def generate_launch_description():
         models_path,
         worlds_path,
         b1z1_share_parent,
+        b2_cargo_share_parent,
         existing_resource_path,
     ]
     gz_resource_path = SetEnvironmentVariable(

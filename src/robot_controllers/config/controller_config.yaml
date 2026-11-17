@@ -1,9 +1,13 @@
 robot_instances:
   mobile_robot_1: ""
 
+transport_instances:
+  quadruped_transport_robot_1: ""
+
 world:
   name: "default"
   robot_model_name: "b1z1"
+  transport_model_name: "b2_cargo"
 
 navigation:
   standoff_distance: 0.90

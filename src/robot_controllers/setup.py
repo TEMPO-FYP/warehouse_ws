@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'mobile_robot_controller = robot_controllers.mobile_robot_controller:main',
+            'transport_robot_controller = robot_controllers.transport_robot_controller:main',
         ],
     },
 )

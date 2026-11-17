@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>b1z1_control</exec_depend>
+  <exec_depend>b2_cargo_control</exec_depend>
   <exec_depend>dispatcher_node</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
