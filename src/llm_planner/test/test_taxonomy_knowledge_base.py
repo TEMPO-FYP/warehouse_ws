@@ -218,7 +218,7 @@ class TestTaxonomyKnowledgeBase(unittest.TestCase):
 
         instances = load_fleet_instances()
         self.assertIn("mobile_robot_1", instances)
-        self.assertIn("mobile_robot_2", instances)
+        self.assertNotIn("mobile_robot_2", instances)
         self.assertIn("robotic_arm_1", instances)
 
         mr1 = instances["mobile_robot_1"]

@@ -47,7 +47,10 @@ def generate_launch_description():
         executable='parameter_bridge',
         name='clock_bridge',
         output='screen',
-        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
+        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+                   '/world/default/pose/info@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
+        ],
+        
     )
 
     return LaunchDescription([
