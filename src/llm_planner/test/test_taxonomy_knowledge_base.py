@@ -232,6 +232,15 @@ class TestTaxonomyKnowledgeBase(unittest.TestCase):
         self.assertIn("manipulation", arm["capabilities"])
         self.assertEqual(arm["specs"]["payload_capacity_kg"], 15.0)
 
+        # Husky A200 transport robot: navigation only, no manipulation skills
+        transport = instances["transport_robot_1"]
+        self.assertEqual(transport["robot_type"], "transport_robot")
+        self.assertEqual(transport["skills"], ["navigate_to"])
+        self.assertIn("navigation", transport["capabilities"])
+        self.assertNotIn("manipulation", transport["capabilities"])
+        self.assertEqual(transport["specs"]["payload_capacity_kg"], 75.0)
+        self.assertNotIn("transport_robot_2", instances)
+
     def test_load_fleet_instances_empty_files_log_errors(self):
         from unittest.mock import patch
         import tempfile

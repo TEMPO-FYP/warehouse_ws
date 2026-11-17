@@ -23,6 +23,8 @@ data_files = [
 data_files.extend(generate_data_files(package_name, 'launch'))
 data_files.extend(generate_data_files(package_name, 'worlds'))
 data_files.extend(generate_data_files(package_name, 'models'))
+data_files.extend(generate_data_files(package_name, 'scripts'))
+data_files.extend(generate_data_files(package_name, 'maps'))
 
 setup(
     name=package_name,

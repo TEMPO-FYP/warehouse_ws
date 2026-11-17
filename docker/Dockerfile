@@ -32,7 +32,7 @@ RUN apt-get update -q && \
     python3-scipy python3-sklearn
 
 # Install TEMPO LLM Planner Python dependencies
-RUN pip install --no-cache-dir sentence-transformers groq google-genai
+RUN pip install --no-cache-dir --timeout 300 sentence-transformers groq google-genai
 
 # Set up the ROS 2 environment
 # This ensures that ROS 2 commands are available in the shell
@@ -57,6 +57,20 @@ RUN apt-get update && \
 RUN apt-get update && \
     apt-get install -y software-properties-common && \
     DEBIAN_FRONTEND=noninteractive add-apt-repository ppa:kisak/kisak-mesa
+
+# Add Clearpath apt repository and install Clearpath Simulator
+RUN wget -qO - https://packages.clearpathrobotics.com/public.key | \
+    gpg --dearmor -o /usr/share/keyrings/clearpath-archive-keyring.gpg && \
+    sh -c 'echo "deb [signed-by=/usr/share/keyrings/clearpath-archive-keyring.gpg] https://packages.clearpathrobotics.com/stable/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/clearpath-latest.list' && \
+    apt-get update && \
+    apt-get install -y \
+    ros-${ROS_DISTRO}-clearpath-simulator \
+    ros-${ROS_DISTRO}-clearpath-robot \
+    ros-${ROS_DISTRO}-clearpath-common \
+    ros-${ROS_DISTRO}-clearpath-nav2-demos \
+    ros-${ROS_DISTRO}-navigation2 \
+    ros-${ROS_DISTRO}-nav2-bringup && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create necessary directories
 RUN mkdir -p /etc/udev/rules.d && \
