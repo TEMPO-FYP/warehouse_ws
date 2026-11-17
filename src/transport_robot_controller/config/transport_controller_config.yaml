@@ -1,0 +1,35 @@
+# Planner instance id -> ROS namespace of the robot that executes it.
+# transport_robot_1 comes from robot_fleet.json ("transport_robot": 1).
+# The namespace (without '/') is also the robot's Gazebo model name, which is
+# used to look up its current position when choosing an approach side.
+robot_instances:
+  transport_robot_1: "/a200_0001"
+
+navigation:
+  # Frame Nav2 goals are expressed in. warehouse_sim/maps/warehouse_map.yaml
+  # is in Gazebo world coordinates, so map == world.
+  frame_id: "map"
+  # Distance from the entity's centre to the goal. Husky A200 is ~1.0 m long,
+  # a picking shelf ~0.44 m deep, so 1.0 m leaves ~0.3 m clearance.
+  standoff_distance: 1.0
+  # Entity-local axis the robot approaches along ('x' or 'y'), choosing the
+  # side nearer the robot. Picking_Shelves open on local +/-Y.
+  approach_axis: "y"
+  # Per-model overrides, matched by entity-name prefix, e.g.
+  #   Pallet_Rack: "x"
+  approach_axis_overrides: {}
+  server_wait_sec: 5.0
+  nav_timeout_sec: 120.0
+
+# Optional explicit goals, checked before the Gazebo pose registry.
+# Use for places that are not Gazebo entities (e.g. "origin") or to pin
+# an exact approach pose. No standoff is applied to these.
+#   <name>: {x: <m>, y: <m>, yaw: <rad>}
+named_locations:
+  origin: {x: 0.0, y: -5.0, yaw: 0.0}
+
+world:
+  name: "default"
+  # /world/<name>/pose/info carries ~2200 poses at ~44 Hz; only decode one
+  # message per this period.
+  pose_update_period_sec: 0.5

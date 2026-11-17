@@ -31,6 +31,21 @@
         "speed_m_s": 0.0
       },
       "status": "active"
+    },
+    {
+      "robot_type": "transport_robot",
+      "capabilities": [
+        "navigation",
+        "transport"
+      ],
+      "skill_ids": [
+        "navigate_to"
+      ],
+      "specs": {
+        "payload_capacity_kg": 75.0,
+        "speed_m_s": 1.0
+      },
+      "status": "active"
     }
   ]
 }

@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# Set ROS 2 distribution as a variable
-ROS_DISTRO="jazzy"
+# Use ROS_DISTRO from environment (set by base image), fall back to jazzy if not set
+ROS_DISTRO="${ROS_DISTRO:-jazzy}"
 
 # Source ROS 2 setup
 source /opt/ros/$ROS_DISTRO/setup.bash
@@ -13,7 +13,7 @@ apt-get update && apt-get install -y \
     curl \
     libpcap-dev
 
-# Add Clearpath rosdep sources
+# Add Clearpath rosdep sources so rosdep can resolve clearpath package dependencies
 wget https://raw.githubusercontent.com/clearpathrobotics/public-rosdistro/master/rosdep/50-clearpath.list \
     -O /etc/ros/rosdep/sources.list.d/50-clearpath.list
 rosdep update
@@ -23,7 +23,6 @@ cd /root/warehouse_ws
 
 # Install ROS 2 dependencies for workspace packages
 echo "Installing ROS 2 dependencies..."
-rosdep update
 rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y
 
 # Install MoveIt Task Constructor and Python dependencies

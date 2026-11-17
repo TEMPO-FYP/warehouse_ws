@@ -66,7 +66,10 @@ RUN wget -qO - https://packages.clearpathrobotics.com/public.key | \
     apt-get install -y \
     ros-${ROS_DISTRO}-clearpath-simulator \
     ros-${ROS_DISTRO}-clearpath-robot \
-    ros-${ROS_DISTRO}-clearpath-common && \
+    ros-${ROS_DISTRO}-clearpath-common \
+    ros-${ROS_DISTRO}-clearpath-nav2-demos \
+    ros-${ROS_DISTRO}-navigation2 \
+    ros-${ROS_DISTRO}-nav2-bringup && \
     rm -rf /var/lib/apt/lists/*
 
 # Create necessary directories

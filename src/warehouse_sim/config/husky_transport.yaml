@@ -19,3 +19,21 @@ platform:
       model: default
       parent: default_mount
       enabled: true
+sensors:
+  # 2D lidar for Nav2: AMCL localizes against warehouse_sim/maps/warehouse_map
+  # with it, and the costmaps use it for obstacles not on the static map.
+  # Published as /a200_0001/sensors/lidar2d_0/scan (Clearpath's Nav2 default).
+  lidar2d:
+    - model: hokuyo_ust
+      urdf_enabled: true
+      launch_enabled: true
+      parent: top_plate_front_mount
+      xyz: [0.0, 0.0, 0.0]
+      rpy: [0.0, 0.0, 0.0]
+      ros_parameters:
+        urg_node:
+          laser_frame_id: lidar2d_0_laser
+          ip_address: 192.168.131.20
+          ip_port: 10940
+          angle_min: -2.356
+          angle_max: 2.356
