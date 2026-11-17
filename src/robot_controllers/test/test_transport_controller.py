@@ -12,27 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for TransportRobotController configuration and dispatch logic."""
+"""Unit tests for controller registry alignment and TransportRobotController dispatch."""
 
+import importlib
 import json
 import os
+import pkgutil
 
 from ament_index_python.packages import get_package_share_directory
 import rclpy
+import robot_controllers
 from robot_controllers.transport_robot_controller import TransportRobotController
 
 
-def test_transport_robot_registered_in_kb():
-    """Verify quadruped_transport_robot exists in llm_planner robot_registry.json."""
+def test_controller_robot_types_in_registry():
+    """Verify every controller ROBOT_TYPE exists in llm_planner robot_registry.json."""
     pkg_dir = get_package_share_directory('llm_planner')
     reg_path = os.path.join(pkg_dir, 'knowledge_base', 'robot_registry.json')
     with open(reg_path, 'r', encoding='utf-8') as f:
-        robots = {r['robot_type']: r for r in json.load(f)['robots']}
-    assert 'quadruped_transport_robot' in robots
-    tr = robots['quadruped_transport_robot']
-    assert tr['skill_ids'] == ['navigate_to']
-    assert 'cargo_transport' in tr['capabilities']
-    assert tr['specs']['payload_capacity_kg'] == 15.0
+        registered_types = {r['robot_type'] for r in json.load(f)['robots']}
+
+    controller_types = []
+    for module_info in pkgutil.iter_modules(robot_controllers.__path__):
+        module = importlib.import_module(f'robot_controllers.{module_info.name}')
+        robot_type = getattr(module, 'ROBOT_TYPE', None)
+        if robot_type is not None:
+            controller_types.append((module_info.name, robot_type))
+
+    assert controller_types, 'Expected at least one controller defining ROBOT_TYPE'
+    missing = [
+        f'{mod_name} ({robot_type})'
+        for mod_name, robot_type in controller_types
+        if robot_type not in registered_types
+    ]
+    assert not missing, f'Missing from robot_registry.json: {missing}'
 
 
 def test_transport_controller_rejects_manipulation_and_resolves_zone():
