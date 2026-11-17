@@ -10,6 +10,9 @@ manipulation:
   gripper_open_position: 0.0
   gripper_closed_position: 0.8
   moveit_timeout_sec: 30.0
+  end_effector_link: "arm_0_tool0"
+  gripper_max_effort: 50.0
+  gripper_timeout_sec: 10.0
 
 world:
   name: "default"

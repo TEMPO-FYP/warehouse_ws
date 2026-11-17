@@ -19,7 +19,11 @@ setup(
     maintainer_email='abdullahshheikh2@gmail.com',
     description='Robot controller nodes for TEMPO.',
     license='Apache-2.0',
-    tests_require=['pytest'],
+    extras_require={
+        'test': [
+            'pytest',
+        ],
+    },
     entry_points={
         'console_scripts': [
             'mobile_robot_controller = robot_controllers.mobile_robot_controller:main',

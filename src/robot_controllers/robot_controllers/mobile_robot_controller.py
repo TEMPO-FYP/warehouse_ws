@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-mobile_robot_controller.py
+Mobile robot controller node for TEMPO.
 
 ROS 2 Controller Node for the TEMPO mobile manipulator (Husky A200 + UR5e + Robotiq 2F-85).
 
@@ -33,14 +33,13 @@ Action Clients:
 import json
 import math
 import os
+import threading
 from typing import Any, Dict, Optional, Tuple
 
-import rclpy
-import yaml
+from action_msgs.msg import GoalStatus
 from ament_index_python.packages import get_package_share_directory
 from control_msgs.action import GripperCommand
-from geometry_msgs.msg import PoseStamped
-from rclpy.callback_groups import ReentrantCallbackGroup
+from geometry_msgs.msg import Point, PoseStamped, Quaternion
 from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import (
     BoundingVolume,
@@ -50,31 +49,33 @@ from moveit_msgs.msg import (
     PositionConstraint,
 )
 from nav2_msgs.action import NavigateToPose
+import rclpy
 from rclpy.action import ActionClient
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from shape_msgs.msg import SolidPrimitive
 from std_msgs.msg import String
 from tf2_msgs.msg import TFMessage
-from action_msgs.msg import GoalStatus
-from geometry_msgs.msg import Point, Quaternion
+import yaml
 
 
 # Constants
 
-ROBOT_TYPE = "mobile_robot"
+ROBOT_TYPE = 'mobile_robot'
 
 
 # Config loader
 
 def _load_config() -> Dict[str, Any]:
     """
-    Loads controller_config.yaml from the package share directory.
+    Load controller_config.yaml from the package share directory.
+
     Returns the parsed config dictionary.
     """
-    share_dir = get_package_share_directory("robot_controllers")
-    config_path = os.path.join(share_dir, "config", "controller_config.yaml")
-    with open(config_path, "r", encoding="utf-8") as f:
+    share_dir = get_package_share_directory('robot_controllers')
+    config_path = os.path.join(share_dir, 'config', 'controller_config.yaml')
+    with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 
@@ -83,24 +84,56 @@ def _load_config() -> Dict[str, Any]:
 def _apply_standoff(
     x: float,
     y: float,
-    z: float,
     yaw: float,
     standoff: float,
+    robot_xy: Optional[Tuple[float, float]] = None,
 ) -> Tuple[float, float, float]:
     """
-    Applies a standoff offset in front of the target pose.
+    Compute an approach pose `standoff` metres from the target.
 
-    The offset is applied along the direction the target is facing (yaw),
-    so the robot stops `standoff` metres in front of the target rather
-    than driving into it.
+    Picking_Shelves are open along their local +/-Y axis (local X is the
+    0.9 m width, and neighbouring shelves sit 1.0 m apart along it), so the
+    offset is applied along local Y, on whichever side is closer to the robot
+    (the +Y side if the robot pose is unknown).
+
+    Returns (goal_x, goal_y, heading), where heading faces the target.
     """
-    offset_x = x - standoff * math.cos(yaw)
-    offset_y = y - standoff * math.sin(yaw)
-    return offset_x, offset_y, z
+    ux, uy = -math.sin(yaw), math.cos(yaw)  # target's local +Y in world
+    candidates = [
+        (x + standoff * ux, y + standoff * uy),
+        (x - standoff * ux, y - standoff * uy),
+    ]
+    if robot_xy is not None:
+        candidates.sort(
+            key=lambda c: math.hypot(c[0] - robot_xy[0], c[1] - robot_xy[1])
+        )
+    goal_x, goal_y = candidates[0]
+    heading = math.atan2(y - goal_y, x - goal_x)
+    return goal_x, goal_y, heading
+
+
+def _quaternion_to_yaw(qx: float, qy: float, qz: float, qw: float) -> float:
+    """Extract yaw from a quaternion (valid for tilted entities too)."""
+    return math.atan2(2.0 * (qw * qz + qx * qy), 1.0 - 2.0 * (qy * qy + qz * qz))
+
+
+def _wait_for_future(future, timeout_sec: float) -> bool:
+    """
+    Block until `future` completes or `timeout_sec` passes.
+
+    Used instead of rclpy.spin_until_future_complete, which must not be
+    called from callbacks running in a MultiThreadedExecutor. The executor's
+    other threads complete the future. Returns True if the future is done.
+    """
+    if future.done():
+        return True
+    done = threading.Event()
+    future.add_done_callback(lambda _: done.set())
+    return done.wait(timeout=timeout_sec) or future.done()
 
 
 def _yaw_to_quaternion(yaw: float) -> Quaternion:
-    """Converts a yaw angle (radians) to a geometry_msgs Quaternion."""
+    """Convert a yaw angle (radians) to a geometry_msgs Quaternion."""
     q = Quaternion()
     q.x = 0.0
     q.y = 0.0
@@ -113,8 +146,9 @@ def _yaw_to_quaternion(yaw: float) -> Quaternion:
 
 class MobileRobotController(Node):
     """
-    Executes navigate_to, pick, and place skills for a Husky A200 mobile
-    manipulator by calling Nav2, MoveIt2, and gripper action servers.
+    Execute navigate_to, pick and place skills on a Husky A200 manipulator.
+
+    Calls the Nav2, MoveIt2, and gripper action servers.
 
     Lifecycle
     ---------
@@ -127,30 +161,36 @@ class MobileRobotController(Node):
     """
 
     def __init__(self) -> None:
-        super().__init__("mobile_robot_controller")
+        super().__init__('mobile_robot_controller')
 
         # Load config
         config = _load_config()
 
-        self._robot_instances: Dict[str, str] = config["robot_instances"]
-        self._standoff: float = config["navigation"]["standoff_distance"]
-        self._nav_timeout: float = config["navigation"]["nav_timeout_sec"]
-        self._move_group_name: str = config["manipulation"]["move_group_name"]
-        self._gripper_open: float = config["manipulation"]["gripper_open_position"]
-        self._gripper_closed: float = config["manipulation"]["gripper_closed_position"]
-        self._moveit_timeout: float = config["manipulation"]["moveit_timeout_sec"]
-        self._world_name: str = config["world"]["name"]
+        self._robot_instances: Dict[str, str] = config['robot_instances']
+        self._standoff: float = config['navigation']['standoff_distance']
+        self._nav_timeout: float = config['navigation']['nav_timeout_sec']
+        self._move_group_name: str = config['manipulation']['move_group_name']
+        self._gripper_open: float = config['manipulation']['gripper_open_position']
+        self._gripper_closed: float = config['manipulation']['gripper_closed_position']
+        self._moveit_timeout: float = config['manipulation']['moveit_timeout_sec']
+        self._end_effector_link: str = config['manipulation']['end_effector_link']
+        self._gripper_max_effort: float = config['manipulation']['gripper_max_effort']
+        self._gripper_timeout: float = config['manipulation']['gripper_timeout_sec']
+        self._world_name: str = config['world']['name']
         self._cb_group = ReentrantCallbackGroup()
 
         # World pose registry
         # Populated by _pose_callback from /world/default/pose/info
-        # Keys are Gazebo entity names, values are (x, y, z, yaw) tuples
+        # Keys are Gazebo entity names, values are (x, y, z, yaw) tuples.
+        # Guarded by _pose_lock: callbacks run concurrently under the
+        # MultiThreadedExecutor + ReentrantCallbackGroup.
         self._pose_registry: Dict[str, Tuple[float, float, float, float]] = {}
+        self._pose_lock = threading.Lock()
 
         # Subscriptions
         self.create_subscription(
             String,
-            "/mission/subtask",
+            '/mission/subtask',
             self._subtask_callback,
             10,
             callback_group=self._cb_group,
@@ -160,7 +200,7 @@ class MobileRobotController(Node):
         # /world/default/pose/info publishes all entity poses in the world
         self.create_subscription(
             TFMessage,
-            f"/world/{self._world_name}/pose/info",
+            f'/world/{self._world_name}/pose/info',
             self._pose_callback,
             10,
             callback_group=self._cb_group,
@@ -169,7 +209,7 @@ class MobileRobotController(Node):
         # Publisher
         self._feedback_pub = self.create_publisher(
             String,
-            "/mission/feedback",
+            '/mission/feedback',
             10,
         )
 
@@ -182,77 +222,79 @@ class MobileRobotController(Node):
         self._init_action_clients()
 
         self.get_logger().info(
-            "MobileRobotController ready.\n"
-            "  -> Subscribing to: /mission/subtask\n"
-            f"  -> Subscribing to: /world/{self._world_name}/pose/info\n"
-            "  -> Publishing to:  /mission/feedback\n"
-            f"  -> Managing instances: {list(self._robot_instances.keys())}"
+            'MobileRobotController ready.\n'
+            '  -> Subscribing to: /mission/subtask\n'
+            f'  -> Subscribing to: /world/{self._world_name}/pose/info\n'
+            '  -> Publishing to:  /mission/feedback\n'
+            f'  -> Managing instances: {list(self._robot_instances.keys())}'
         )
 
     def _init_action_clients(self) -> None:
         """
-        Initialises Nav2, MoveIt2, and gripper action clients for every
-        robot instance declared in controller_config.yaml.
+        Initialise Nav2, MoveIt2, and gripper action clients.
+
+        One set is created for every robot instance in controller_config.yaml.
         """
         for instance_id, namespace in self._robot_instances.items():
             self._nav_clients[instance_id] = ActionClient(
                 self,
                 NavigateToPose,
-                f"{namespace}/navigate_to_pose",
+                f'{namespace}/navigate_to_pose',
                 callback_group=self._cb_group,
             )
             self._moveit_clients[instance_id] = ActionClient(
                 self,
                 MoveGroup,
-                f"{namespace}/move_group",
+                f'{namespace}/move_group',
                 callback_group=self._cb_group,
             )
             self._gripper_clients[instance_id] = ActionClient(
                 self,
                 GripperCommand,
-                f"{namespace}/robotiq_gripper_controller/gripper_cmd",
+                f'{namespace}/robotiq_gripper_controller/gripper_cmd',
                 callback_group=self._cb_group,
             )
             self.get_logger().info(
-                f"[init] Action clients ready for {instance_id} "
-                f"(namespace={namespace})"
+                f'[init] Action clients ready for {instance_id} '
+                f'(namespace={namespace})'
             )
 
     # World pose subscription
 
     def _pose_callback(self, msg: TFMessage) -> None:
         """
-        Updates the pose registry from the Gazebo world pose topic.
+        Update the pose registry from the Gazebo world pose topic.
 
         /world/default/pose/info is bridged via ros_gz_bridge as
         tf2_msgs/TFMessage. Each transform's child_frame_id is the
         Gazebo entity name and the transform gives its pose.
         """
+        updates = {}
         for transform in msg.transforms:
             name = transform.child_frame_id
             if not name:
                 continue
 
-            x = transform.transform.translation.x
-            y = transform.transform.translation.y
-            z = transform.transform.translation.z
+            t = transform.transform.translation
+            q = transform.transform.rotation
+            updates[name] = (t.x, t.y, t.z, _quaternion_to_yaw(q.x, q.y, q.z, q.w))
 
-            qz = transform.transform.rotation.z
-            qw = transform.transform.rotation.w
-            yaw = 2.0 * math.atan2(qz, qw)
-
-            self._pose_registry[name] = (x, y, z, yaw)
+        with self._pose_lock:
+            self._pose_registry.update(updates)
 
     def _get_pose(self, entity_name: str) -> Optional[Tuple[float, float, float, float]]:
         """
-        Looks up an entity pose from the registry.
+        Look up an entity pose from the registry.
+
         Returns (x, y, z, yaw) or None if not found.
         """
-        pose = self._pose_registry.get(entity_name)
+        with self._pose_lock:
+            pose = self._pose_registry.get(entity_name)
+            known = sorted(self._pose_registry.keys())[:10] if pose is None else []
         if pose is None:
             self.get_logger().error(
                 f"[get_pose] Entity '{entity_name}' not found in pose registry. "
-                f"Known entities: {sorted(self._pose_registry.keys())[:10]}..."
+                f'Known entities: {known}...'
             )
         return pose
 
@@ -260,8 +302,9 @@ class MobileRobotController(Node):
 
     def _subtask_callback(self, msg: String) -> None:
         """
-        Receives a subtask from /mission/subtask and delegates to
-        _handle_subtask. Exceptions are caught so a bad message never
+        Receive a subtask from /mission/subtask and pass it to _handle_subtask.
+
+        Exceptions are caught so a bad message never
         crashes the node.
         """
         try:
@@ -269,27 +312,27 @@ class MobileRobotController(Node):
             self._handle_subtask(subtask)
         except Exception as exc:
             self.get_logger().error(
-                f"[subtask_callback] Unhandled exception: {exc}"
+                f'[subtask_callback] Unhandled exception: {exc}'
             )
 
     def _handle_subtask(self, subtask: Dict[str, Any]) -> None:
         """
-        Validates the subtask and dispatches to the correct skill handler.
+        Validate the subtask and dispatches to the correct skill handler.
 
         Checks:
         1. Robot type matches ROBOT_TYPE (mobile_robot)
         2. Robot instance is known in config
         3. Skill is supported
         """
-        plan_id = subtask.get("plan_id", "")
-        task_id = subtask.get("task_id", "")
-        robot = subtask.get("robot", "")
-        skills = subtask.get("required_skills", [])
-        args = subtask.get("args", {})
+        plan_id = subtask.get('plan_id', '')
+        task_id = subtask.get('task_id', '')
+        robot = subtask.get('robot', '')
+        skills = subtask.get('required_skills', [])
+        args = subtask.get('args', {})
 
         self.get_logger().info(
-            f"[handle_subtask] Received subtask {task_id} "
-            f"(robot={robot}, skills={skills})"
+            f'[handle_subtask] Received subtask {task_id} '
+            f'(robot={robot}, skills={skills})'
         )
 
         # Check robot type
@@ -304,13 +347,13 @@ class MobileRobotController(Node):
         if robot not in self._robot_instances:
             self.get_logger().error(
                 f"[handle_subtask] Robot instance '{robot}' not in config. "
-                f"Known instances: {list(self._robot_instances.keys())}"
+                f'Known instances: {list(self._robot_instances.keys())}'
             )
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="config_error",
-                detail=f"Unknown robot instance: {robot}",
+                status='failed',
+                stage='config_error',
+                detail=f'Unknown robot instance: {robot}',
             )
             return
 
@@ -318,22 +361,22 @@ class MobileRobotController(Node):
         skill = skills[0] if skills else None
         if skill is None:
             self.get_logger().error(
-                f"[handle_subtask] Subtask {task_id} has no required_skills."
+                f'[handle_subtask] Subtask {task_id} has no required_skills.'
             )
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="config_error",
-                detail="No required_skills specified.",
+                status='failed',
+                stage='config_error',
+                detail='No required_skills specified.',
             )
             return
 
         # Dispatch to skill handler
-        if skill == "navigate_to":
+        if skill == 'navigate_to':
             self._execute_navigate_to(plan_id, task_id, robot, args)
-        elif skill == "pick":
+        elif skill == 'pick':
             self._execute_pick(plan_id, task_id, robot, args)
-        elif skill == "place":
+        elif skill == 'place':
             self._execute_place(plan_id, task_id, robot, args)
         else:
             self.get_logger().error(
@@ -341,9 +384,9 @@ class MobileRobotController(Node):
             )
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="config_error",
-                detail=f"Unknown skill: {skill}",
+                status='failed',
+                stage='config_error',
+                detail=f'Unknown skill: {skill}',
             )
 
     # Skill: navigate_to
@@ -356,7 +399,7 @@ class MobileRobotController(Node):
         args: Dict[str, Any],
     ) -> None:
         """
-        Executes navigate_to skill by sending a NavigateToPose goal to Nav2.
+        Execute the navigate_to skill by sending a NavigateToPose goal to Nav2.
 
         Args expected:
           location (str): Gazebo entity name to navigate to
@@ -365,12 +408,12 @@ class MobileRobotController(Node):
         A standoff offset is applied so the robot stops in front of
         the target rather than driving into it.
         """
-        location = args.get("location")
+        location = args.get('location')
         if not location:
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="navigate_to",
+                status='failed',
+                stage='navigate_to',
                 detail="Missing 'location' in args.",
             )
             return
@@ -379,106 +422,113 @@ class MobileRobotController(Node):
         if pose is None:
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="navigate_to",
+                status='failed',
+                stage='navigate_to',
                 detail=f"Entity '{location}' not in pose registry.",
             )
             return
 
-        x, y, z, yaw = pose
-        nav_x, nav_y, _ = _apply_standoff(x, y, z, yaw, self._standoff)
+        x, y, _, yaw = pose
+
+        # The robot's own Gazebo model is named after its namespace
+        with self._pose_lock:
+            robot_pose = self._pose_registry.get(
+                self._robot_instances[robot].strip('/')
+            )
+        robot_xy = (robot_pose[0], robot_pose[1]) if robot_pose else None
+
+        nav_x, nav_y, nav_yaw = _apply_standoff(
+            x, y, yaw, self._standoff, robot_xy
+        )
 
         self.get_logger().info(
             f"[navigate_to] Task {task_id}: navigating to '{location}' "
-            f"with standoff {self._standoff}m -> ({nav_x:.2f}, {nav_y:.2f})"
+            f'with standoff {self._standoff}m -> ({nav_x:.2f}, {nav_y:.2f}, '
+            f'yaw {nav_yaw:.2f})'
         )
 
         # Build NavigateToPose goal
         goal = NavigateToPose.Goal()
         goal.pose = PoseStamped()
-        goal.pose.header.frame_id = "map"
+        goal.pose.header.frame_id = 'map'
         goal.pose.header.stamp = self.get_clock().now().to_msg()
         goal.pose.pose.position.x = nav_x
         goal.pose.pose.position.y = nav_y
         goal.pose.pose.position.z = 0.0
-        goal.pose.pose.orientation = _yaw_to_quaternion(yaw)
+        goal.pose.pose.orientation = _yaw_to_quaternion(nav_yaw)
 
         nav_client = self._nav_clients[robot]
 
         # Publish intermediate feedback
         self._publish_feedback(
             plan_id, task_id, robot,
-            status="success",
-            stage="navigating",
+            status='success',
+            stage='navigating',
             detail=f"Navigating to '{location}'.",
         )
 
         if not nav_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error(
-                f"[navigate_to] Nav2 action server not available for {robot}."
+                f'[navigate_to] Nav2 action server not available for {robot}.'
             )
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="navigate_to",
-                detail="Nav2 action server not available.",
+                status='failed',
+                stage='navigate_to',
+                detail='Nav2 action server not available.',
             )
             return
 
         send_goal_future = nav_client.send_goal_async(goal)
-        rclpy.spin_until_future_complete(
-            self, send_goal_future, timeout_sec=self._nav_timeout
-        )
+        _wait_for_future(send_goal_future, self._nav_timeout)
 
         goal_handle = send_goal_future.result()
         if not goal_handle or not goal_handle.accepted:
             self.get_logger().error(
-                f"[navigate_to] Nav2 rejected goal for task {task_id}."
+                f'[navigate_to] Nav2 rejected goal for task {task_id}.'
             )
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="navigate_to",
-                detail="Nav2 goal rejected.",
+                status='failed',
+                stage='navigate_to',
+                detail='Nav2 goal rejected.',
             )
             return
 
         result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(
-            self, result_future, timeout_sec=self._nav_timeout
-        )
+        _wait_for_future(result_future, self._nav_timeout)
 
         result = result_future.result()
         if result is None:
             goal_handle.cancel_goal_async()
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="navigate_to",
-                detail="Nav2 result timed out.",
+                status='failed',
+                stage='navigate_to',
+                detail='Nav2 result timed out.',
             )
             return
 
         if result.status != GoalStatus.STATUS_SUCCEEDED:
             self.get_logger().error(
-                f"[navigate_to] Task {task_id}: navigation failed "
-                f"with status {result.status}."
+                f'[navigate_to] Task {task_id}: navigation failed '
+                f'with status {result.status}.'
             )
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="navigate_to",
-                detail=f"Navigation failed with status {result.status}.",
+                status='failed',
+                stage='navigate_to',
+                detail=f'Navigation failed with status {result.status}.',
             )
             return
 
         self.get_logger().info(
-            f"[navigate_to] Task {task_id}: navigation complete."
+            f'[navigate_to] Task {task_id}: navigation complete.'
         )
         self._publish_feedback(
             plan_id, task_id, robot,
-            status="success",
-            stage="complete",
+            status='success',
+            stage='complete',
             detail=f"Reached '{location}'.",
         )
 
@@ -492,7 +542,8 @@ class MobileRobotController(Node):
         args: Dict[str, Any],
     ) -> None:
         """
-        Executes pick skill:
+        Execute the pick skill.
+
         1. Opens gripper
         2. Moves arm to object pose via MoveIt2
         3. Closes gripper
@@ -501,12 +552,12 @@ class MobileRobotController(Node):
           object (str): Gazebo entity name of object to pick
                         e.g. "small_box.019_5"
         """
-        object_name = args.get("object")
+        object_name = args.get('object')
         if not object_name:
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="pick",
+                status='failed',
+                stage='pick',
                 detail="Missing 'object' in args.",
             )
             return
@@ -515,8 +566,8 @@ class MobileRobotController(Node):
         if pose is None:
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="pick",
+                status='failed',
+                stage='pick',
                 detail=f"Object '{object_name}' not in pose registry.",
             )
             return
@@ -525,13 +576,13 @@ class MobileRobotController(Node):
 
         self.get_logger().info(
             f"[pick] Task {task_id}: picking '{object_name}' "
-            f"at ({x:.2f}, {y:.2f}, {z:.2f})"
+            f'at ({x:.2f}, {y:.2f}, {z:.2f})'
         )
 
         self._publish_feedback(
             plan_id, task_id, robot,
-            status="success",
-            stage="pick_in_progress",
+            status='success',
+            stage='pick_in_progress',
             detail=f"Picking '{object_name}'.",
         )
 
@@ -539,9 +590,9 @@ class MobileRobotController(Node):
         if not self._send_gripper_goal(robot, self._gripper_open, task_id):
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="pick",
-                detail="Failed to open gripper.",
+                status='failed',
+                stage='pick',
+                detail='Failed to open gripper.',
             )
             return
 
@@ -549,8 +600,8 @@ class MobileRobotController(Node):
         if not self._send_moveit_goal(robot, x, y, z, task_id):
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="pick",
+                status='failed',
+                stage='pick',
                 detail=f"MoveIt2 failed to reach '{object_name}'.",
             )
             return
@@ -559,19 +610,19 @@ class MobileRobotController(Node):
         if not self._send_gripper_goal(robot, self._gripper_closed, task_id):
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="pick",
-                detail="Failed to close gripper.",
+                status='failed',
+                stage='pick',
+                detail='Failed to close gripper.',
             )
             return
 
         self.get_logger().info(
-            f"[pick] Task {task_id}: pick complete."
+            f'[pick] Task {task_id}: pick complete.'
         )
         self._publish_feedback(
             plan_id, task_id, robot,
-            status="success",
-            stage="complete",
+            status='success',
+            stage='complete',
             detail=f"Picked '{object_name}'.",
         )
 
@@ -585,7 +636,8 @@ class MobileRobotController(Node):
         args: Dict[str, Any],
     ) -> None:
         """
-        Executes place skill:
+        Execute the place skill.
+
         1. Moves arm to target location via MoveIt2
         2. Opens gripper to release object
 
@@ -594,14 +646,14 @@ class MobileRobotController(Node):
                           e.g. "Picking_Shelves.001"
           object   (str): name of object being placed (for logging)
         """
-        location = args.get("location")
-        object_name = args.get("object", "unknown")
+        location = args.get('location')
+        object_name = args.get('object', 'unknown')
 
         if not location:
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="place",
+                status='failed',
+                stage='place',
                 detail="Missing 'location' in args.",
             )
             return
@@ -610,8 +662,8 @@ class MobileRobotController(Node):
         if pose is None:
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="place",
+                status='failed',
+                stage='place',
                 detail=f"Location '{location}' not in pose registry.",
             )
             return
@@ -625,8 +677,8 @@ class MobileRobotController(Node):
 
         self._publish_feedback(
             plan_id, task_id, robot,
-            status="success",
-            stage="place_in_progress",
+            status='success',
+            stage='place_in_progress',
             detail=f"Placing '{object_name}' at '{location}'.",
         )
 
@@ -634,8 +686,8 @@ class MobileRobotController(Node):
         if not self._send_moveit_goal(robot, x, y, z, task_id):
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="place",
+                status='failed',
+                stage='place',
                 detail=f"MoveIt2 failed to reach '{location}'.",
             )
             return
@@ -644,19 +696,19 @@ class MobileRobotController(Node):
         if not self._send_gripper_goal(robot, self._gripper_open, task_id):
             self._publish_feedback(
                 plan_id, task_id, robot,
-                status="failed",
-                stage="place",
-                detail="Failed to open gripper.",
+                status='failed',
+                stage='place',
+                detail='Failed to open gripper.',
             )
             return
 
         self.get_logger().info(
-            f"[place] Task {task_id}: place complete."
+            f'[place] Task {task_id}: place complete.'
         )
         self._publish_feedback(
             plan_id, task_id, robot,
-            status="success",
-            stage="complete",
+            status='success',
+            stage='complete',
             detail=f"Placed '{object_name}' at '{location}'.",
         )
 
@@ -671,7 +723,8 @@ class MobileRobotController(Node):
         task_id: str,
     ) -> bool:
         """
-        Sends a MoveGroup goal to MoveIt2 to move the arm to (x, y, z).
+        Send a MoveGroup goal to MoveIt2 to move the arm to (x, y, z).
+
         Returns True on success, False on failure.
 
         Uses a position constraint on the end effector link with a small
@@ -682,14 +735,14 @@ class MobileRobotController(Node):
 
         if not moveit_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error(
-                f"[moveit] MoveIt2 action server not available for {robot}."
+                f'[moveit] MoveIt2 action server not available for {robot}.'
             )
             return False
 
         # Build position constraint
         position_constraint = PositionConstraint()
-        position_constraint.header.frame_id = "world"
-        position_constraint.link_name = f"{namespace.strip('/')}/arm_0_tool0"
+        position_constraint.header.frame_id = 'world'
+        position_constraint.link_name = f"{namespace.strip('/')}/{self._end_effector_link}"
         position_constraint.target_point_offset = Point(x=0.0, y=0.0, z=0.0)
 
         # Tolerance sphere around target
@@ -723,35 +776,31 @@ class MobileRobotController(Node):
         goal.planning_options.plan_only = False
 
         send_goal_future = moveit_client.send_goal_async(goal)
-        rclpy.spin_until_future_complete(
-            self, send_goal_future, timeout_sec=self._moveit_timeout
-        )
+        _wait_for_future(send_goal_future, self._moveit_timeout)
 
         goal_handle = send_goal_future.result()
         if not goal_handle or not goal_handle.accepted:
             self.get_logger().error(
-                f"[moveit] MoveGroup goal rejected for task {task_id}."
+                f'[moveit] MoveGroup goal rejected for task {task_id}.'
             )
             return False
 
         result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(
-            self, result_future, timeout_sec=self._moveit_timeout
-        )
+        _wait_for_future(result_future, self._moveit_timeout)
 
         result = result_future.result()
         if result is None:
             goal_handle.cancel_goal_async()
             self.get_logger().error(
-                f"[moveit] MoveGroup result timed out for task {task_id}."
+                f'[moveit] MoveGroup result timed out for task {task_id}.'
             )
             return False
 
         error_code = result.result.error_code.val
         if error_code != MoveItErrorCodes.SUCCESS:
             self.get_logger().error(
-                f"[moveit] MoveGroup failed for task {task_id} "
-                f"with error code {error_code}."
+                f'[moveit] MoveGroup failed for task {task_id} '
+                f'with error code {error_code}.'
             )
             return False
 
@@ -766,7 +815,8 @@ class MobileRobotController(Node):
         task_id: str,
     ) -> bool:
         """
-        Sends a GripperCommand goal to open or close the gripper.
+        Send a GripperCommand goal to open or close the gripper.
+
         position: 0.0 = fully open, 0.8 = fully closed
         Returns True on success, False on failure.
         """
@@ -774,36 +824,32 @@ class MobileRobotController(Node):
 
         if not gripper_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error(
-                f"[gripper] Gripper action server not available for {robot}."
+                f'[gripper] Gripper action server not available for {robot}.'
             )
             return False
 
         goal = GripperCommand.Goal()
         goal.command.position = position
-        goal.command.max_effort = 50.0
+        goal.command.max_effort = self._gripper_max_effort
 
         send_goal_future = gripper_client.send_goal_async(goal)
-        rclpy.spin_until_future_complete(
-            self, send_goal_future, timeout_sec=10.0
-        )
+        _wait_for_future(send_goal_future, self._gripper_timeout)
 
         goal_handle = send_goal_future.result()
         if not goal_handle or not goal_handle.accepted:
             self.get_logger().error(
-                f"[gripper] Gripper goal rejected for task {task_id}."
+                f'[gripper] Gripper goal rejected for task {task_id}.'
             )
             return False
 
         result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(
-            self, result_future, timeout_sec=10.0
-        )
+        _wait_for_future(result_future, self._gripper_timeout)
 
         result = result_future.result()
         if result is None:
             goal_handle.cancel_goal_async()
             self.get_logger().error(
-                f"[gripper] Gripper result timed out for task {task_id}."
+                f'[gripper] Gripper result timed out for task {task_id}.'
             )
             return False
 
@@ -818,29 +864,29 @@ class MobileRobotController(Node):
         robot: str,
         status: str,
         stage: str,
-        detail: str = "",
+        detail: str = '',
     ) -> None:
-        """Publishes a feedback message to /mission/feedback."""
+        """Publish a feedback message to /mission/feedback."""
         payload = json.dumps({
-            "plan_id": plan_id,
-            "task_id": task_id,
-            "robot": robot,
-            "status": status,
-            "stage": stage,
-            "detail": detail,
+            'plan_id': plan_id,
+            'task_id': task_id,
+            'robot': robot,
+            'status': status,
+            'stage': stage,
+            'detail': detail,
         })
         msg = String()
         msg.data = payload
         self._feedback_pub.publish(msg)
         self.get_logger().info(
-            f"[feedback] task={task_id} status={status} "
-            f"stage={stage} detail={detail}"
+            f'[feedback] task={task_id} status={status} '
+            f'stage={stage} detail={detail}'
         )
 
     # Pose builder helper
 
     def _make_pose(self, x: float, y: float, z: float):
-        """Builds a geometry_msgs/Pose at (x, y, z) with identity orientation."""
+        """Build a geometry_msgs/Pose at (x, y, z) with identity orientation."""
         from geometry_msgs.msg import Pose
         pose = Pose()
         pose.position.x = x
@@ -865,5 +911,5 @@ def main(args=None) -> None:
             rclpy.shutdown()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
