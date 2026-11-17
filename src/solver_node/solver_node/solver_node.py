@@ -86,11 +86,8 @@ class SolverNode(Node):
             else self.default_fleet
         )
 
-        # Run allocation using fleet robots and skill specs provided in mission plan
-        fleet_specs = fleet_dict if isinstance(fleet_dict, dict) else None
-        assigned_subtasks = allocate_subtasks(
-            subtasks, fleet_robots, fleet_specs=fleet_specs
-        )
+        # Run allocation using fleet robots provided in mission plan
+        assigned_subtasks = allocate_subtasks(subtasks, fleet_robots)
 
         # Format assigned plan envelope for dispatcher_node
         assigned_plan_payload = {

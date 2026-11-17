@@ -120,39 +120,3 @@ class TestSolverNode(unittest.TestCase):
         msg.data = '{invalid_json'
         self.node.on_plan_received(msg)
         self.node.pub_assigned_plan.publish.assert_not_called()
-
-    def test_on_plan_received_routes_nav_to_transport_robot(self):
-        plan_input = {
-            'status': 'ok',
-            'itax_subclass': 'ND[ST-SR-IA]',
-            'fleet': {
-                'mobile_robot_1': {
-                    'robot_type': 'mobile_robot',
-                    'skills': ['navigate_to', 'pick', 'place'],
-                },
-                'quadruped_transport_robot_1': {
-                    'robot_type': 'quadruped_transport_robot',
-                    'skills': ['navigate_to'],
-                },
-            },
-            'plan': {
-                'plan_id': 'plan_nav_only',
-                'status': 'ok',
-                'subtasks': [
-                    {
-                        'id': 'T1',
-                        'description': 'Navigate to staging area.',
-                        'required_skills': ['navigate_to'],
-                        'args': {'location': 'staging_area'},
-                        'dependencies': [],
-                    },
-                ],
-            },
-        }
-        msg = String()
-        msg.data = json.dumps(plan_input)
-        self.node.on_plan_received(msg)
-
-        self.node.pub_assigned_plan.publish.assert_called_once()
-        published = json.loads(self.node.pub_assigned_plan.publish.call_args[0][0].data)
-        assert published['output']['subtasks'][0]['robot'] == 'quadruped_transport_robot_1'

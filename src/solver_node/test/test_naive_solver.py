@@ -140,38 +140,3 @@ def test_immutability_of_input():
     assigned = allocate_subtasks(subtasks)
     assert 'robot' not in subtasks[0]
     assert assigned[0]['robot'] == 'mobile_robot_1'
-
-
-def test_skill_aware_allocation_prefers_transport_for_nav_only():
-    subtasks = [
-        {
-            'id': 'T1',
-            'description': 'Move to picking zone.',
-            'required_skills': ['navigate_to'],
-            'args': {'location': 'picking_zone'},
-            'dependencies': [],
-        },
-        {
-            'id': 'T2',
-            'description': 'Navigate to shelf A.',
-            'required_skills': ['navigate_to'],
-            'args': {'location': 'shelf_A'},
-            'dependencies': [],
-        },
-        {
-            'id': 'T3',
-            'description': 'Pick box A.',
-            'required_skills': ['pick'],
-            'args': {'object': 'box_A'},
-            'dependencies': ['T2'],
-        },
-    ]
-    fleet = ['mobile_robot_1', 'quadruped_transport_robot_1']
-    specs = {
-        'mobile_robot_1': {'skills': ['navigate_to', 'pick', 'place']},
-        'quadruped_transport_robot_1': {'skills': ['navigate_to']},
-    }
-    assigned = allocate_subtasks(subtasks, fleet_robots=fleet, fleet_specs=specs)
-    assert assigned[0]['robot'] == 'quadruped_transport_robot_1'
-    assert assigned[1]['robot'] == 'mobile_robot_1'
-    assert assigned[2]['robot'] == 'mobile_robot_1'
