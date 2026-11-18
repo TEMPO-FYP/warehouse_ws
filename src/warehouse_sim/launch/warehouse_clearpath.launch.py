@@ -20,6 +20,12 @@ share a lock), which is too short when the sim runs well below real time
 ensure_controllers node then loads/configures/activates whatever is not active
 yet, with long timeouts and without the spawner lock.
 
+A robot spawned while the Gazebo GUI is still loading the world exists on the
+server but never shows up in the GUI. So, as on the transport-robot branch,
+scripts/wait_for_gazebo.sh first waits for the world's /create service and
+then gui_settle_sec (skipped when headless); the robot is spawned only once
+it exits successfully.
+
 Place at:  warehouse_ws/src/warehouse_sim/launch/warehouse_clearpath.launch.py
 """
 
@@ -31,10 +37,14 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
+    ExecuteProcess,
     IncludeLaunchDescription,
+    LogInfo,
     OpaqueFunction,
+    RegisterEventHandler,
     SetEnvironmentVariable,
 )
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import EnvironmentVariable, LaunchConfiguration
 from launch_ros.actions import Node
@@ -78,6 +88,10 @@ ARGUMENTS = [
         'headless', default_value='false', choices=['true', 'false'],
         description='Run Gazebo server only, without the GUI'),
     DeclareLaunchArgument(
+        'gui_settle_sec', default_value='30.0',
+        description='Seconds to let the Gazebo GUI load the world before spawning '
+                    'the robot (otherwise it is invisible in the GUI); ignored when headless'),
+    DeclareLaunchArgument(
         'rviz', default_value='false', choices=['true', 'false'],
         description='Start RViz'),
     DeclareLaunchArgument('use_sim_time', default_value='true',
@@ -97,6 +111,9 @@ def launch_setup(context, *args, **kwargs):
         raise RuntimeError(f'World file not found: {world_file}')
 
     headless = LaunchConfiguration('headless').perform(context) == 'true'
+    world_name = LaunchConfiguration('world_name').perform(context)
+    gui_settle_sec = 0.0 if headless else float(
+        LaunchConfiguration('gui_settle_sec').perform(context))
 
     # Put the robot definition in this robot's own setup folder
     setup_path = LaunchConfiguration('setup_path').perform(context)
@@ -165,6 +182,23 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
+    # Spawn only once the world is up and the GUI has loaded it
+    wait_for_gazebo = ExecuteProcess(
+        cmd=['bash', os.path.join(pkg_warehouse, 'scripts', 'wait_for_gazebo.sh'),
+             world_name, '120', str(int(gui_settle_sec))],
+        output='screen',
+    )
+
+    def _on_wait_exit(event, _context):
+        if event.returncode != 0:
+            return [LogInfo(msg='[warehouse_clearpath] Gazebo world not ready; '
+                                'robot not spawned.')]
+        return [robot_spawn]
+
+    spawn_when_ready = RegisterEventHandler(
+        OnProcessExit(target_action=wait_for_gazebo, on_exit=_on_wait_exit)
+    )
+
     ensure_controllers = Node(
         package='warehouse_sim',
         executable='ensure_controllers',
@@ -182,7 +216,8 @@ def launch_setup(context, *args, **kwargs):
         SetEnvironmentVariable('GZ_SIM_RESOURCE_PATH', ':'.join(resource_dirs)),
         gz_sim,
         clock_bridge,
-        robot_spawn,
+        wait_for_gazebo,
+        spawn_when_ready,
         ensure_controllers,
     ]
 

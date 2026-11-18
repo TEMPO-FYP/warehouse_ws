@@ -17,6 +17,10 @@ for a simulation running well below real time (Gazebo on CPU, ~0.1x):
     short for the planner to acknowledge a replanning request, which aborts
     the whole goal.
   * progress_checker movement_time_allowance and costmap_update_timeout.
+  * lifecycle manager bond_timeout: with the CPU saturated, Nav2 servers can
+    miss the default 4 s heartbeat and get shut down ("CRITICAL FAILURE ...
+    IS DOWN"). nav2_bringup does not pass the params file to the lifecycle
+    managers, so it is set with SetParameter.
 It also raises MPPI's top speed (vx_max) from 0.5 to max_speed (1.0 m/s).
 
 Run after warehouse_clearpath.launch.py has spawned the robot (the lidar scan
@@ -31,7 +35,7 @@ from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDesc
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import EnvironmentVariable, LaunchConfiguration
-from launch_ros.actions import PushRosNamespace
+from launch_ros.actions import PushRosNamespace, SetParameter
 from nav2_common.launch import RewrittenYaml
 
 
@@ -98,8 +102,12 @@ def generate_launch_description():
 
     # Same structure as clearpath_nav2_demos/launch/localization.launch.py,
     # but with our map and AMCL params (initial pose preset).
+    # Applies to every node in the group; only the lifecycle managers use it.
+    bond_timeout = SetParameter(name='bond_timeout', value=20.0)
+
     localization = GroupAction([
         PushRosNamespace(namespace),
+        bond_timeout,
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(pkg_nav2_bringup, 'launch', 'localization_launch.py')),
@@ -142,6 +150,7 @@ def generate_launch_description():
 
     navigation = GroupAction([
         PushRosNamespace(namespace),
+        bond_timeout,
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(pkg_nav2_bringup, 'launch', 'navigation_launch.py')),

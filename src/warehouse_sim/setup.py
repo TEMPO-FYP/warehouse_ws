@@ -19,12 +19,13 @@ data_files = [
     ('share/' + package_name, ['package.xml']),
 ]
 
-# Add launch, worlds, models, maps and config recursively
+# Add launch, worlds, models, maps, config and scripts recursively
 data_files.extend(generate_data_files(package_name, 'launch'))
 data_files.extend(generate_data_files(package_name, 'worlds'))
 data_files.extend(generate_data_files(package_name, 'models'))
 data_files.extend(generate_data_files(package_name, 'maps'))
 data_files.extend(generate_data_files(package_name, 'config'))
+data_files.extend(generate_data_files(package_name, 'scripts'))
 
 setup(
     name=package_name,

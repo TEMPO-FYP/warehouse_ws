@@ -10,6 +10,17 @@ sensors:
       parent: base_link
       xyz: [0.35, 0.0, 0.24]
       rpy: [0.0, 0.0, 0.0]
+      # The Hokuyo UST's real 270 deg field of view. Without these limits the
+      # simulated scan is 360 deg, and its rear beams hit the robot's own body
+      # 0.2 m away, which Nav2's collision monitor treats as an obstacle inside
+      # the footprint (the robot then never moves).
+      ros_parameters:
+        urg_node:
+          laser_frame_id: lidar2d_0_laser
+          ip_address: 192.168.131.20
+          ip_port: 10940
+          angle_min: -2.356
+          angle_max: 2.356
 serial_number: a200-0000
 version: 0
 system:
