@@ -1,8 +1,7 @@
 """Unit tests for TEMPO naive connected-chain task allocation logic."""
 
 import networkx as nx
-import pytest
-from solver_node.naive_solver import allocate_subtasks, NoCapableRobotError
+from solver_node.naive_solver import allocate_subtasks
 
 
 def _build_two_chain_subtasks():
@@ -141,49 +140,3 @@ def test_immutability_of_input():
     assigned = allocate_subtasks(subtasks)
     assert 'robot' not in subtasks[0]
     assert assigned[0]['robot'] == 'mobile_robot_1'
-
-
-MANIPULATOR_SKILLS = ['navigate_to', 'pick', 'place']
-TRANSPORT_SKILLS = ['navigate_to']
-
-
-def test_chain_needing_pick_skips_transport_robot():
-    """A chain with pick/place must never go to a navigation-only robot."""
-    subtasks = _build_two_chain_subtasks()
-    fleet = ['transport_robot_1', 'mobile_robot_1']
-    skills = {
-        'transport_robot_1': TRANSPORT_SKILLS,
-        'mobile_robot_1': MANIPULATOR_SKILLS,
-    }
-    assigned = allocate_subtasks(subtasks, fleet_robots=fleet, robot_skills=skills)
-    assert {t['robot'] for t in assigned} == {'mobile_robot_1'}
-
-
-def test_navigation_only_chain_balances_onto_transport_robot():
-    subtasks = [
-        {'id': 'T1', 'required_skills': ['navigate_to'], 'dependencies': []},
-        {'id': 'T2', 'required_skills': ['pick'], 'dependencies': ['T1']},
-        {'id': 'T3', 'required_skills': ['navigate_to'], 'dependencies': []},
-    ]
-    fleet = ['mobile_robot_1', 'transport_robot_1']
-    skills = {
-        'mobile_robot_1': MANIPULATOR_SKILLS,
-        'transport_robot_1': TRANSPORT_SKILLS,
-    }
-    assigned = allocate_subtasks(subtasks, fleet_robots=fleet, robot_skills=skills)
-    robots = {t['id']: t['robot'] for t in assigned}
-    assert robots == {
-        'T1': 'mobile_robot_1',
-        'T2': 'mobile_robot_1',
-        'T3': 'transport_robot_1',
-    }
-
-
-def test_no_capable_robot_raises():
-    subtasks = [{'id': 'T1', 'required_skills': ['pick'], 'dependencies': []}]
-    with pytest.raises(NoCapableRobotError):
-        allocate_subtasks(
-            subtasks,
-            fleet_robots=['transport_robot_1'],
-            robot_skills={'transport_robot_1': TRANSPORT_SKILLS},
-        )

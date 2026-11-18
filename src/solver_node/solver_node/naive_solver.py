@@ -1,35 +1,25 @@
 """Core task allocation logic for the TEMPO Solver node."""
 
 import copy
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 import networkx as nx
-
-
-class NoCapableRobotError(ValueError):
-    """Raised when no robot in the fleet has every skill a subtask chain needs."""
 
 
 def allocate_subtasks(
     subtasks: List[Dict[str, Any]],
     fleet_robots: Optional[List[str]] = None,
-    robot_skills: Optional[Dict[str, List[str]]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Allocate robot IDs to a list of subtasks.
 
     Identifies independent subtask chains using weakly connected components on the DAG.
-    Each chain is allocated to a single robot, ensuring all subtasks in a sequential
-    chain execute on the same robot. Only robots whose skills cover every skill in the
-    chain are candidates; among those, the robot with the fewest chains so far is chosen
-    (ties broken by fleet order), which reduces to round-robin for a homogeneous fleet.
+    Each independent chain is allocated to a single robot in round-robin fashion,
+    ensuring all subtasks in a sequential chain execute on the same robot.
 
     :param subtasks: List of subtask dictionaries from the LLM planner.
     :param fleet_robots: Optional list of available robot IDs.
-    :param robot_skills: Optional map of robot ID -> skill IDs it can execute.
-        Robots absent from this map are assumed capable of any skill.
     :return: A new list of subtask dictionaries with the 'robot' field populated.
-    :raises NoCapableRobotError: If no robot can execute some chain.
     """
     if not subtasks:
         return []
@@ -57,31 +47,10 @@ def allocate_subtasks(
         key=lambda comp: min(task_order.get(tid, 0) for tid in comp),
     )
 
-    robot_skills = robot_skills or {}
-    task_by_id = {t['id']: t for t in subtasks}
-
-    def _can_execute(robot: str, needed: Set[str]) -> bool:
-        if robot not in robot_skills:
-            return True
-        return needed.issubset(robot_skills[robot])
-
-    # Map each component to the least-loaded capable robot
-    load = {robot: 0 for robot in fleet_robots}
+    # Map each component to a robot
     robot_map: Dict[str, str] = {}
-    for comp in components:
-        needed = {
-            skill
-            for tid in comp
-            for skill in task_by_id[tid].get('required_skills', [])
-        }
-        candidates = [r for r in fleet_robots if _can_execute(r, needed)]
-        if not candidates:
-            raise NoCapableRobotError(
-                f'No robot in fleet {fleet_robots} can execute skills '
-                f'{sorted(needed)} required by subtasks {sorted(comp)}.'
-            )
-        assigned_robot = min(candidates, key=lambda r: load[r])
-        load[assigned_robot] += 1
+    for idx, comp in enumerate(components):
+        assigned_robot = fleet_robots[idx % len(fleet_robots)]
         for tid in comp:
             robot_map[tid] = assigned_robot
 

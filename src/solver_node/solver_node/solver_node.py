@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 import rclpy
 from rclpy.node import Node
-from solver_node.naive_solver import allocate_subtasks, NoCapableRobotError
+from solver_node.naive_solver import allocate_subtasks
 from std_msgs.msg import String
 
 
@@ -86,20 +86,8 @@ class SolverNode(Node):
             else self.default_fleet
         )
 
-        robot_skills = {
-            robot_id: spec['skills']
-            for robot_id, spec in fleet_dict.items()
-            if isinstance(spec, dict) and isinstance(spec.get('skills'), list)
-        }
-
         # Run allocation using fleet robots provided in mission plan
-        try:
-            assigned_subtasks = allocate_subtasks(
-                subtasks, fleet_robots, robot_skills=robot_skills
-            )
-        except NoCapableRobotError as exc:
-            self.get_logger().error(f"Cannot allocate plan '{plan_id}': {exc}")
-            return
+        assigned_subtasks = allocate_subtasks(subtasks, fleet_robots)
 
         # Format assigned plan envelope for dispatcher_node
         assigned_plan_payload = {
