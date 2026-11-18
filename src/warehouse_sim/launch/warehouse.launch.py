@@ -32,14 +32,52 @@ def _launch_gz_sim(context, pkg_warehouse_sim, pkg_ros_gz_sim):
             f"Invalid 'headless' value '{headless}'; expected 'true' or 'false'"
         )
 
+    record = LaunchConfiguration('record').perform(context).strip().lower()
+    record_path = LaunchConfiguration('record_path').perform(context).strip()
+    record_period = LaunchConfiguration('record_period').perform(context).strip()
+    save_video = LaunchConfiguration('save_video').perform(context).strip().lower()
+    video_path = LaunchConfiguration('video_path').perform(context).strip()
+    args_parts = [gz_flags]
+    if headless == 'true' and (save_video == 'true' or video_path):
+        args_parts.append('--headless-rendering')
+    if record_path:
+        args_parts.append(f'--record-path {record_path} --log-overwrite')
+    elif record == 'true':
+        args_parts.append('--record')
+    if (record_path or record == 'true') and record_period and float(record_period) > 0.0:
+        args_parts.append(f'--record-period {record_period}')
+    args_parts.append(resolved_world)
+
     return [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')
             ),
             launch_arguments={
-                'gz_args': f'{gz_flags} {resolved_world}'
+                'gz_args': ' '.join(args_parts)
             }.items(),
+        )
+    ]
+
+
+def _launch_video_recorder(context):
+    """Launch gz_video_recorder when save_video or video_path is enabled."""
+    save_video = LaunchConfiguration('save_video').perform(context).strip().lower()
+    video_path = LaunchConfiguration('video_path').perform(context).strip()
+    if save_video != 'true' and not video_path:
+        return []
+
+    return [
+        Node(
+            package='warehouse_sim',
+            executable='gz_video_recorder',
+            name='video_recorder',
+            output='screen',
+            parameters=[{
+                'topic': '/video_camera',
+                'output_path': video_path,
+                'fps': 15.0,
+            }],
         )
     ]
 
@@ -100,6 +138,33 @@ def generate_launch_description():
         choices=['true', 'false'],
         description='Run Gazebo Sim server headless (-s)'
     )
+    record_arg = DeclareLaunchArgument(
+        'record',
+        default_value='false',
+        choices=['true', 'false'],
+        description='Record Gazebo Sim states (--record) to ~/.gz/sim/log for playback',
+    )
+    record_path_arg = DeclareLaunchArgument(
+        'record_path',
+        default_value='',
+        description='Custom directory path for Gazebo Sim recording (--record-path)',
+    )
+    record_period_arg = DeclareLaunchArgument(
+        'record_period',
+        default_value='0.033',
+        description='Seconds between recorded states (--record-period, 0 records every step)',
+    )
+    save_video_arg = DeclareLaunchArgument(
+        'save_video',
+        default_value='false',
+        choices=['true', 'false'],
+        description='Render follow camera and save an MP4 video directly to src/recordings/',
+    )
+    video_path_arg = DeclareLaunchArgument(
+        'video_path',
+        default_value='',
+        description='Output MP4 path (relative paths save under src/recordings/)',
+    )
     use_static_map_arg = DeclareLaunchArgument(
         'use_static_map',
         default_value='auto',
@@ -149,10 +214,16 @@ def generate_launch_description():
     )
 
     map_server_action = OpaqueFunction(function=_launch_map_server)
+    video_recorder_action = OpaqueFunction(function=_launch_video_recorder)
 
     return LaunchDescription([
         world_arg,
         headless_arg,
+        record_arg,
+        record_path_arg,
+        record_period_arg,
+        save_video_arg,
+        video_path_arg,
         use_static_map_arg,
         map_yaml_arg,
         gz_resource_path,
@@ -160,4 +231,5 @@ def generate_launch_description():
         clock_bridge,
         pose_bridge,
         map_server_action,
+        video_recorder_action,
     ])

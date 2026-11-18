@@ -24,6 +24,9 @@ from typing import Any, Dict, Optional, Tuple
 from action_msgs.msg import GoalStatus
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import PoseStamped, Quaternion, Twist
+from gz.msgs10.boolean_pb2 import Boolean  # type: ignore[import-not-found]
+from gz.msgs10.pose_pb2 import Pose as GzPose  # type: ignore[import-not-found]
+from gz.transport13 import Node as GzNode  # type: ignore[import-not-found]
 from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import (
     Constraints,
@@ -39,9 +42,12 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from robot_controllers.map_standoff import OccupancyMap
+from robot_controllers.planning_scene_manager import PlanningSceneManager
 from robot_controllers.z1_ik import (
+    fk_tcp_base_link,
     quaternion_to_yaw,
     solve_z1_ik,
+    transform_base_to_world,
     transform_world_to_base,
 )
 from sensor_msgs.msg import JointState
@@ -111,6 +117,12 @@ def _yaw_quat_tuple(yaw: float) -> Tuple[float, float, float, float]:
     return (0.0, 0.0, math.sin(yaw / 2.0), math.cos(yaw / 2.0))
 
 
+def _yaw_roll_quat_tuple(yaw: float, roll: float) -> Tuple[float, float, float, float]:
+    sy, cy = math.sin(yaw / 2.0), math.cos(yaw / 2.0)
+    sr, cr = math.sin(roll / 2.0), math.cos(roll / 2.0)
+    return (cy * sr, sy * sr, sy * cr, cy * cr)
+
+
 class MobileRobotController(Node):
     """Execute TEMPO mobile_robot subtasks on B1Z1 via Nav2 and MoveIt 2."""
 
@@ -139,14 +151,30 @@ class MobileRobotController(Node):
         self._gripper_group_name: str = manip_cfg.get('gripper_group_name', 'z1_gripper')
         self._gripper_open: float = float(manip_cfg['gripper_open_position'])
         self._gripper_closed: float = float(manip_cfg['gripper_closed_position'])
+        self._gripper_attach: float = float(manip_cfg.get('gripper_attach_position', -1.10))
         self._gripper_open_tol: float = float(manip_cfg.get('gripper_open_tolerance', 0.08))
         self._gripper_closed_tol: float = float(manip_cfg.get('gripper_closed_tolerance', 0.02))
         self._arm_tol: float = float(manip_cfg.get('arm_joint_tolerance', 0.005))
         self._moveit_timeout: float = float(manip_cfg['moveit_timeout_sec'])
         self._min_reach: float = float(manip_cfg.get('min_reach_m', 0.40))
-        self._max_reach: float = float(manip_cfg.get('max_reach_m', 0.80))
+        self._max_reach: float = float(manip_cfg.get('max_reach_m', 0.85))
         self._place_drop_standoff: float = float(manip_cfg.get('place_drop_standoff', 0.68))
         self._place_clear_z_offset: float = float(manip_cfg.get('place_clear_z_offset', 0.075))
+        self._use_kinematic_attach: bool = bool(manip_cfg.get('use_kinematic_attach', True))
+        self._attach_max_distance: float = float(manip_cfg.get('attach_max_distance_m', 0.18))
+        self._attach_rate_hz: float = max(1.0, float(manip_cfg.get('attach_rate_hz', 15.0)))
+        raw_offset = manip_cfg.get('attach_tcp_offset_xyz', [0.015, 0.0, 0.0])
+        self._attach_tcp_offset: Tuple[float, float, float] = (
+            float(raw_offset[0]),
+            float(raw_offset[1]),
+            float(raw_offset[2]),
+        )
+        raw_dims = manip_cfg.get('default_object_dims', [0.06, 0.06, 0.06])
+        self._default_object_dims: Tuple[float, float, float] = (
+            float(raw_dims[0]),
+            float(raw_dims[1]),
+            float(raw_dims[2]),
+        )
         self._fixture_surface_z: Dict[str, float] = {
             k: float(v) for k, v in manip_cfg.get('fixture_surface_z', {}).items()
         }
@@ -165,9 +193,18 @@ class MobileRobotController(Node):
         self._pose_registry: Dict[str, PoseEntry] = {}
         self._js_lock = threading.Lock()
         self._joint_positions: Dict[str, float] = {}
+        self._attach_lock = threading.Lock()
+        self._set_pose_lock = threading.Lock()
+        self._attach_event = threading.Event()
+        self._stop_attach_thread: bool = False
+        self._attached_object: Optional[str] = None
+        self._last_attached_pose: Optional[Tuple[float, float, float, float]] = None
+        self._last_attached_roll: float = 0.0
         self._robot_locks: Dict[str, threading.Lock] = {
             inst: threading.Lock() for inst in self._robot_instances
         }
+        self._scene_manager = PlanningSceneManager(self, spin_locally=False)
+        self._gz_node = GzNode() if self._use_kinematic_attach else None
 
         self.create_subscription(
             String,
@@ -187,7 +224,7 @@ class MobileRobotController(Node):
             JointState,
             '/joint_states',
             self._joint_state_callback,
-            10,
+            1,
             callback_group=self._cb_group,
         )
         self._feedback_pub = self.create_publisher(String, '/mission/feedback', 10)
@@ -208,6 +245,188 @@ class MobileRobotController(Node):
             self.get_logger().info(
                 f'[init] {instance_id}: nav={nav_topic}, moveit={move_topic}'
             )
+
+        self._attach_thread: Optional[threading.Thread] = None
+        if self._use_kinematic_attach:
+            self._attach_thread = threading.Thread(
+                target=self._attach_tracking_loop, daemon=True
+            )
+            self._attach_thread.start()
+
+    def _attach_tracking_loop(self) -> None:
+        period = 1.0 / self._attach_rate_hz
+        while not self._stop_attach_thread:
+            if not self._attach_event.wait(timeout=0.5):
+                continue
+            if self._stop_attach_thread:
+                break
+            try:
+                self._update_attached_object_pose(wait_for_lock=False)
+            except Exception as exc:
+                self.get_logger().error(f'[attach] pose tracking update failed: {exc}')
+            time.sleep(period)
+
+    def destroy_node(self) -> None:
+        """Stop background pose-tracking thread and destroy ROS 2 node."""
+        self._stop_attach_thread = True
+        self._attach_event.set()
+        if self._attach_thread is not None and self._attach_thread.is_alive():
+            self._attach_thread.join(timeout=1.0)
+        super().destroy_node()
+
+    def _is_large_fixture(self, entity_name: str) -> bool:
+        return any(
+            entity_name.startswith(p)
+            for p in ('Packing_Station', 'Picking_Shelves', 'Pallet_Standard')
+        )
+
+    def _get_tcp_world_pose(
+        self,
+        offset_xyz: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+        use_jaw_center: bool = False,
+    ) -> Optional[Tuple[float, float, float]]:
+        robot_pose = self._get_robot_pose()
+        if robot_pose is None:
+            return None
+        with self._js_lock:
+            j_vals = [
+                self._joint_positions.get(j)
+                for j in ('joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6')
+            ]
+        if any(v is None for v in j_vals):
+            return None
+        j6 = float(j_vals[5])
+        bx, by, bz = fk_tcp_base_link(
+            float(j_vals[0]),
+            float(j_vals[1]),
+            float(j_vals[2]),
+            float(j_vals[3]),
+            float(j_vals[4]),
+            j6,
+        )
+        jaw_y = -0.034 * math.sin(j6) if use_jaw_center else 0.0
+        jaw_z = 0.034 * math.cos(j6) if use_jaw_center else 0.0
+        rx, ry, rz, rquat = robot_pose
+        return transform_base_to_world(
+            bx + offset_xyz[0],
+            by + jaw_y + offset_xyz[1],
+            bz + jaw_z + offset_xyz[2],
+            (rx, ry, rz),
+            rquat,
+        )
+
+    def _set_gazebo_entity_pose(
+        self,
+        entity_name: str,
+        wx: float,
+        wy: float,
+        wz: float,
+        quat: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0),
+        timeout_ms: int = 100,
+    ) -> bool:
+        if self._gz_node is None:
+            return False
+        req = GzPose()
+        req.name = entity_name
+        req.position.x = float(wx)
+        req.position.y = float(wy)
+        req.position.z = float(wz)
+        req.orientation.x = float(quat[0])
+        req.orientation.y = float(quat[1])
+        req.orientation.z = float(quat[2])
+        req.orientation.w = float(quat[3])
+        ok, resp = self._gz_node.request(
+            f'/world/{self._world_name}/set_pose',
+            req,
+            GzPose,
+            Boolean,
+            timeout_ms,
+        )
+        succeeded = bool(ok and resp is not None and resp.data)
+        if succeeded:
+            with self._pose_lock:
+                self._pose_registry[entity_name] = (
+                    float(wx),
+                    float(wy),
+                    float(wz),
+                    (float(quat[0]), float(quat[1]), float(quat[2]), float(quat[3])),
+                )
+        return succeeded
+
+    def _update_attached_object_pose(self, wait_for_lock: bool = False) -> None:
+        if not self._set_pose_lock.acquire(blocking=wait_for_lock):
+            return
+        try:
+            with self._attach_lock:
+                target = self._attached_object
+            if not target:
+                return
+            world_pt = self._get_tcp_world_pose(
+                self._attach_tcp_offset, use_jaw_center=True
+            )
+            robot_pose = self._get_robot_pose()
+            if world_pt is None or robot_pose is None:
+                return
+            with self._js_lock:
+                j1 = float(self._joint_positions.get('joint1', 0.0))
+                j5 = float(self._joint_positions.get('joint5', 0.0))
+                j6 = float(self._joint_positions.get('joint6', math.pi / 2.0))
+            yaw = quaternion_to_yaw(*robot_pose[3]) + j1 + j5
+            roll = j6 - math.pi / 2.0
+            cur = (world_pt[0], world_pt[1], world_pt[2], yaw)
+            last = self._last_attached_pose
+            if last is not None and not wait_for_lock:
+                d_pos = max(
+                    abs(cur[0] - last[0]),
+                    abs(cur[1] - last[1]),
+                    abs(cur[2] - last[2]),
+                )
+                d_yaw = abs(math.atan2(math.sin(yaw - last[3]), math.cos(yaw - last[3])))
+                d_roll = abs(roll - self._last_attached_roll)
+                if d_pos < 0.002 and d_yaw < 0.01 and d_roll < 0.01:
+                    return
+            quat = _yaw_roll_quat_tuple(yaw, roll)
+            attempts = 3 if wait_for_lock else 1
+            timeout = 800 if wait_for_lock else 250
+            for _ in range(attempts):
+                if self._set_gazebo_entity_pose(
+                    target, cur[0], cur[1], cur[2], quat=quat, timeout_ms=timeout
+                ):
+                    self._last_attached_pose = cur
+                    self._last_attached_roll = roll
+                    return
+            if wait_for_lock:
+                self.get_logger().warn(
+                    f"[attach] Gazebo set_pose for '{target}' failed after "
+                    f'{attempts} attempts ({timeout} ms each).'
+                )
+        finally:
+            self._set_pose_lock.release()
+
+    def _confirm_object_z(
+        self,
+        object_name: str,
+        min_z: float,
+        timeout_sec: float = 3.0,
+    ) -> Optional[float]:
+        """
+        Re-sync the attached pose and wait until the bridged pose reaches min_z.
+
+        /world/<world>/pose/info is republished at a low rate, so the registry may
+        briefly hold the pre-move pose right after set_pose succeeds.
+        """
+        deadline = time.monotonic() + timeout_sec
+        z_val: Optional[float] = None
+        while True:
+            if self._use_kinematic_attach:
+                self._update_attached_object_pose(wait_for_lock=True)
+            pose, _ = self._resolve_target_pose(object_name)
+            z_val = pose[2] if pose is not None else None
+            if z_val is not None and z_val >= min_z:
+                return z_val
+            if time.monotonic() >= deadline:
+                return z_val
+            time.sleep(0.3)
 
     def _load_occupancy_map(
         self,
@@ -478,9 +697,9 @@ class MobileRobotController(Node):
         tx, ty, _, quat = pose
         target_yaw = quaternion_to_yaw(*quat)
         pref_dist = (
-            self._manip_standoff
-            if any(location.startswith(p) for p in ('graspable_box', 'test_pedestal'))
-            else self._standoff
+            self._standoff
+            if self._is_large_fixture(location)
+            else self._manip_standoff
         )
         gx, gy, gyaw = self._compute_nav_goal(
             tx, ty, target_yaw, pref_dist, is_named_zone
@@ -579,12 +798,12 @@ class MobileRobotController(Node):
             # Use >= 0.55s (> 0.45s stance_duration) arcs so CHAMP completes full gait cycles.
             dur = max(0.55, min(1.2, max(abs(ex) / 0.18, abs(yaw_err) / 0.28)))
             vx = 0.0
-            if ex > dist_tol:
+            if ex > dist_tol or (ex > 0.035 and abs(yaw_err) > yaw_tol):
                 vx = min(0.24, max(0.14, ex / dur))
             elif ex < -dist_tol:
                 vx = -min(0.12, max(0.08, -ex / dur))
             elif abs(yaw_err) > yaw_tol and ex > -0.02:
-                vx = 0.06
+                vx = 0.08
             wz = 0.0
             if abs(yaw_err) > yaw_tol:
                 wz = max(-0.32, min(0.32, yaw_err / dur))
@@ -717,6 +936,57 @@ class MobileRobotController(Node):
                 self.get_logger().info(f'[{task_id}] Gripper after open settle: {grip}')
         return True
 
+    def _clear_attachment(self, object_name: str) -> None:
+        with self._attach_lock:
+            if self._attached_object == object_name:
+                self._attached_object = None
+                self._last_attached_pose = None
+                self._last_attached_roll = 0.0
+                self._attach_event.clear()
+        if self._use_kinematic_attach:
+            self._scene_manager.detach_object(object_name)
+            self._scene_manager.remove_object(object_name)
+
+    def _attach_kinematic_object(self, object_name: str) -> Optional[str]:
+        tcp_world = self._get_tcp_world_pose()
+        obj_pose, _ = self._resolve_target_pose(object_name)
+        if tcp_world is None or obj_pose is None:
+            return f"Unable to verify attach proximity for '{object_name}'."
+        dist = math.dist(tcp_world, obj_pose[:3])
+        if dist > self._attach_max_distance:
+            return (
+                f"Gripper too far from '{object_name}' to attach "
+                f'({dist:.3f}m > {self._attach_max_distance:.3f}m).'
+            )
+
+        base_now = self._to_robot_base(*obj_pose[:3])
+        if base_now is None:
+            self.get_logger().warn(
+                f"[attach] Robot base pose unavailable; '{object_name}' not added to MoveIt scene."
+            )
+        elif not self._scene_manager.add_box(
+            object_name,
+            self._default_object_dims,
+            base_now,
+            frame_id='base_link',
+        ):
+            self.get_logger().warn(
+                f"[attach] MoveIt add_box failed for '{object_name}' "
+                '(Gazebo attach continues without MoveIt collision object).'
+            )
+        elif not self._scene_manager.attach_object(object_name, link_name='gripper_tcp'):
+            self.get_logger().warn(
+                f"[attach] MoveIt attach_object failed for '{object_name}'."
+            )
+
+        with self._attach_lock:
+            self._attached_object = object_name
+            self._last_attached_pose = None
+            self._last_attached_roll = 0.0
+            self._attach_event.set()
+        self._update_attached_object_pose(wait_for_lock=True)
+        return None
+
     def _execute_pick(
         self,
         plan_id: str,
@@ -780,7 +1050,7 @@ class MobileRobotController(Node):
         q_grasp = solve_z1_ik(bx - 0.025, by, bz + 0.018)
         q_lift = solve_z1_ik(bx - 0.045, by, bz + 0.22)
 
-        grasp_steps = [
+        approach_steps = [
             (
                 self._gripper_group_name,
                 {'jointGripper': self._gripper_open},
@@ -792,29 +1062,53 @@ class MobileRobotController(Node):
             (self._move_group_name, PRE_FOLD_JOINTS, 'pre_fold', self._arm_tol, 0.3, 0.5),
             (self._move_group_name, q_pre_grasp, 'pre_grasp', self._arm_tol, 0.3, 0.4),
             (self._move_group_name, q_grasp, 'grasp', self._arm_tol, 0.4, 0.25),
+        ]
+        if not self._run_joint_sequence(
+            plan_id, task_id, robot, 'pick', approach_steps, object_name
+        ):
+            return
+
+        if self._use_kinematic_attach:
+            attach_err = self._attach_kinematic_object(object_name)
+            if attach_err is not None:
+                self._publish_feedback(
+                    plan_id, task_id, robot,
+                    status='failed', stage='pick', detail=attach_err,
+                )
+                return
+
+        close_target = (
+            self._gripper_attach if self._use_kinematic_attach else self._gripper_closed
+        )
+        close_tol = (
+            self._gripper_open_tol if self._use_kinematic_attach else self._gripper_closed_tol
+        )
+        lift_steps = [
             (
                 self._gripper_group_name,
-                {'jointGripper': self._gripper_closed},
+                {'jointGripper': close_target},
                 'close',
-                self._gripper_closed_tol,
-                2.0,
+                close_tol,
+                1.0 if self._use_kinematic_attach else 2.0,
                 0.4,
             ),
             (self._move_group_name, q_lift, 'lift', self._arm_tol, 0.5, 0.25),
         ]
         if not self._run_joint_sequence(
-            plan_id, task_id, robot, 'pick', grasp_steps, object_name
+            plan_id, task_id, robot, 'pick', lift_steps, object_name
         ):
+            self._clear_attachment(object_name)
             return
 
-        lift_pose, _ = self._resolve_target_pose(object_name)
-        lift_z = lift_pose[2] if lift_pose is not None else pre_pick_z
+        lift_z_val = self._confirm_object_z(object_name, pre_pick_z + 0.08)
+        lift_z = lift_z_val if lift_z_val is not None else pre_pick_z
         grip_pos = self._get_joint_position('jointGripper')
         self.get_logger().info(
             f'[{task_id}] Post-lift verify: z={lift_z:.3f} (was {pre_pick_z:.3f}), '
             f'grip={grip_pos}'
         )
         if lift_z < pre_pick_z + 0.08:
+            self._clear_attachment(object_name)
             self._publish_feedback(
                 plan_id, task_id, robot,
                 status='failed', stage='pick',
@@ -839,11 +1133,13 @@ class MobileRobotController(Node):
         if not self._run_joint_sequence(
             plan_id, task_id, robot, 'pick', carry_steps, object_name
         ):
+            self._clear_attachment(object_name)
             return
 
-        carry_pose, _ = self._resolve_target_pose(object_name)
-        carry_z = carry_pose[2] if carry_pose is not None else pre_pick_z
+        carry_z_val = self._confirm_object_z(object_name, pre_pick_z + 0.08)
+        carry_z = carry_z_val if carry_z_val is not None else pre_pick_z
         if carry_z < pre_pick_z + 0.08:
+            self._clear_attachment(object_name)
             self._publish_feedback(
                 plan_id, task_id, robot,
                 status='failed', stage='pick',
@@ -892,10 +1188,7 @@ class MobileRobotController(Node):
         )
 
         if not is_named_zone:
-            large_fixture = any(
-                location.startswith(p)
-                for p in ('Packing_Station', 'Picking_Shelves', 'Pallet_Standard')
-            )
+            large_fixture = self._is_large_fixture(location)
             max_dist = 1.02 if large_fixture else self._max_reach
             pref_dist = self._standoff if large_fixture else self._manip_standoff
             ok, err = self._ensure_aligned(
@@ -939,10 +1232,51 @@ class MobileRobotController(Node):
         q_place_tip = solve_z1_ik(bx, by, bz + 0.02, j6=1.57)
         q_retreat = solve_z1_ik(bx, by, bz + 0.16, j6=1.57)
 
-        steps = [
+        descend_steps = [
             (self._move_group_name, q_pre_place, 'pre_place', self._arm_tol, 0.3, 0.25),
             (self._move_group_name, q_place_cradle, 'place_descend', self._arm_tol, 0.4, 0.25),
             (self._move_group_name, q_place_tip, 'place_tip', self._arm_tol, 0.3, 0.20),
+        ]
+        if not self._run_joint_sequence(
+            plan_id, task_id, robot, 'place', descend_steps, location
+        ):
+            return
+
+        if self._use_kinematic_attach:
+            with self._set_pose_lock:
+                with self._attach_lock:
+                    held = self._attached_object
+                    target_to_drop = held if object_name == 'object' else object_name
+                    if target_to_drop and held == target_to_drop:
+                        self._attached_object = None
+                        self._last_attached_pose = None
+                        self._last_attached_roll = 0.0
+                        self._attach_event.clear()
+                if target_to_drop:
+                    drop_wx, drop_wy, _ = transform_base_to_world(
+                        bx, by, bz, (rx, ry, rz), rquat
+                    )
+                    drop_quat = _yaw_quat_tuple(quaternion_to_yaw(*rquat))
+                    dropped = False
+                    for _ in range(3):
+                        if self._set_gazebo_entity_pose(
+                            target_to_drop,
+                            drop_wx,
+                            drop_wy,
+                            drop_world_z,
+                            quat=drop_quat,
+                            timeout_ms=800,
+                        ):
+                            dropped = True
+                            break
+                    if not dropped:
+                        self.get_logger().warn(
+                            f"[{task_id}] Gazebo set_pose failed for '{target_to_drop}' "
+                            'at drop pose; object will fall from the gripper pose.'
+                        )
+                    self._clear_attachment(target_to_drop)
+
+        release_steps = [
             (
                 self._gripper_group_name,
                 {'jointGripper': self._gripper_open},
@@ -954,7 +1288,9 @@ class MobileRobotController(Node):
             (self._move_group_name, q_retreat, 'retreat', self._arm_tol, 0.3, 0.35),
             (self._move_group_name, HOME_JOINTS, 'stow', self._arm_tol, 0.5, 0.4),
         ]
-        if not self._run_joint_sequence(plan_id, task_id, robot, 'place', steps, location):
+        if not self._run_joint_sequence(
+            plan_id, task_id, robot, 'place', release_steps, location
+        ):
             return
 
         if object_name != 'object':

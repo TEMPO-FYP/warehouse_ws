@@ -29,6 +29,33 @@ def generate_launch_description():
         choices=['true', 'false'],
         description='Run Gazebo Sim server headless (-s)',
     )
+    record_arg = DeclareLaunchArgument(
+        'record',
+        default_value='false',
+        choices=['true', 'false'],
+        description='Record Gazebo Sim states (--record) to ~/.gz/sim/log for playback',
+    )
+    record_path_arg = DeclareLaunchArgument(
+        'record_path',
+        default_value='',
+        description='Custom directory path for Gazebo Sim recording (--record-path)',
+    )
+    record_period_arg = DeclareLaunchArgument(
+        'record_period',
+        default_value='0.033',
+        description='Seconds between recorded states (--record-period, 0 records every step)',
+    )
+    save_video_arg = DeclareLaunchArgument(
+        'save_video',
+        default_value='false',
+        choices=['true', 'false'],
+        description='Render follow camera and save an MP4 video directly to src/recordings/',
+    )
+    video_path_arg = DeclareLaunchArgument(
+        'video_path',
+        default_value='',
+        description='Output MP4 path (relative paths save under src/recordings/)',
+    )
     use_static_map_arg = DeclareLaunchArgument(
         'use_static_map',
         default_value='auto',
@@ -89,6 +116,10 @@ def generate_launch_description():
         "'0.0' if '", LaunchConfiguration('headless'), "' == 'true' else '",
         LaunchConfiguration('spawn_delay'), "'",
     ])
+    enable_video_cam = PythonExpression([
+        "'true' if ('", LaunchConfiguration('save_video'), "' == 'true' or '",
+        LaunchConfiguration('video_path'), "'.strip() != '') else 'false'",
+    ])
 
     warehouse_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -97,6 +128,11 @@ def generate_launch_description():
         launch_arguments={
             'world': LaunchConfiguration('world'),
             'headless': LaunchConfiguration('headless'),
+            'record': LaunchConfiguration('record'),
+            'record_path': LaunchConfiguration('record_path'),
+            'record_period': LaunchConfiguration('record_period'),
+            'save_video': LaunchConfiguration('save_video'),
+            'video_path': LaunchConfiguration('video_path'),
             'use_static_map': LaunchConfiguration('use_static_map'),
             'map_yaml': LaunchConfiguration('map_yaml'),
         }.items(),
@@ -113,6 +149,7 @@ def generate_launch_description():
             'yaw': LaunchConfiguration('yaw'),
             'spawn_test_target': LaunchConfiguration('spawn_test_target'),
             'test_target_dist': LaunchConfiguration('test_target_dist'),
+            'enable_video_cam': enable_video_cam,
             'use_moveit': LaunchConfiguration('use_moveit'),
             'use_nav2': LaunchConfiguration('use_nav2'),
             'use_static_map': nav2_use_static_map,
@@ -130,6 +167,11 @@ def generate_launch_description():
     return LaunchDescription([
         world_arg,
         headless_arg,
+        record_arg,
+        record_path_arg,
+        record_period_arg,
+        save_video_arg,
+        video_path_arg,
         use_static_map_arg,
         map_yaml_arg,
         x_arg,

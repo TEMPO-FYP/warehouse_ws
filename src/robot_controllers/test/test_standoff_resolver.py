@@ -22,6 +22,7 @@ from robot_controllers.map_standoff import OccupancyMap
 from robot_controllers.z1_ik import (
     fk_tcp_base_link,
     solve_z1_ik,
+    transform_base_to_world,
     transform_world_to_base,
 )
 
@@ -90,3 +91,18 @@ def test_z1_ik_and_world_to_base():
     )
     err = math.dist((px, py, pz), (bx, by + 0.025, bz))
     assert err < 0.005
+
+
+def test_transform_base_to_world_round_trip():
+    base_pos = (1.25, -3.40, 0.56)
+    base_quat = (0.05, -0.03, math.sin(0.65), math.cos(0.65))
+    norm = math.sqrt(sum(c * c for c in base_quat))
+    base_quat = tuple(c / norm for c in base_quat)
+
+    world_pt = (2.10, -2.75, 0.82)
+    bx, by, bz = transform_world_to_base(*world_pt, base_pos=base_pos, base_quat=base_quat)
+    rx, ry, rz = transform_base_to_world(bx, by, bz, base_pos=base_pos, base_quat=base_quat)
+
+    assert math.isclose(rx, world_pt[0], abs_tol=1e-6)
+    assert math.isclose(ry, world_pt[1], abs_tol=1e-6)
+    assert math.isclose(rz, world_pt[2], abs_tol=1e-6)

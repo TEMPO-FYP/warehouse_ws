@@ -180,3 +180,21 @@ def transform_world_to_base(
     by = dy + qw * ty + (iqz * tx - iqx * tz)
     bz = dz + qw * tz + (iqx * ty - iqy * tx)
     return bx, by, bz
+
+
+def transform_base_to_world(
+    bx: float,
+    by: float,
+    bz: float,
+    base_pos: Tuple[float, float, float],
+    base_quat: Tuple[float, float, float, float],
+) -> Tuple[float, float, float]:
+    """Transform a base_link point (bx, by, bz) into world coordinates."""
+    qx, qy, qz, qw = base_quat
+    tx = 2.0 * (qy * bz - qz * by)
+    ty = 2.0 * (qz * bx - qx * bz)
+    tz = 2.0 * (qx * by - qy * bx)
+    wx = base_pos[0] + bx + qw * tx + (qy * tz - qz * ty)
+    wy = base_pos[1] + by + qw * ty + (qz * tx - qx * tz)
+    wz = base_pos[2] + bz + qw * tz + (qx * ty - qy * tx)
+    return wx, wy, wz

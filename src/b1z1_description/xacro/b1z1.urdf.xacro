@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <robot name="b1z1" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+    <xacro:arg name="enable_video_cam" default="false"/>
+
     <!-- Include subcomponents -->
     <xacro:include filename="$(find b1z1_description)/xacro/materials.xacro"/>
     <xacro:include filename="$(find b1z1_description)/xacro/b1_const.xacro"/>
@@ -89,5 +91,21 @@
     <xacro:z1_arm parent="trunk" UnitreeGripper="true">
         <origin xyz="0.20 0.0 0.08" rpy="0 0 0"/>
     </xacro:z1_arm>
+
+    <!-- Optional third-person follow camera for headless MP4 video recording -->
+    <xacro:if value="$(arg enable_video_cam)">
+        <joint name="follow_camera_joint" type="fixed">
+            <parent link="trunk"/>
+            <child link="follow_camera_link"/>
+            <origin xyz="-1.15 -0.38 0.72" rpy="0 0.36 0.25"/>
+        </joint>
+        <link name="follow_camera_link">
+            <inertial>
+                <mass value="0.001"/>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+            </inertial>
+        </link>
+    </xacro:if>
 
 </robot>

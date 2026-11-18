@@ -36,9 +36,15 @@ manipulation:
   arm_joint_tolerance: 0.005
   moveit_timeout_sec: 45.0
   min_reach_m: 0.40
-  max_reach_m: 0.80
+  max_reach_m: 0.85
   place_drop_standoff: 0.72
   place_clear_z_offset: 0.055
+  gripper_attach_position: -1.10
+  use_kinematic_attach: true
+  attach_max_distance_m: 0.18
+  attach_rate_hz: 15.0
+  attach_tcp_offset_xyz: [0.015, 0.0, 0.0]
+  default_object_dims: [0.06, 0.06, 0.06]
   fixture_surface_z:
     Packing_Station: 0.914
     Picking_Shelves: 0.686

@@ -51,6 +51,11 @@ def generate_launch_description():
             'set ~40.0 when launched simultaneously with Gazebo GUI.'
         ),
     )
+    enable_video_cam_arg = DeclareLaunchArgument(
+        'enable_video_cam',
+        default_value='false',
+        description='Attach third-person follow camera sensor to b1z1 for MP4 recording',
+    )
 
     spawn_period = PythonExpression(["float('", LaunchConfiguration('spawn_delay'), "')"])
     move_group_period = PythonExpression([
@@ -74,6 +79,7 @@ def generate_launch_description():
                     'yaw': LaunchConfiguration('yaw'),
                     'spawn_test_target': LaunchConfiguration('spawn_test_target'),
                     'test_target_dist': LaunchConfiguration('test_target_dist'),
+                    'enable_video_cam': LaunchConfiguration('enable_video_cam'),
                 }.items(),
             )
         ],
@@ -130,6 +136,7 @@ def generate_launch_description():
         use_nav2_arg,
         use_static_map_arg,
         spawn_delay_arg,
+        enable_video_cam_arg,
         spawn_launch,
         control_launch,
         move_group_launch,

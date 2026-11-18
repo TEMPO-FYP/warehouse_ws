@@ -46,6 +46,7 @@ setup(
     entry_points={
         'console_scripts': [
             'gz_pose_bridge = warehouse_sim.gz_pose_bridge:main',
+            'gz_video_recorder = warehouse_sim.gz_video_recorder:main',
         ],
     },
 )

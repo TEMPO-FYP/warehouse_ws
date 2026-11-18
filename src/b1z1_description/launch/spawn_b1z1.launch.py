@@ -17,9 +17,9 @@ def _spawn_test_targets(context, pkg_b1z1):
     y = float(LaunchConfiguration('y').perform(context))
     yaw = float(LaunchConfiguration('yaw').perform(context))
 
-    def make_spawner(node_name, model_name, sdf_rel_path, dist, pos_z):
-        px = f'{x + dist * math.cos(yaw):.4f}'
-        py = f'{y + dist * math.sin(yaw):.4f}'
+    def make_spawner(node_name, model_name, sdf_rel_path, dist, pos_z, lat=0.0):
+        px = f'{x + dist * math.cos(yaw) - lat * math.sin(yaw):.4f}'
+        py = f'{y + dist * math.sin(yaw) + lat * math.cos(yaw):.4f}'
         return Node(
             package='ros_gz_sim',
             executable='create',
@@ -41,7 +41,7 @@ def _spawn_test_targets(context, pkg_b1z1):
             'test_pedestal_spawner',
             'test_pedestal',
             os.path.join('models', 'test_pedestal', 'model.sdf'),
-            dist=box_dist + 0.05,
+            dist=box_dist + 0.03,
             pos_z=0.35,
         ),
         make_spawner(
@@ -50,6 +50,22 @@ def _spawn_test_targets(context, pkg_b1z1):
             os.path.join('models', 'graspable_box', 'model.sdf'),
             dist=box_dist,
             pos_z=0.731,
+        ),
+        make_spawner(
+            'test_pedestal_2_spawner',
+            'test_pedestal_2',
+            os.path.join('models', 'test_pedestal', 'model.sdf'),
+            dist=box_dist + 1.29,
+            pos_z=0.35,
+            lat=-0.81,
+        ),
+        make_spawner(
+            'tall_box_spawner',
+            'tall_box',
+            os.path.join('models', 'tall_box', 'model.sdf'),
+            dist=box_dist + 1.27,
+            pos_z=0.746,
+            lat=-0.80,
         ),
     ]
 
@@ -83,9 +99,20 @@ def generate_launch_description():
         default_value='0.73',
         description='Forward offset from b1z1 spawn for optional test target box',
     )
+    enable_video_cam_arg = DeclareLaunchArgument(
+        'enable_video_cam',
+        default_value='false',
+        description='Attach third-person follow camera sensor to b1z1 for MP4 recording',
+    )
 
     # Generate robot_description from xacro
-    robot_description = ParameterValue(Command(['xacro ', xacro_file]), value_type=str)
+    robot_description = ParameterValue(
+        Command([
+            'xacro ', xacro_file,
+            ' enable_video_cam:=', LaunchConfiguration('enable_video_cam'),
+        ]),
+        value_type=str,
+    )
 
     # Robot State Publisher
     robot_state_publisher_node = Node(
@@ -130,6 +157,7 @@ def generate_launch_description():
         yaw_arg,
         test_target_arg,
         test_target_dist_arg,
+        enable_video_cam_arg,
         robot_state_publisher_node,
         spawn_entity_node,
         b1z1_bridge_node,
