@@ -13,21 +13,25 @@ calling the appropriate ROS 2 interfaces:
   place ->  MoveIt2 MoveGroup action + gripper open
 
 Real-time object and location poses are looked up from the Gazebo world pose
-topic /world/default/pose/info
+topic /world/<world>/pose/info, read directly over gz-transport: ros_gz_bridge's
+Pose_V -> TFMessage conversion drops the entity names, which are needed here.
+
+Action timeouts run on the node clock (simulation time with use_sim_time), so a
+sim running slower than real time (Gazebo on CPU) does not cause early timeouts.
 
 Topics / Actions
 ----------------
 Subscribed:
   /mission/subtask                              (std_msgs/String)
-  /world/<world>/pose/info                      (gz.msgs.Pose_V via ros_gz_bridge)
+  /world/<world>/pose/info                      (gz.msgs.Pose_V, via gz-transport)
 
 Published:
   /mission/feedback                             (std_msgs/String)
 
 Action Clients:
   /<namespace>/navigate_to_pose                 (nav2_msgs/NavigateToPose)
-  /<namespace>/move_group                       (moveit_msgs/MoveGroup)
-  /<namespace>/robotiq_gripper_controller/gripper_cmd  (control_msgs/GripperCommand)
+  /<namespace>/move_action                      (moveit_msgs/MoveGroup)
+  /<namespace>/<gripper_action>                 (control_msgs/GripperCommand)
 """
 
 import json
@@ -40,6 +44,9 @@ from action_msgs.msg import GoalStatus
 from ament_index_python.packages import get_package_share_directory
 from control_msgs.action import GripperCommand
 from geometry_msgs.msg import Point, PoseStamped, Quaternion
+from gz.msgs10.pose_v_pb2 import Pose_V
+from gz.transport13 import Node as GzNode
+from gz.transport13 import SubscribeOptions
 from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import (
     BoundingVolume,
@@ -52,11 +59,11 @@ from nav2_msgs.action import NavigateToPose
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from shape_msgs.msg import SolidPrimitive
 from std_msgs.msg import String
-from tf2_msgs.msg import TFMessage
 import yaml
 
 
@@ -117,21 +124,6 @@ def _quaternion_to_yaw(qx: float, qy: float, qz: float, qw: float) -> float:
     return math.atan2(2.0 * (qw * qz + qx * qy), 1.0 - 2.0 * (qy * qy + qz * qz))
 
 
-def _wait_for_future(future, timeout_sec: float) -> bool:
-    """
-    Block until `future` completes or `timeout_sec` passes.
-
-    Used instead of rclpy.spin_until_future_complete, which must not be
-    called from callbacks running in a MultiThreadedExecutor. The executor's
-    other threads complete the future. Returns True if the future is done.
-    """
-    if future.done():
-        return True
-    done = threading.Event()
-    future.add_done_callback(lambda _: done.set())
-    return done.wait(timeout=timeout_sec) or future.done()
-
-
 def _yaw_to_quaternion(yaw: float) -> Quaternion:
     """Convert a yaw angle (radians) to a geometry_msgs Quaternion."""
     q = Quaternion()
@@ -160,11 +152,11 @@ class MobileRobotController(Node):
     4. Feedback published -> _publish_feedback
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         super().__init__('mobile_robot_controller')
 
         # Load config
-        config = _load_config()
+        config = config if config is not None else _load_config()
 
         self._robot_instances: Dict[str, str] = config['robot_instances']
         self._standoff: float = config['navigation']['standoff_distance']
@@ -176,7 +168,16 @@ class MobileRobotController(Node):
         self._end_effector_link: str = config['manipulation']['end_effector_link']
         self._gripper_max_effort: float = config['manipulation']['gripper_max_effort']
         self._gripper_timeout: float = config['manipulation']['gripper_timeout_sec']
+        self._gripper_action: str = config['manipulation'].get(
+            'gripper_action', 'arm_0_gripper_controller/gripper_cmd'
+        )
+        self._planning_frame: str = config['manipulation'].get(
+            'planning_frame', 'base_link'
+        )
         self._world_name: str = config['world']['name']
+        self._pose_period: float = float(
+            config['world'].get('pose_update_period_sec', 0.5)
+        )
         self._cb_group = ReentrantCallbackGroup()
 
         # World pose registry
@@ -196,15 +197,19 @@ class MobileRobotController(Node):
             callback_group=self._cb_group,
         )
 
-        # Gazebo world pose topic (bridged via ros_gz_bridge as tf2_msgs/msg/TFMessage
-        # /world/default/pose/info publishes all entity poses in the world
-        self.create_subscription(
-            TFMessage,
-            f'/world/{self._world_name}/pose/info',
-            self._pose_callback,
-            10,
-            callback_group=self._cb_group,
-        )
+        # Gazebo world poses, straight from gz-transport so entity names are
+        # kept. The world publishes ~2200 poses at up to ~44 Hz, so gz-transport
+        # throttles delivery to one message per pose_update_period_sec.
+        self._pose_topic = f'/world/{self._world_name}/pose/info'
+        self._gz_node = GzNode()
+        pose_opts = SubscribeOptions()
+        pose_opts.msgs_per_sec = max(1, round(1.0 / self._pose_period))
+        if not self._gz_node.subscribe(
+            Pose_V, self._pose_topic, self._pose_callback, pose_opts
+        ):
+            self.get_logger().error(
+                f'Could not subscribe to Gazebo topic {self._pose_topic}'
+            )
 
         # Publisher
         self._feedback_pub = self.create_publisher(
@@ -245,13 +250,13 @@ class MobileRobotController(Node):
             self._moveit_clients[instance_id] = ActionClient(
                 self,
                 MoveGroup,
-                f'{namespace}/move_group',
+                f'{namespace}/move_action',
                 callback_group=self._cb_group,
             )
             self._gripper_clients[instance_id] = ActionClient(
                 self,
                 GripperCommand,
-                f'{namespace}/robotiq_gripper_controller/gripper_cmd',
+                f'{namespace}/{self._gripper_action}',
                 callback_group=self._cb_group,
             )
             self.get_logger().info(
@@ -259,25 +264,48 @@ class MobileRobotController(Node):
                 f'(namespace={namespace})'
             )
 
+    def _wait_for_future(self, future, timeout_sec: float) -> bool:
+        """
+        Block until `future` completes or `timeout_sec` passes on the node clock.
+
+        Used instead of rclpy.spin_until_future_complete, which must not be
+        called from callbacks running in a MultiThreadedExecutor; the
+        executor's other threads complete the future. The timeout runs on the
+        node clock (simulation time with use_sim_time), so a sim running
+        slower than real time does not time out early. Returns True if done.
+        """
+        if future.done():
+            return True
+        done = threading.Event()
+        future.add_done_callback(lambda _: done.set())
+        deadline = self.get_clock().now() + Duration(seconds=timeout_sec)
+        while not done.wait(0.1):
+            if self.get_clock().now() >= deadline:
+                return future.done()
+        return True
+
+    def destroy_node(self) -> None:
+        """Stop the Gazebo pose subscription, then destroy the ROS node."""
+        self._gz_node.unsubscribe(self._pose_topic)
+        super().destroy_node()
+
     # World pose subscription
 
-    def _pose_callback(self, msg: TFMessage) -> None:
+    def _pose_callback(self, msg: Pose_V) -> None:
         """
         Update the pose registry from the Gazebo world pose topic.
 
-        /world/default/pose/info is bridged via ros_gz_bridge as
-        tf2_msgs/TFMessage. Each transform's child_frame_id is the
-        Gazebo entity name and the transform gives its pose.
+        Runs on a gz-transport thread. Each pose's name is the Gazebo entity
+        name (e.g. 'Picking_Shelves.002', or 'a200_0000/robot' for the robot).
         """
         updates = {}
-        for transform in msg.transforms:
-            name = transform.child_frame_id
-            if not name:
+        for pose in msg.pose:
+            if not pose.name:
                 continue
-
-            t = transform.transform.translation
-            q = transform.transform.rotation
-            updates[name] = (t.x, t.y, t.z, _quaternion_to_yaw(q.x, q.y, q.z, q.w))
+            p, q = pose.position, pose.orientation
+            updates[pose.name] = (
+                p.x, p.y, p.z, _quaternion_to_yaw(q.x, q.y, q.z, q.w)
+            )
 
         with self._pose_lock:
             self._pose_registry.update(updates)
@@ -432,9 +460,7 @@ class MobileRobotController(Node):
 
         # The robot's own Gazebo model is named after its namespace
         with self._pose_lock:
-            robot_pose = self._pose_registry.get(
-                self._robot_instances[robot].strip('/')
-            )
+            robot_pose = self._pose_registry.get(self._robot_model_name(robot))
         robot_xy = (robot_pose[0], robot_pose[1]) if robot_pose else None
 
         nav_x, nav_y, nav_yaw = _apply_standoff(
@@ -480,7 +506,7 @@ class MobileRobotController(Node):
             return
 
         send_goal_future = nav_client.send_goal_async(goal)
-        _wait_for_future(send_goal_future, self._nav_timeout)
+        self._wait_for_future(send_goal_future, self._nav_timeout)
 
         goal_handle = send_goal_future.result()
         if not goal_handle or not goal_handle.accepted:
@@ -496,7 +522,7 @@ class MobileRobotController(Node):
             return
 
         result_future = goal_handle.get_result_async()
-        _wait_for_future(result_future, self._nav_timeout)
+        self._wait_for_future(result_future, self._nav_timeout)
 
         result = result_future.result()
         if result is None:
@@ -731,7 +757,6 @@ class MobileRobotController(Node):
         tolerance sphere around the target point.
         """
         moveit_client = self._moveit_clients[robot]
-        namespace = self._robot_instances[robot]
 
         if not moveit_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error(
@@ -739,10 +764,17 @@ class MobileRobotController(Node):
             )
             return False
 
+        # The target comes from Gazebo in the world frame; MoveIt plans in
+        # the robot's base_link frame.
+        target = self._world_to_planning_frame(robot, x, y, z)
+        if target is None:
+            return False
+        x, y, z = target
+
         # Build position constraint
         position_constraint = PositionConstraint()
-        position_constraint.header.frame_id = 'world'
-        position_constraint.link_name = f"{namespace.strip('/')}/{self._end_effector_link}"
+        position_constraint.header.frame_id = self._planning_frame
+        position_constraint.link_name = self._end_effector_link
         position_constraint.target_point_offset = Point(x=0.0, y=0.0, z=0.0)
 
         # Tolerance sphere around target
@@ -776,7 +808,7 @@ class MobileRobotController(Node):
         goal.planning_options.plan_only = False
 
         send_goal_future = moveit_client.send_goal_async(goal)
-        _wait_for_future(send_goal_future, self._moveit_timeout)
+        self._wait_for_future(send_goal_future, self._moveit_timeout)
 
         goal_handle = send_goal_future.result()
         if not goal_handle or not goal_handle.accepted:
@@ -786,7 +818,7 @@ class MobileRobotController(Node):
             return False
 
         result_future = goal_handle.get_result_async()
-        _wait_for_future(result_future, self._moveit_timeout)
+        self._wait_for_future(result_future, self._moveit_timeout)
 
         result = result_future.result()
         if result is None:
@@ -833,7 +865,7 @@ class MobileRobotController(Node):
         goal.command.max_effort = self._gripper_max_effort
 
         send_goal_future = gripper_client.send_goal_async(goal)
-        _wait_for_future(send_goal_future, self._gripper_timeout)
+        self._wait_for_future(send_goal_future, self._gripper_timeout)
 
         goal_handle = send_goal_future.result()
         if not goal_handle or not goal_handle.accepted:
@@ -843,7 +875,7 @@ class MobileRobotController(Node):
             return False
 
         result_future = goal_handle.get_result_async()
-        _wait_for_future(result_future, self._gripper_timeout)
+        self._wait_for_future(result_future, self._gripper_timeout)
 
         result = result_future.result()
         if result is None:
@@ -882,6 +914,40 @@ class MobileRobotController(Node):
             f'[feedback] task={task_id} status={status} '
             f'stage={stage} detail={detail}'
         )
+
+    # Robot frame helpers
+
+    def _robot_model_name(self, robot: str) -> str:
+        """Return the Gazebo model name of a robot instance (e.g. a200_0000/robot)."""
+        return f"{self._robot_instances[robot].strip('/')}/robot"
+
+    def _world_to_planning_frame(
+        self,
+        robot: str,
+        x: float,
+        y: float,
+        z: float,
+    ) -> Optional[Tuple[float, float, float]]:
+        """
+        Express a world-frame point in the robot's planning frame (base_link).
+
+        The Clearpath URDF has no 'world' link, so MoveIt cannot take world
+        coordinates. The robot's own pose is read from the Gazebo pose
+        registry (base_link sits at the model origin). Roll and pitch are
+        ignored. Returns None if the robot pose is not known yet.
+        """
+        with self._pose_lock:
+            robot_pose = self._pose_registry.get(self._robot_model_name(robot))
+        if robot_pose is None:
+            self.get_logger().error(
+                f"[moveit] Robot model '{self._robot_model_name(robot)}' not in "
+                'pose registry; is the pose bridge running?'
+            )
+            return None
+        rx, ry, rz, ryaw = robot_pose
+        dx, dy, dz = x - rx, y - ry, z - rz
+        cos_y, sin_y = math.cos(ryaw), math.sin(ryaw)
+        return cos_y * dx + sin_y * dy, -sin_y * dx + cos_y * dy, dz
 
     # Pose builder helper
 
