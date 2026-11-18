@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="a200-0000">
+
+  <!-- Arms -->
+
+  <!-- arm_0 -->
+  <xacro:include filename="$(find clearpath_manipulators_description)/srdf/arm/universal_robots.srdf.xacro"/>
+  <xacro:universal_robots name="arm_0"/>
+
+
+
+  <!-- Grippers -->
+
+  <!-- arm_0_gripper -->
+  <xacro:include filename="$(find clearpath_manipulators_description)/srdf/gripper/robotiq_2f_85.srdf.xacro"/>
+  <xacro:robotiq_2f_85 name="arm_0_gripper"/>
+
+
+
+  <!-- Lifts -->
+
+
+</robot>

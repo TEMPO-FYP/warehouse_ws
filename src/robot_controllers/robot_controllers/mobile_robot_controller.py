@@ -26,8 +26,8 @@ Published:
 
 Action Clients:
   /<namespace>/navigate_to_pose                 (nav2_msgs/NavigateToPose)
-  /<namespace>/move_group                       (moveit_msgs/MoveGroup)
-  /<namespace>/robotiq_gripper_controller/gripper_cmd  (control_msgs/GripperCommand)
+  /<namespace>/move_action                      (moveit_msgs/MoveGroup)
+  /<namespace>/<gripper_action>                 (control_msgs/GripperCommand)
 """
 
 import json
@@ -176,6 +176,12 @@ class MobileRobotController(Node):
         self._end_effector_link: str = config['manipulation']['end_effector_link']
         self._gripper_max_effort: float = config['manipulation']['gripper_max_effort']
         self._gripper_timeout: float = config['manipulation']['gripper_timeout_sec']
+        self._gripper_action: str = config['manipulation'].get(
+            'gripper_action', 'arm_0_gripper_controller/gripper_cmd'
+        )
+        self._planning_frame: str = config['manipulation'].get(
+            'planning_frame', 'base_link'
+        )
         self._world_name: str = config['world']['name']
         self._cb_group = ReentrantCallbackGroup()
 
@@ -245,13 +251,13 @@ class MobileRobotController(Node):
             self._moveit_clients[instance_id] = ActionClient(
                 self,
                 MoveGroup,
-                f'{namespace}/move_group',
+                f'{namespace}/move_action',
                 callback_group=self._cb_group,
             )
             self._gripper_clients[instance_id] = ActionClient(
                 self,
                 GripperCommand,
-                f'{namespace}/robotiq_gripper_controller/gripper_cmd',
+                f'{namespace}/{self._gripper_action}',
                 callback_group=self._cb_group,
             )
             self.get_logger().info(
@@ -432,9 +438,7 @@ class MobileRobotController(Node):
 
         # The robot's own Gazebo model is named after its namespace
         with self._pose_lock:
-            robot_pose = self._pose_registry.get(
-                self._robot_instances[robot].strip('/')
-            )
+            robot_pose = self._pose_registry.get(self._robot_model_name(robot))
         robot_xy = (robot_pose[0], robot_pose[1]) if robot_pose else None
 
         nav_x, nav_y, nav_yaw = _apply_standoff(
@@ -731,7 +735,6 @@ class MobileRobotController(Node):
         tolerance sphere around the target point.
         """
         moveit_client = self._moveit_clients[robot]
-        namespace = self._robot_instances[robot]
 
         if not moveit_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error(
@@ -739,10 +742,17 @@ class MobileRobotController(Node):
             )
             return False
 
+        # The target comes from Gazebo in the world frame; MoveIt plans in
+        # the robot's base_link frame.
+        target = self._world_to_planning_frame(robot, x, y, z)
+        if target is None:
+            return False
+        x, y, z = target
+
         # Build position constraint
         position_constraint = PositionConstraint()
-        position_constraint.header.frame_id = 'world'
-        position_constraint.link_name = f"{namespace.strip('/')}/{self._end_effector_link}"
+        position_constraint.header.frame_id = self._planning_frame
+        position_constraint.link_name = self._end_effector_link
         position_constraint.target_point_offset = Point(x=0.0, y=0.0, z=0.0)
 
         # Tolerance sphere around target
@@ -882,6 +892,40 @@ class MobileRobotController(Node):
             f'[feedback] task={task_id} status={status} '
             f'stage={stage} detail={detail}'
         )
+
+    # Robot frame helpers
+
+    def _robot_model_name(self, robot: str) -> str:
+        """Return the Gazebo model name of a robot instance (e.g. a200_0000/robot)."""
+        return f"{self._robot_instances[robot].strip('/')}/robot"
+
+    def _world_to_planning_frame(
+        self,
+        robot: str,
+        x: float,
+        y: float,
+        z: float,
+    ) -> Optional[Tuple[float, float, float]]:
+        """
+        Express a world-frame point in the robot's planning frame (base_link).
+
+        The Clearpath URDF has no 'world' link, so MoveIt cannot take world
+        coordinates. The robot's own pose is read from the Gazebo pose
+        registry (base_link sits at the model origin). Roll and pitch are
+        ignored. Returns None if the robot pose is not known yet.
+        """
+        with self._pose_lock:
+            robot_pose = self._pose_registry.get(self._robot_model_name(robot))
+        if robot_pose is None:
+            self.get_logger().error(
+                f"[moveit] Robot model '{self._robot_model_name(robot)}' not in "
+                'pose registry; is the pose bridge running?'
+            )
+            return None
+        rx, ry, rz, ryaw = robot_pose
+        dx, dy, dz = x - rx, y - ry, z - rz
+        cos_y, sin_y = math.cos(ryaw), math.sin(ryaw)
+        return cos_y * dx + sin_y * dy, -sin_y * dx + cos_y * dy, dz
 
     # Pose builder helper
 

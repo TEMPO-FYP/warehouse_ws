@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Get the absolute path of the directory containing this script (docker directory)
-SCRIPT_PATH=$(dirname $(realpath "$0"))
+SCRIPT_PATH="$(dirname "$(realpath "$0")")"
 
 # Get the parent directory path (warehouse_ws directory)
 # This is where our ROS 2 workspace lives
-PARENT_PATH=$(dirname "$SCRIPT_PATH")
+PARENT_PATH="$(dirname "$SCRIPT_PATH")"
 
 # Function to build the Docker image
 # This function handles the actual Docker build process
@@ -22,7 +22,7 @@ build_docker_image()
     # -t warehouse_ws:latest: Tag the image as warehouse_ws:latest
     # $PARENT_PATH: Use the parent directory as the build context, allowing access to all package files
     # --no-cache: Build the image without using the cache, ensuring fresh dependencies
-    sudo docker image build -f $SCRIPT_PATH/Dockerfile -t warehouse_ws:latest $PARENT_PATH
+    sudo docker image build -f "$SCRIPT_PATH/Dockerfile" -t warehouse_ws:latest "$PARENT_PATH"
 }
 
 # Function to create a shared folder
