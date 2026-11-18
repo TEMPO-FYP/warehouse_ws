@@ -19,7 +19,7 @@ navigation:
   #   Pallet_Rack: "x"
   approach_axis_overrides: {}
   server_wait_sec: 5.0
-  nav_timeout_sec: 120.0
+  nav_timeout_sec: 120.0  # node-clock (simulation) time, not wall time
 
 # Optional explicit goals, checked before the Gazebo pose registry.
 # Use for places that are not Gazebo entities (e.g. "origin") or to pin

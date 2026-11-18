@@ -100,7 +100,30 @@ def generate_launch_description():
             IncludeLaunchDescription(PythonLaunchDescriptionSource(clearpath_gz_launch)),
             # Bridges sensors from husky_transport.yaml (2D lidar) into ROS
             IncludeLaunchDescription(PythonLaunchDescriptionSource(clearpath_sensors_launch)),
+            platform_controller_spawner,
         ]
+
+    # Clearpath's spawner gives up after 10 s per controller switch. With the
+    # sim running well below real time (e.g. on CPU), activating
+    # joint_state_broadcaster takes longer than that, so the spawner exits and
+    # never loads platform_velocity_controller: no wheel odometry, no odom TF
+    # (EKF), and the robot ignores velocity commands. Spawn it again here with
+    # timeouts that tolerate a slow sim. If Clearpath's spawner already loaded
+    # it, this one just logs an error and exits.
+    platform_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        namespace='a200_0001',
+        arguments=[
+            'platform_velocity_controller',
+            '--controller-manager', '/a200_0001/controller_manager',
+            '--controller-manager-timeout', '120',
+            '--switch-timeout', '120',
+            '--service-call-timeout', '120',
+        ],
+        parameters=[{'use_sim_time': True}],
+        output='screen',
+    )
 
     clearpath_launch = RegisterEventHandler(
         OnProcessExit(target_action=spawn_husky, on_exit=_on_spawn_exit)

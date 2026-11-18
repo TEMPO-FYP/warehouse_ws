@@ -5,8 +5,17 @@ Starts, under the robot's namespace:
   * Localization: map_server with warehouse_sim/maps/warehouse_map.yaml
     (Gazebo world coordinates) + AMCL with the initial pose preset to the
     spawn pose (config/husky_localization.yaml).
-  * Navigation: clearpath_nav2_demos' A200 Nav2 stack (planner, MPPI
-    controller, behaviours, bt_navigator -> /a200_0001/navigate_to_pose).
+  * Navigation: Nav2 (planner, MPPI controller, behaviours, bt_navigator ->
+    /a200_0001/navigate_to_pose) with clearpath_nav2_demos' A200 parameters.
+
+The navigation part mirrors clearpath_nav2_demos/launch/nav2.launch.py, which
+hard-codes its parameter file, so that a few timing parameters can be relaxed
+for a simulation running well below real time (Gazebo on CPU, ~0.1x):
+  * bt_navigator default_server_timeout: Clearpath's 20 ms (wall time) is too
+    short for the planner to acknowledge a replanning request, which aborts
+    the whole goal.
+  * progress_checker movement_time_allowance and costmap_update_timeout.
+It also raises MPPI's top speed (vx_max) from 0.5 to max_speed (1.0 m/s).
 
 Run after warehouse.launch.py has spawned the robot and started its
 platform + sensors (the lidar scan must be flowing for AMCL).
@@ -20,6 +29,7 @@ from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDesc
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import PushRosNamespace
+from nav2_common.launch import RewrittenYaml
 
 
 def generate_launch_description():
@@ -31,8 +41,9 @@ def generate_launch_description():
 
     namespace = LaunchConfiguration('namespace')
     map_yaml = LaunchConfiguration('map')
-    setup_path = LaunchConfiguration('setup_path')
     use_sim_time = LaunchConfiguration('use_sim_time')
+    scan_topic = LaunchConfiguration('scan_topic')
+    max_speed = LaunchConfiguration('max_speed')
 
     args = [
         DeclareLaunchArgument(
@@ -43,11 +54,15 @@ def generate_launch_description():
             default_value=os.path.join(pkg_warehouse_sim, 'maps', 'warehouse_map.yaml'),
             description='Map yaml (in Gazebo world coordinates)'),
         DeclareLaunchArgument(
-            'setup_path', default_value='/root/clearpath/',
-            description='Clearpath setup path containing robot.yaml'),
-        DeclareLaunchArgument(
             'use_sim_time', default_value='true', choices=['true', 'false'],
             description='Use Gazebo /clock'),
+        DeclareLaunchArgument(
+            'scan_topic', default_value='/a200_0001/sensors/lidar2d_0/scan',
+            description='2D lidar scan topic used by the costmaps'),
+        DeclareLaunchArgument(
+            'max_speed', default_value='1.0',
+            description='Max forward speed in m/s (Clearpath default 0.5; the A200 '
+                        'wheel controller and velocity smoother allow 1.0)'),
     ]
 
     # Same structure as clearpath_nav2_demos/launch/localization.launch.py,
@@ -70,13 +85,45 @@ def generate_launch_description():
         ),
     ])
 
-    navigation = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_clearpath_nav2, 'launch', 'nav2.launch.py')),
-        launch_arguments=[
-            ('setup_path', setup_path),
-            ('use_sim_time', use_sim_time),
-        ],
+    # Clearpath's A200 Nav2 parameters, with the rewrites its nav2.launch.py
+    # applies for a diff-drive platform on a static map, plus slow-sim timing.
+    nav2_params = RewrittenYaml(
+        source_file=os.path.join(pkg_clearpath_nav2, 'config', 'a200', 'nav2.yaml'),
+        param_rewrites={
+            # From clearpath_nav2_demos/launch/nav2.launch.py
+            'local_costmap.local_costmap.ros__parameters.voxel_layer.scan.topic':
+                scan_topic,
+            'global_costmap.global_costmap.ros__parameters.obstacle_layer.scan.topic':
+                scan_topic,
+            'collision_monitor.ros__parameters.scan.topic': scan_topic,
+            'controller_server.ros__parameters.FollowPath.motion_model': 'DiffDrive',
+            'controller_server.ros__parameters.FollowPath.TwirlingCritic.enabled': 'false',
+            'global_costmap.global_costmap.ros__parameters.rolling_window': 'false',
+            # Top speed (Clearpath: 0.5 m/s)
+            'controller_server.ros__parameters.FollowPath.vx_max': max_speed,
+            # Slow-sim tolerances (Clearpath: 20 ms, 10 s, 0.3 s)
+            'bt_navigator.ros__parameters.default_server_timeout': '1000',
+            'controller_server.ros__parameters.progress_checker.movement_time_allowance':
+                '30.0',
+            'controller_server.ros__parameters.costmap_update_timeout': '2.0',
+        },
+        convert_types=True,
     )
+
+    navigation = GroupAction([
+        PushRosNamespace(namespace),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(pkg_nav2_bringup, 'launch', 'navigation_launch.py')),
+            launch_arguments=[
+                ('namespace', namespace),
+                ('use_sim_time', use_sim_time),
+                ('params_file', nav2_params),
+                ('autostart', 'true'),
+                ('use_composition', 'False'),
+                ('use_respawn', 'false'),
+            ],
+        ),
+    ])
 
     return LaunchDescription(args + [localization, navigation])

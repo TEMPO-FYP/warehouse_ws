@@ -2,10 +2,13 @@
 
 import json
 import math
+import os
 import threading
 import time
+import uuid
 
-from geometry_msgs.msg import TransformStamped
+from gz.msgs10.pose_v_pb2 import Pose_V
+from gz.transport13 import Node as GzNode
 from nav2_msgs.action import NavigateToPose
 import pytest
 import rclpy
@@ -14,7 +17,6 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import String
-from tf2_msgs.msg import TFMessage
 from transport_robot_controller.transport_robot_controller import (
     approach_pose,
     quaternion_to_yaw,
@@ -134,6 +136,8 @@ class MockNav2(Node):
 
 @pytest.fixture
 def system():
+    # Isolate gz-transport discovery from any running simulation
+    os.environ['GZ_PARTITION'] = f'transport_test_{uuid.uuid4().hex}'
     rclpy.init()
     controller = TransportRobotController(config=CONFIG)
     nav2 = MockNav2()
@@ -142,7 +146,8 @@ def system():
     probe.create_subscription(
         String, '/mission/feedback', lambda m: feedback.append(json.loads(m.data)), 10,
     )
-    pose_pub = probe.create_publisher(TFMessage, '/world/test_world/pose/info', 10)
+    gz_node = GzNode()
+    pose_pub = gz_node.advertise('/world/test_world/pose/info', Pose_V)
 
     executor = MultiThreadedExecutor(num_threads=6)
     for n in (controller, nav2, probe):
@@ -202,22 +207,22 @@ def test_named_location_navigation_succeeds(system):
     assert (goal.pose.position.x, goal.pose.position.y) == pytest.approx((0.0, -5.0))
 
 
-def _tf(name, x, y, yaw):
-    tf = TransformStamped()
-    tf.child_frame_id = name
-    tf.transform.translation.x = x
-    tf.transform.translation.y = y
-    tf.transform.rotation = yaw_to_quaternion(yaw)
-    return tf
+def _add_pose(msg, name, x, y, yaw):
+    pose = msg.pose.add()
+    pose.name = name
+    pose.position.x = x
+    pose.position.y = y
+    q = yaw_to_quaternion(yaw)
+    pose.orientation.z = q.z
+    pose.orientation.w = q.w
 
 
 def test_gazebo_entity_goal_uses_robot_side_and_faces_entity(system):
     controller, nav2, feedback, pose_pub = system
     # Shelf at (4, 3) with yaw 0; robot model 'test_husky' (its namespace) at (4, 0).
-    msg = TFMessage(transforms=[
-        _tf('Picking_Shelves.001', 4.0, 3.0, 0.0),
-        _tf('test_husky', 4.0, 0.0, 0.0),
-    ])
+    msg = Pose_V()
+    _add_pose(msg, 'Picking_Shelves.001', 4.0, 3.0, 0.0)
+    _add_pose(msg, 'test_husky', 4.0, 0.0, 0.0)
     deadline = time.time() + 3.0
     while controller.resolve_goal('Picking_Shelves.001') is None:
         assert time.time() < deadline, 'pose never reached the registry'

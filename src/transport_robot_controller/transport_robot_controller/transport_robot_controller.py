@@ -13,6 +13,8 @@ Any other skill is reported as failed, since this platform cannot manipulate.
 
 Goal poses are resolved first from `named_locations` in the config, then from
 the Gazebo world pose topic /world/<world>/pose/info (with a standoff applied).
+That topic is read directly over gz-transport: ros_gz_bridge's Pose_V ->
+TFMessage conversion drops the entity names, which are needed here.
 
 Each robot instance has its own worker thread and FIFO queue, so a robot never
 runs two subtasks at once, and executor threads are never blocked waiting on
@@ -22,7 +24,7 @@ Topics / Actions
 ----------------
 Subscribed:
   /mission/subtask                 (std_msgs/String)
-  /world/<world>/pose/info         (tf2_msgs/TFMessage via ros_gz_bridge)
+  /world/<world>/pose/info         (gz.msgs.Pose_V, Gazebo topic via gz-transport)
 
 Published:
   /mission/feedback                (std_msgs/String)
@@ -36,22 +38,23 @@ import math
 import os
 import queue
 import threading
-import time
 from typing import Any, Dict, Optional, Tuple
 
 from action_msgs.msg import GoalStatus
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import PoseStamped, Quaternion
+from gz.msgs10.pose_v_pb2 import Pose_V
+from gz.transport13 import Node as GzNode
+from gz.transport13 import SubscribeOptions
 from nav2_msgs.action import NavigateToPose
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.serialization import deserialize_message
 from rclpy.task import Future
 from std_msgs.msg import String
-from tf2_msgs.msg import TFMessage
 import yaml
 
 
@@ -166,7 +169,6 @@ class TransportRobotController(Node):
         )
         self._pose_period: float = float(config.get('world', {}).get(
             'pose_update_period_sec', 0.5))
-        self._last_pose_update = float('-inf')
         self._server_wait: float = float(nav_cfg.get('server_wait_sec', 5.0))
         self._nav_timeout: float = float(nav_cfg.get('nav_timeout_sec', 120.0))
         self._world_name: str = config.get('world', {}).get('name', 'default')
@@ -185,12 +187,16 @@ class TransportRobotController(Node):
             String, '/mission/subtask', self._subtask_callback, 10,
             callback_group=self._cb_group,
         )
-        # raw=True: the world publishes ~2200 poses at ~44 Hz. Receive bytes and
-        # only deserialize once per pose_update_period_sec to save CPU.
-        self.create_subscription(
-            TFMessage, f'/world/{self._world_name}/pose/info', self._pose_callback, 1,
-            callback_group=self._cb_group, raw=True,
-        )
+        # Gazebo world poses, straight from gz-transport so entity names are
+        # kept. The world publishes ~2200 poses at up to ~44 Hz, so gz-transport
+        # throttles delivery to one message per pose_update_period_sec.
+        pose_topic = f'/world/{self._world_name}/pose/info'
+        self._pose_topic = pose_topic
+        self._gz_node = GzNode()
+        pose_opts = SubscribeOptions()
+        pose_opts.msgs_per_sec = max(1, round(1.0 / self._pose_period))
+        if not self._gz_node.subscribe(Pose_V, pose_topic, self._pose_callback, pose_opts):
+            self.get_logger().error(f'Could not subscribe to Gazebo topic {pose_topic}')
         self._feedback_pub = self.create_publisher(String, '/mission/feedback', 10)
 
         # One Nav2 client, queue and worker thread per robot instance
@@ -228,6 +234,26 @@ class TransportRobotController(Node):
         for worker in self._workers.values():
             worker.join(timeout=2.0)
 
+    def destroy_node(self) -> None:
+        """Stop the Gazebo pose subscription, then destroy the ROS node."""
+        self._gz_node.unsubscribe(self._pose_topic)
+        super().destroy_node()
+
+    def _wait_for_future_node_time(self, future: Future, timeout_sec: float) -> bool:
+        """
+        Like wait_for_future, but the timeout runs on the node's clock.
+
+        With use_sim_time that is simulation time, so a sim running slower
+        than real time (e.g. on CPU) does not make navigation time out early.
+        """
+        done = threading.Event()
+        future.add_done_callback(lambda _: done.set())
+        deadline = self.get_clock().now() + Duration(seconds=timeout_sec)
+        while not done.wait(0.1):
+            if self.get_clock().now() >= deadline:
+                return future.done()
+        return True
+
     def _worker_loop(self, robot: str) -> None:
         """Execute queued subtasks for one robot strictly one at a time."""
         q = self._queues[robot]
@@ -246,27 +272,14 @@ class TransportRobotController(Node):
 
     # World pose subscription
 
-    def _pose_callback(self, raw_msg: bytes) -> None:
-        """Update the pose registry from the bridged Gazebo pose topic (throttled)."""
-        now = time.monotonic()
-        with self._pose_lock:
-            if now - self._last_pose_update < self._pose_period:
-                return
-            self._last_pose_update = now
-
-        msg = deserialize_message(raw_msg, TFMessage)
+    def _pose_callback(self, msg: Pose_V) -> None:
+        """Update the pose registry from the Gazebo pose topic (gz-transport thread)."""
         updates = {}
-        for transform in msg.transforms:
-            name = transform.child_frame_id
-            if not name:
+        for pose in msg.pose:
+            if not pose.name:
                 continue
-            t = transform.transform
-            q = t.rotation
-            updates[name] = (
-                t.translation.x,
-                t.translation.y,
-                quaternion_to_yaw(q.x, q.y, q.z, q.w),
-            )
+            p, q = pose.position, pose.orientation
+            updates[pose.name] = (p.x, p.y, quaternion_to_yaw(q.x, q.y, q.z, q.w))
         with self._pose_lock:
             self._pose_registry.update(updates)
 
@@ -423,7 +436,7 @@ class TransportRobotController(Node):
             return
 
         result_future = goal_handle.get_result_async()
-        if not wait_for_future(result_future, self._nav_timeout):
+        if not self._wait_for_future_node_time(result_future, self._nav_timeout):
             goal_handle.cancel_goal_async()
             fail(f'Navigation timed out after {self._nav_timeout:.0f}s; goal cancelled.')
             return

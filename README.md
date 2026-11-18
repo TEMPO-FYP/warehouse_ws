@@ -67,6 +67,14 @@ cd warehouse_ws/docker
 bash build.sh
 ```
 
+ROS 2 packages are downloaded from the Huawei Cloud mirror by default, because
+`packages.ros.org` is very slow from Pakistan. To use another mirror, or the
+official server, set `ROS_APT_MIRROR`:
+```bash
+ROS_APT_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/ros2/ubuntu bash build.sh  # another mirror
+ROS_APT_MIRROR= bash build.sh                                                  # packages.ros.org
+```
+
 ### 3. Grant X11 Display Permission (Once per login session)
 On your host machine, allow the Docker container to display GUI windows:
 ```bash

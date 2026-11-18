@@ -1,10 +1,10 @@
 """
-Transport robot controller with its own Gazebo world-pose bridge.
+Transport robot controller.
 
-Starts:
-  * ros_gz_bridge: /world/<world>/pose/info (gz.msgs.Pose_V) ->
-    tf2_msgs/TFMessage, used to resolve Gazebo entity names to poses.
-  * transport_robot_controller: executes navigate_to subtasks via Nav2.
+Starts transport_robot_controller, which executes navigate_to subtasks via
+Nav2. It reads Gazebo entity poses from /world/<world>/pose/info directly
+over gz-transport (world.name in the controller config), so no ros_gz_bridge
+is needed: the bridge's Pose_V -> TFMessage conversion drops entity names.
 """
 
 from launch import LaunchDescription
@@ -14,29 +14,14 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    """Bring up the pose bridge and the transport robot controller."""
-    world = LaunchConfiguration('world')
+    """Bring up the transport robot controller."""
     use_sim_time = LaunchConfiguration('use_sim_time')
 
     args = [
         DeclareLaunchArgument(
-            'world', default_value='default',
-            description='Gazebo world name (must match world.name in the controller config)'),
-        DeclareLaunchArgument(
             'use_sim_time', default_value='true', choices=['true', 'false'],
             description='Use Gazebo /clock'),
     ]
-
-    pose_bridge = Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        name='transport_pose_bridge',
-        output='screen',
-        arguments=[
-            ['/world/', world, '/pose/info@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V'],
-        ],
-        parameters=[{'use_sim_time': use_sim_time}],
-    )
 
     controller = Node(
         package='transport_robot_controller',
@@ -46,4 +31,4 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time}],
     )
 
-    return LaunchDescription(args + [pose_bridge, controller])
+    return LaunchDescription(args + [controller])
