@@ -19,10 +19,12 @@ data_files = [
     ('share/' + package_name, ['package.xml']),
 ]
 
-# Add launch, worlds, and models recursively
+# Add launch, worlds, models, maps and config recursively
 data_files.extend(generate_data_files(package_name, 'launch'))
 data_files.extend(generate_data_files(package_name, 'worlds'))
 data_files.extend(generate_data_files(package_name, 'models'))
+data_files.extend(generate_data_files(package_name, 'maps'))
+data_files.extend(generate_data_files(package_name, 'config'))
 
 setup(
     name=package_name,
@@ -43,6 +45,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'ensure_controllers = warehouse_sim.ensure_controllers:main',
         ],
     },
 )

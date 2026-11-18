@@ -3,7 +3,7 @@ robot_instances:
 
 navigation:
   standoff_distance: 0.8
-  nav_timeout_sec: 60.0
+  nav_timeout_sec: 120.0  # all timeouts are in node-clock (simulation) time
 
 manipulation:
   move_group_name: "arm_0"
@@ -18,3 +18,4 @@ manipulation:
 
 world:
   name: "default"
+  pose_update_period_sec: 0.5
