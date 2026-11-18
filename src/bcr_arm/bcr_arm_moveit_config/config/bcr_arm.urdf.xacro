@@ -36,6 +36,6 @@
     <!-- Robotiq 2F-85 Gripper -->
     <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_85_macro.urdf.xacro"/>
     <xacro:robotiq_gripper name="gripper" prefix="" parent="flange" sim_gazebo="true">
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="1.5707963 0 1.5707963"/>
     </xacro:robotiq_gripper>
 </robot>

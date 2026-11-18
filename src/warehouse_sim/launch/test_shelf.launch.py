@@ -7,6 +7,7 @@ from launch.actions import (
     RegisterEventHandler,
     SetEnvironmentVariable,
 )
+from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
@@ -18,6 +19,7 @@ from launch.substitutions import (
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
+from moveit_configs_utils import MoveItConfigsBuilder
 
 
 def generate_launch_description():
@@ -75,9 +77,23 @@ def generate_launch_description():
         description="Use simulation (Gazebo) clock if true",
     )
 
+    launch_moveit_arg = DeclareLaunchArgument(
+        "launch_moveit",
+        default_value="true",
+        description="Launch MoveIt 2 move_group if true",
+    )
+
+    launch_rviz_arg = DeclareLaunchArgument(
+        "launch_rviz",
+        default_value="false",
+        description="Launch RViz2 if true",
+    )
+
     world_lc = LaunchConfiguration("world")
     controllers_lc = LaunchConfiguration("ros2_controllers_path")
     use_sim_time_lc = LaunchConfiguration("use_sim_time")
+    launch_moveit_lc = LaunchConfiguration("launch_moveit")
+    launch_rviz_lc = LaunchConfiguration("launch_rviz")
 
     # Robot description via Xacro
     robot_description_command = Command(
@@ -208,12 +224,83 @@ def generate_launch_description():
         )
     )
 
+    # MoveIt 2 Configuration & Nodes
+    moveit_config = (
+        MoveItConfigsBuilder("bcr_arm", package_name="bcr_arm_moveit_config")
+        .robot_description(
+            file_path=os.path.join(
+                pkg_bcr_arm_moveit,
+                "config",
+                "bcr_arm.urdf.xacro",
+            ),
+            mappings={
+                "ros2_control_hardware_type": "mock_components",
+            },
+        )
+        .robot_description_semantic(
+            os.path.join(
+                pkg_bcr_arm_moveit,
+                "config",
+                "bcr_arm.srdf",
+            )
+        )
+        .trajectory_execution(
+            os.path.join(
+                pkg_bcr_arm_moveit,
+                "config",
+                "moveit_controllers.yaml",
+            )
+        )
+        .to_moveit_configs()
+    )
+
+    move_group_node = Node(
+        package="moveit_ros_move_group",
+        executable="move_group",
+        output="screen",
+        parameters=[
+            moveit_config.to_dict(),
+            {"use_sim_time": use_sim_time_lc},
+        ],
+        arguments=["--ros-args", "--log-level", "info"],
+        condition=IfCondition(launch_moveit_lc),
+    )
+
+    rviz_node = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        output="screen",
+        arguments=[
+            "-d",
+            os.path.join(
+                pkg_bcr_arm_moveit,
+                "config",
+                "moveit.rviz",
+            ),
+        ],
+        parameters=[
+            moveit_config.to_dict(),
+            {"use_sim_time": use_sim_time_lc},
+        ],
+        condition=IfCondition(launch_rviz_lc),
+    )
+
+    delay_move_group_after_gripper = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=spawn_gripper_controller_node,
+            on_exit=[move_group_node, rviz_node],
+        )
+    )
+
     return LaunchDescription(
         [
             set_gz_resource_path,
             world_arg,
             controllers_arg,
             use_sim_time_arg,
+            launch_moveit_arg,
+            launch_rviz_arg,
             robot_state_publisher_node,
             gazebo_sim_node,
             clock_bridge_node,
@@ -221,5 +308,6 @@ def generate_launch_description():
             delay_jsb_after_spawn,
             delay_jtc_after_jsb,
             delay_gripper_after_jtc,
+            delay_move_group_after_gripper,
         ]
     )

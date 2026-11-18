@@ -44,6 +44,12 @@ setup(
     entry_points={
         'console_scripts': [
             'teleop_arm = warehouse_sim.teleop_arm:main',
+            'planning_scene_manager = warehouse_sim.planning_scene_manager:main',
+            'load_scene = warehouse_sim.load_test_shelf_scene:main',
+            'verify_scene = warehouse_sim.load_test_shelf_scene:verify_main',
+            'gripper_interface = warehouse_sim.gripper_interface:main',
+            'pick_and_place = warehouse_sim.pick_and_place:main',
+            'tempo_arm_worker = warehouse_sim.pick_and_place:worker_main',
         ],
     },
 )

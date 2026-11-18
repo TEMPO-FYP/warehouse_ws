@@ -62,8 +62,9 @@
                 </geometry>
             </visual>
             <collision>
+                <origin xyz="0 0 0.0275" rpy="0 0 0" />
                 <geometry>
-                    <mesh filename="package://robotiq_description/meshes/collision/2f_85/robotiq_base.stl" />
+                    <box size="0.075 0.038 0.055" />
                 </geometry>
             </collision>
             <inertial>
@@ -188,8 +189,9 @@
                 </geometry>
             </visual>
             <collision>
+                <origin xyz="-0.0192 0 0.0263" rpy="0 0 0" />
                 <geometry>
-                    <mesh filename="package://robotiq_description/meshes/collision/2f_85/left_finger_tip.stl" />
+                    <box size="0.012 0.022 0.048" />
                 </geometry>
                 <surface>
                     <friction>
@@ -224,8 +226,9 @@
                 </geometry>
             </visual>
             <collision>
+                <origin xyz="0.0192 0 0.0263" rpy="0 0 0" />
                 <geometry>
-                    <mesh filename="package://robotiq_description/meshes/collision/2f_85/right_finger_tip.stl" />
+                    <box size="0.012 0.022 0.048" />
                 </geometry>
                 <surface>
                     <friction>
@@ -323,5 +326,29 @@
             <mimic joint="${prefix}robotiq_85_left_knuckle_joint" />
             <limit lower="0.0" upper="0.8" velocity="0.5" effort="50" />
         </joint>
+
+        <!-- Tool Center Point (TCP) centered between the rubber contact pads -->
+        <link name="${prefix}grasp_tcp" />
+        <joint name="${prefix}grasp_tcp_joint" type="fixed">
+            <parent link="${prefix}robotiq_85_base_link" />
+            <child link="${prefix}grasp_tcp" />
+            <origin xyz="0 0 0.1246" rpy="0 0 0" />
+        </joint>
+
+        <!-- Gazebo Harmonic contact/friction properties for fingertip pads -->
+        <gazebo reference="${prefix}robotiq_85_left_finger_tip_link">
+            <mu1>10.0</mu1>
+            <mu2>10.0</mu2>
+            <kp>1000000.0</kp>
+            <kd>100.0</kd>
+            <minDepth>0.001</minDepth>
+        </gazebo>
+        <gazebo reference="${prefix}robotiq_85_right_finger_tip_link">
+            <mu1>10.0</mu1>
+            <mu2>10.0</mu2>
+            <kp>1000000.0</kp>
+            <kd>100.0</kd>
+            <minDepth>0.001</minDepth>
+        </gazebo>
     </xacro:macro>
 </robot>

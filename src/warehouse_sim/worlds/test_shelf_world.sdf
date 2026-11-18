@@ -122,7 +122,7 @@
     <!-- Pickable Cube (5cm x 5cm x 5cm, mass 0.1 kg) -->
     <!-- Placed on the shelf surface (z = 0.40m + 0.025m = 0.425m) at x=0.50, y=0.0 -->
     <model name="pickable_cube">
-      <pose>0.50 0.0 0.425 0 0 0</pose>
+      <pose>0.50 0.25 0.425 0 0 0</pose>
       <link name="cube_link">
         <inertial>
           <mass>0.1</mass>
@@ -160,6 +160,41 @@
             <ambient>0.9 0.1 0.1 1.0</ambient>
             <diffuse>0.9 0.1 0.1 1.0</diffuse>
             <specular>0.5 0.5 0.5 1.0</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Place Surface (designated destination platform at x=0.0, y=0.50, surface z=0.40m) -->
+    <model name="place_surface">
+      <static>true</static>
+      <pose>0.0 0.50 0.20 0 0 0</pose>
+      <link name="place_link">
+        <collision name="place_collision">
+          <geometry>
+            <box>
+              <size>0.30 0.30 0.40</size>
+            </box>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name="place_visual">
+          <geometry>
+            <box>
+              <size>0.30 0.30 0.40</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.2 0.4 0.6 1.0</ambient>
+            <diffuse>0.25 0.5 0.75 1.0</diffuse>
+            <specular>0.1 0.1 0.1 1.0</specular>
           </material>
         </visual>
       </link>

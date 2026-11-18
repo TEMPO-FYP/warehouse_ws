@@ -8,6 +8,8 @@
                     <ros>
                         <remapping>/controller_manager/robot_description:=/robot_description</remapping>
                     </ros>
+                    <hold_joints>false</hold_joints>
+                    <position_proportional_gain>1.0</position_proportional_gain>
                 </plugin>
             </gazebo>
         </xacro:if>
