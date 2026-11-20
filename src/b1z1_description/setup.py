@@ -1,11 +1,12 @@
 import os
+
 from setuptools import find_packages, setup
 
 package_name = 'b1z1_description'
 
 
 def generate_data_files(pkg_name, source_dir):
-    """Recursively collects all files in source_dir for installation"""
+    """Recursively collects all files in source_dir for installation."""
     data_files = []
     for root, dirs, files in os.walk(source_dir):
         if files:
@@ -14,6 +15,7 @@ def generate_data_files(pkg_name, source_dir):
             data_files.append((install_dir, file_list))
 
     return data_files
+
 
 data_files = [
     ('share/ament_index/resource_index/packages', ['resource/' + package_name]),

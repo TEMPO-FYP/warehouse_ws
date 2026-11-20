@@ -18,13 +18,14 @@ from dataclasses import dataclass, field
 import json
 import math
 import os
+import queue
 import threading
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from action_msgs.msg import GoalStatus
 from ament_index_python.packages import get_package_share_directory
-from geometry_msgs.msg import Pose, PoseStamped, Twist
+from geometry_msgs.msg import PoseStamped, Twist
 from gz.msgs10.empty_pb2 import Empty as GzEmpty  # type: ignore[import-not-found]
 from gz.msgs10.stringmsg_pb2 import StringMsg as GzStringMsg  # type: ignore[import-not-found]
 from gz.transport13 import Node as GzNode  # type: ignore[import-not-found]
@@ -52,8 +53,6 @@ from tf2_msgs.msg import TFMessage
 import tf2_ros
 import yaml
 
-
-ROBOT_TYPE = 'mobile_robot'
 
 PoseEntry = Tuple[float, float, float, Tuple[float, float, float, float]]
 
@@ -134,9 +133,15 @@ def _build_profile(instance_id: str, profile_name: str, raw: Dict[str, Any]) -> 
         use_kinematic_attach=bool(manip.get('use_kinematic_attach', False)),
         attach_max_distance_m=float(manip.get('attach_max_distance_m', 0.18)),
         default_object_dims=(float(raw_dims[0]), float(raw_dims[1]), float(raw_dims[2])),
-        grasp_roll_rad=float(manip.get('grasp_roll_rad', math.pi / 2.0 if profile_name == 'b1z1' else 0.0)),
-        grasp_pitch_rad=float(manip.get('grasp_pitch_rad', 0.26 if profile_name == 'b1z1' else 0.0)),
-        grasp_lateral_offset_m=float(manip.get('grasp_lateral_offset_m', 0.028 if profile_name == 'b1z1' else 0.0)),
+        grasp_roll_rad=float(
+            manip.get('grasp_roll_rad', math.pi / 2.0 if profile_name == 'b1z1' else 0.0)
+        ),
+        grasp_pitch_rad=float(
+            manip.get('grasp_pitch_rad', 0.26 if profile_name == 'b1z1' else 0.0)
+        ),
+        grasp_lateral_offset_m=float(
+            manip.get('grasp_lateral_offset_m', 0.028 if profile_name == 'b1z1' else 0.0)
+        ),
         srdf_states=dict(manip.get('srdf_states', {})),
         touch_links=list(manip.get('touch_links', [])),
     )
@@ -177,7 +182,7 @@ class MobileRobotController(Node):
         raw_profiles = config.get('robot_profiles', {})
         raw_instances = config.get('robot_instances', {})
         self._profiles: Dict[str, RobotProfile] = {}
-        self._managed_prefixes = set(raw_profiles.keys()) | {ROBOT_TYPE}
+        self._managed_prefixes = set(raw_profiles.keys())
         for instance_id, profile_name in raw_instances.items():
             if profile_name not in raw_profiles:
                 raise KeyError(
@@ -199,9 +204,11 @@ class MobileRobotController(Node):
         self._attached_objects: Dict[str, Optional[str]] = {
             inst: None for inst in self._profiles
         }
-        self._robot_locks: Dict[str, threading.Lock] = {
-            inst: threading.Lock() for inst in self._profiles
+        self._stop_event = threading.Event()
+        self._robot_queues: Dict[str, queue.Queue] = {
+            inst: queue.Queue() for inst in self._profiles
         }
+        self._worker_threads: Dict[str, threading.Thread] = {}
 
         self._tf_buffer = tf2_ros.Buffer()
         self._tf_listener = tf2_ros.TransformListener(self._tf_buffer, self)
@@ -269,9 +276,26 @@ class MobileRobotController(Node):
                 callback_group=self._cb_group,
             )
             self.get_logger().info(
-                f"[init] {inst} (profile={prof.profile_name}): nav={nav_topic}, "
-                f"moveit={ns_prefix}/move_action, tcp={prof.tcp_frame}"
+                f'[init] {inst} (profile={prof.profile_name}): nav={nav_topic}, '
+                f'moveit={ns_prefix}/move_action, tcp={prof.tcp_frame}'
             )
+            worker = threading.Thread(
+                target=self._robot_worker_loop,
+                args=(inst,),
+                name=f'{inst}_worker',
+                daemon=True,
+            )
+            worker.start()
+            self._worker_threads[inst] = worker
+
+    def destroy_node(self) -> bool:
+        """Stop per-robot worker threads cleanly before destroying the ROS node."""
+        self._stop_event.set()
+        for q in self._robot_queues.values():
+            q.put(None)
+        for worker in self._worker_threads.values():
+            worker.join(timeout=1.0)
+        return super().destroy_node()
 
     def _gz_attach(self, robot: str, object_name: str) -> bool:
         """Publish to Gazebo DynamicAttachSystem to weld `object_name` rigidly to the gripper."""
@@ -439,9 +463,54 @@ class MobileRobotController(Node):
     def _subtask_callback(self, msg: String) -> None:
         try:
             subtask = json.loads(msg.data.strip())
-            self._handle_subtask(subtask)
         except Exception as exc:
             self.get_logger().error(f'[subtask] Unhandled exception: {exc}')
+            return
+
+        plan_id = subtask.get('plan_id', '')
+        task_id = subtask.get('task_id', '')
+        robot = subtask.get('robot', '')
+        skills = subtask.get('required_skills', [])
+
+        if robot not in self._profiles and not any(
+            robot.startswith(prefix) for prefix in self._managed_prefixes
+        ):
+            return
+
+        if robot not in self._profiles:
+            self._publish_feedback(
+                plan_id, task_id, robot,
+                status='failed', stage='config_error',
+                detail=f'Unknown robot instance: {robot}',
+            )
+            return
+
+        if not (skills[0] if skills else None):
+            self._publish_feedback(
+                plan_id, task_id, robot,
+                status='failed', stage='config_error',
+                detail='No required_skills specified.',
+            )
+            return
+
+        self._robot_queues[robot].put(subtask)
+
+    def _robot_worker_loop(self, robot: str) -> None:
+        q = self._robot_queues[robot]
+        while not self._stop_event.is_set():
+            try:
+                subtask = q.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            if subtask is None:
+                q.task_done()
+                break
+            try:
+                self._handle_subtask(subtask)
+            except Exception as exc:
+                self.get_logger().error(f'[{robot}] Worker unhandled exception: {exc}')
+            finally:
+                q.task_done()
 
     def _handle_subtask(self, subtask: Dict[str, Any]) -> None:
         plan_id = subtask.get('plan_id', '')
@@ -472,19 +541,18 @@ class MobileRobotController(Node):
             )
             return
 
-        with self._robot_locks[robot]:
-            if skill == 'navigate_to':
-                self._execute_navigate_to(plan_id, task_id, robot, args)
-            elif skill == 'pick':
-                self._execute_pick(plan_id, task_id, robot, args)
-            elif skill == 'place':
-                self._execute_place(plan_id, task_id, robot, args)
-            else:
-                self._publish_feedback(
-                    plan_id, task_id, robot,
-                    status='failed', stage='config_error',
-                    detail=f'Unknown skill: {skill}',
-                )
+        if skill == 'navigate_to':
+            self._execute_navigate_to(plan_id, task_id, robot, args)
+        elif skill == 'pick':
+            self._execute_pick(plan_id, task_id, robot, args)
+        elif skill == 'place':
+            self._execute_place(plan_id, task_id, robot, args)
+        else:
+            self._publish_feedback(
+                plan_id, task_id, robot,
+                status='failed', stage='config_error',
+                detail=f'Unknown skill: {skill}',
+            )
 
     def _compute_nav_goal(
         self,
@@ -653,7 +721,7 @@ class MobileRobotController(Node):
         bx, by, _ = transform_world_to_base(tx, ty, rz, (rx, ry, rz), rquat)
         horiz = math.hypot(bx, by)
 
-        if horiz > 1.25 or bx < 0.25:
+        if horiz > 1.25 or horiz < prof.min_reach_m or bx < 0.25:
             target_yaw = math.atan2(ty - ry, tx - rx)
             gx, gy, gyaw = self._compute_nav_goal(
                 robot, tx, ty, target_yaw, preferred_standoff, max_standoff_dist=max_dist
@@ -696,7 +764,8 @@ class MobileRobotController(Node):
                 wz = max(-0.28, min(0.28, yaw_err / dur)) if abs(yaw_err) > yaw_tol else 0.0
                 self._drive_pulse(robot, vx, wz, dur, vy=vy)
                 self.get_logger().info(
-                    f'[{task_id}] align pulse {step}: base=({bx:.3f}, {by:.3f}) yaw_err={yaw_err:.3f}'
+                    f'[{task_id}] align pulse {step}: '
+                    f'base=({bx:.3f}, {by:.3f}) yaw_err={yaw_err:.3f}'
                 )
             self._cmd_vel_pubs[robot].publish(Twist())
             self._sim_sleep(1.0)
@@ -709,14 +778,16 @@ class MobileRobotController(Node):
         horiz = math.hypot(bx, by)
         max_lat = 0.10 if tight else 0.22
         max_horiz = max_dist + 0.06 if tight else max_dist + 0.15
-        if bx <= 0.35 or horiz > max_horiz or abs(by) > max_lat:
+        if bx <= 0.25 or horiz < prof.min_reach_m or horiz > max_horiz or abs(by) > max_lat:
             return False, (
                 f'Alignment outside manipulation window: '
                 f'base=({bx:.3f}, {by:.3f}), horiz={horiz:.3f}'
             )
         return True, ''
 
-    def _to_robot_base(self, robot: str, wx: float, wy: float, wz: float) -> Optional[Tuple[float, float, float]]:
+    def _to_robot_base(
+        self, robot: str, wx: float, wy: float, wz: float
+    ) -> Optional[Tuple[float, float, float]]:
         robot_pose = self._get_robot_pose(robot)
         if robot_pose is None:
             return None
@@ -780,7 +851,9 @@ class MobileRobotController(Node):
         prof = self._profiles[robot]
         moveit = self._moveit_clients[robot]
         if prof.gripper_mode == 'gripper_command':
-            ok = moveit.move_gripper_command(prof.gripper_open_position, prof.gripper_max_effort, label)
+            ok = moveit.move_gripper_command(
+                prof.gripper_open_position, prof.gripper_max_effort, label
+            )
         else:
             state_name = prof.srdf_states.get('gripper_open', 'open')
             ok = moveit.move_to_named_state(
@@ -811,14 +884,23 @@ class MobileRobotController(Node):
         return ok
 
     def _move_arm_state(
-        self, robot: str, state_key: str, label: str, vel_scale: float = 0.4, pause_sim: float = 0.3
+        self,
+        robot: str,
+        state_key: str,
+        label: str,
+        vel_scale: float = 0.4,
+        pause_sim: float = 0.3,
     ) -> bool:
         prof = self._profiles[robot]
         state_name = prof.srdf_states.get(state_key)
         if not state_name:
             return True
         ok = self._moveit_clients[robot].move_to_named_state(
-            prof.move_group_name, state_name, label, tol=prof.arm_joint_tolerance, vel_scale=vel_scale
+            prof.move_group_name,
+            state_name,
+            label,
+            tol=prof.arm_joint_tolerance,
+            vel_scale=vel_scale,
         )
         if ok:
             self._sim_sleep(pause_sim)
@@ -869,10 +951,15 @@ class MobileRobotController(Node):
                 return True
 
         pre_fold_name = prof.srdf_states.get('pre_fold')
-        seed = moveit.get_group_state(prof.move_group_name, pre_fold_name) if pre_fold_name else None
+        seed = (
+            moveit.get_group_state(prof.move_group_name, pre_fold_name)
+            if pre_fold_name
+            else None
+        )
         if moveit.move_to_pose(
             prof.move_group_name, prof.tcp_frame, pose_stamped, label,
-            cur_joints, seed_overrides=seed, vel_scale=vel_scale, arm_tol=prof.arm_joint_tolerance,
+            cur_joints, seed_overrides=seed, vel_scale=vel_scale,
+            arm_tol=prof.arm_joint_tolerance,
         ):
             self._sim_sleep(pause_sim)
             return True
@@ -955,7 +1042,9 @@ class MobileRobotController(Node):
             robot, wx, wy, task_id, prof.max_reach_m, prof.manipulation_standoff, tight=True
         )
         if not ok:
-            self._publish_feedback(plan_id, task_id, robot, status='failed', stage='pick', detail=err)
+            self._publish_feedback(
+                plan_id, task_id, robot, status='failed', stage='pick', detail=err
+            )
             return
 
         pose = self._resolve_target_pose(object_name)
@@ -1001,10 +1090,17 @@ class MobileRobotController(Node):
             lat_dx = -prof.grasp_lateral_offset_m * math.sin(aim_yaw)
             lat_dy = prof.grasp_lateral_offset_m * math.cos(aim_yaw)
             pre_grasp_pose = self._make_base_pose_stamped(
-                prof, bx - 0.025 + lat_dx, by + lat_dy, bz + 0.15, prof.grasp_roll_rad, prof.grasp_pitch_rad
+                prof,
+                bx - 0.025 + lat_dx,
+                by + lat_dy,
+                bz + 0.15,
+                prof.grasp_roll_rad,
+                prof.grasp_pitch_rad,
             )
 
-            if not self._move_arm_to_pose(robot, pre_grasp_pose, f'{task_id}_pre_grasp', vel_scale=0.4):
+            if not self._move_arm_to_pose(
+                robot, pre_grasp_pose, f'{task_id}_pre_grasp', vel_scale=0.4
+            ):
                 self._publish_feedback(
                     plan_id, task_id, robot, status='failed', stage='pick',
                     detail=f"MoveIt 2 failed during pre-grasp for '{object_name}'.",
@@ -1026,14 +1122,29 @@ class MobileRobotController(Node):
                 lat_dy = prof.grasp_lateral_offset_m * math.cos(aim_yaw)
 
             grasp_pose = self._make_base_pose_stamped(
-                prof, bx - 0.025 + lat_dx, by + lat_dy, bz + 0.022, prof.grasp_roll_rad, prof.grasp_pitch_rad
+                prof,
+                bx - 0.025 + lat_dx,
+                by + lat_dy,
+                bz + 0.022,
+                prof.grasp_roll_rad,
+                prof.grasp_pitch_rad,
             )
             lift_pose = self._make_base_pose_stamped(
-                prof, bx - 0.045 + lat_dx, by + lat_dy, bz + 0.22, prof.grasp_roll_rad, prof.grasp_pitch_rad
+                prof,
+                bx - 0.045 + lat_dx,
+                by + lat_dy,
+                bz + 0.22,
+                prof.grasp_roll_rad,
+                prof.grasp_pitch_rad,
             )
 
             if not self._move_arm_to_pose(
-                robot, grasp_pose, f'{task_id}_grasp', vel_scale=0.25, pause_sim=0.4, cartesian=True
+                robot,
+                grasp_pose,
+                f'{task_id}_grasp',
+                vel_scale=0.25,
+                pause_sim=0.4,
+                cartesian=True,
             ):
                 self._publish_feedback(
                     plan_id, task_id, robot, status='failed', stage='pick',
@@ -1050,9 +1161,16 @@ class MobileRobotController(Node):
                     return
 
             if not (
-                self._close_gripper(robot, f'{task_id}_close', for_attach=prof.use_kinematic_attach)
+                self._close_gripper(
+                    robot, f'{task_id}_close', for_attach=prof.use_kinematic_attach
+                )
                 and self._move_arm_to_pose(
-                    robot, lift_pose, f'{task_id}_lift', vel_scale=0.25, pause_sim=0.5, cartesian=True
+                    robot,
+                    lift_pose,
+                    f'{task_id}_lift',
+                    vel_scale=0.25,
+                    pause_sim=0.5,
+                    cartesian=True,
                 )
             ):
                 self._clear_attachment(robot, object_name)
@@ -1067,13 +1185,20 @@ class MobileRobotController(Node):
                 self._clear_attachment(robot, object_name)
                 self._publish_feedback(
                     plan_id, task_id, robot, status='failed', stage='pick',
-                    detail=f"Grasp verification failed for '{object_name}': z={lift_z:.3f}m vs {pre_pick_z:.3f}m",
+                    detail=(
+                        f"Grasp verification failed for '{object_name}': "
+                        f'z={lift_z:.3f}m vs {pre_pick_z:.3f}m'
+                    ),
                 )
                 return
 
             if not (
-                self._move_arm_state(robot, 'carry_retract', f'{task_id}_carry_retract', vel_scale=0.25)
-                and self._move_arm_state(robot, 'carry', f'{task_id}_carry_cradle', vel_scale=0.15, pause_sim=0.5)
+                self._move_arm_state(
+                    robot, 'carry_retract', f'{task_id}_carry_retract', vel_scale=0.25
+                )
+                and self._move_arm_state(
+                    robot, 'carry', f'{task_id}_carry_cradle', vel_scale=0.15, pause_sim=0.5
+                )
             ):
                 self._clear_attachment(robot, object_name)
                 self._publish_feedback(
@@ -1087,7 +1212,10 @@ class MobileRobotController(Node):
                 self._clear_attachment(robot, object_name)
                 self._publish_feedback(
                     plan_id, task_id, robot, status='failed', stage='pick',
-                    detail=f"Carry verification failed for '{object_name}': dropped to z={carry_z:.3f}m",
+                    detail=(
+                        f"Carry verification failed for '{object_name}': "
+                        f'dropped to z={carry_z:.3f}m'
+                    ),
                 )
                 return
         finally:
@@ -1140,7 +1268,9 @@ class MobileRobotController(Node):
             robot, lx, ly, task_id, max_dist, pref_dist, tight=not large_fixture
         )
         if not ok:
-            self._publish_feedback(plan_id, task_id, robot, status='failed', stage='place', detail=err)
+            self._publish_feedback(
+                plan_id, task_id, robot, status='failed', stage='place', detail=err
+            )
             return
 
         robot_pose = self._get_robot_pose(robot)
@@ -1183,7 +1313,9 @@ class MobileRobotController(Node):
         )
         try:
             descend_ok = (
-                self._move_arm_to_pose(robot, pre_place_pose, f'{task_id}_pre_place', vel_scale=0.30)
+                self._move_arm_to_pose(
+                    robot, pre_place_pose, f'{task_id}_pre_place', vel_scale=0.30
+                )
                 and self._move_arm_to_pose(
                     robot, place_pose, f'{task_id}_place_descend',
                     vel_scale=0.25, pause_sim=0.3, cartesian=True,
@@ -1216,7 +1348,9 @@ class MobileRobotController(Node):
                 self._move_arm_to_pose(
                     robot, retreat_pose, f'{task_id}_retreat', vel_scale=0.35, cartesian=True
                 )
-                and self._move_arm_state(robot, 'home', f'{task_id}_stow', vel_scale=0.4, pause_sim=0.5)
+                and self._move_arm_state(
+                    robot, 'home', f'{task_id}_stow', vel_scale=0.4, pause_sim=0.5
+                )
             ):
                 self._publish_feedback(
                     plan_id, task_id, robot, status='failed', stage='place',
@@ -1234,8 +1368,10 @@ class MobileRobotController(Node):
                 ox, oy, oz, _ = obj_pose
                 horiz_err = math.hypot(ox - lx, oy - ly)
                 self.get_logger().info(
-                    f'[{task_id}] Post-place verify ({object_name}): obj=({ox:.3f}, {oy:.3f}, {oz:.3f}) '
-                    f'vs target=({lx:.3f}, {ly:.3f}, surf_z={surface_z:.3f}) horiz_err={horiz_err:.3f}'
+                    f'[{task_id}] Post-place verify ({object_name}): '
+                    f'obj=({ox:.3f}, {oy:.3f}, {oz:.3f}) '
+                    f'vs target=({lx:.3f}, {ly:.3f}, surf_z={surface_z:.3f}) '
+                    f'horiz_err={horiz_err:.3f}'
                 )
                 if horiz_err > 1.25 or oz < surface_z - 0.05:
                     self._publish_feedback(

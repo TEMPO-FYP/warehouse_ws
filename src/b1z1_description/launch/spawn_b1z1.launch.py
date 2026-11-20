@@ -1,4 +1,5 @@
 import os
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetEnvironmentVariable
@@ -101,10 +102,18 @@ def generate_launch_description():
         default_value='',
         description='TF/URDF link prefix (defaults to <namespace>_ when empty)',
     )
-    name_arg = DeclareLaunchArgument('name', default_value='b1z1', description='Model name in Gazebo')
+    name_arg = DeclareLaunchArgument(
+        'name', default_value='b1z1', description='Model name in Gazebo'
+    )
     x_arg = DeclareLaunchArgument('x', default_value='0.0', description='Spawn X position')
-    y_arg = DeclareLaunchArgument('y', default_value='16.0', description='Spawn Y position (staging area)')
-    z_arg = DeclareLaunchArgument('z', default_value='0.65', description='Spawn Z position (clears bent crouch legs before settling)')
+    y_arg = DeclareLaunchArgument(
+        'y', default_value='16.0', description='Spawn Y position (staging area)'
+    )
+    z_arg = DeclareLaunchArgument(
+        'z',
+        default_value='0.65',
+        description='Spawn Z position (clears bent crouch legs before settling)',
+    )
     yaw_arg = DeclareLaunchArgument('yaw', default_value='0.0', description='Spawn Yaw rotation')
     use_sim_time_arg = DeclareLaunchArgument(
         'use_sim_time',

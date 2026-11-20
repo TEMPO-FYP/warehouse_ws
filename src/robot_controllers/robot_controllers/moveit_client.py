@@ -141,7 +141,7 @@ def ensure_trajectory_timed(
 
 
 class MoveItRobotClient:
-    """Namespaced MoveIt 2 interface supporting SRDF states, seeded IK, Pose & Cartesian execution."""
+    """Namespaced MoveIt 2 client supporting SRDF states, seeded IK, Pose & Cartesian execution."""
 
     def __init__(
         self,
@@ -216,8 +216,13 @@ class MoveItRobotClient:
 
         return result_future.result()
 
-    def _call_service(self, client: Any, request: Any, label: str, timeout_sec: float) -> Optional[Any]:
-        if not client.service_is_ready() and not client.wait_for_service(timeout_sec=min(5.0, timeout_sec)):
+    def _call_service(
+        self, client: Any, request: Any, label: str, timeout_sec: float
+    ) -> Optional[Any]:
+        if (
+            not client.service_is_ready()
+            and not client.wait_for_service(timeout_sec=min(5.0, timeout_sec))
+        ):
             self._logger.warn(f'[moveit] Service unavailable for [{label}].')
             return None
         future = client.call_async(request)
@@ -378,8 +383,9 @@ class MoveItRobotClient:
         arm_tol: float = 0.01,
     ) -> bool:
         """
-        Plan and execute a 6-DOF end-effector pose via seeded KDL IK, falling back to
-        PositionConstraint + OrientationConstraint in OMPL if `/compute_ik` fails.
+        Plan and execute a 6-DOF end-effector pose via seeded KDL IK.
+
+        Falls back to PositionConstraint + OrientationConstraint in OMPL if `/compute_ik` fails.
         """
         ik_sol = self.compute_ik(
             group, link_name, pose_stamped, current_joints, seed_overrides=seed_overrides
@@ -394,7 +400,9 @@ class MoveItRobotClient:
                 target_names = list(ik_sol.keys())
             arm_targets = {k: ik_sol[k] for k in target_names if k in ik_sol}
             if arm_targets:
-                return self.move_to_joints(group, arm_targets, label, tol=arm_tol, vel_scale=vel_scale)
+                return self.move_to_joints(
+                    group, arm_targets, label, tol=arm_tol, vel_scale=vel_scale
+                )
 
         req = MotionPlanRequest()
         req.group_name = group
@@ -436,7 +444,7 @@ class MoveItRobotClient:
         vel_scale: float = 0.25,
         min_fraction: float = 0.90,
     ) -> bool:
-        """Compute a Cartesian path via `/compute_cartesian_path`, verify timing, and execute it."""
+        """Compute a Cartesian path via `/compute_cartesian_path`, time-check, and execute it."""
         req = GetCartesianPath.Request()
         req.header.frame_id = frame_id
         req.header.stamp = self._node.get_clock().now().to_msg()
@@ -465,7 +473,7 @@ class MoveItRobotClient:
             )
             return False
 
-        # MoveIt's TOTG already applied `scale`; pass vel_scale=1.0 so we only time-fill if untimed.
+        # MoveIt's TOTG already applied `scale`; pass vel_scale=1.0 to time-fill only if untimed.
         timed_traj = ensure_trajectory_timed(resp.solution, vel_scale=1.0)
         exec_goal = ExecuteTrajectory.Goal()
         exec_goal.trajectory = timed_traj

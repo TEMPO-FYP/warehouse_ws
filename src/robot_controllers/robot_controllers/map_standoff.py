@@ -107,7 +107,8 @@ class OccupancyMap:
         Return True iff no separate obstacle or wall lies between (x0, y0) and target (x1, y1).
 
         Allows the ray to terminate inside the target fixture's own occupied footprint,
-        while rejecting candidates that cross occupied cells and re-enter free space before (x1, y1).
+        while rejecting candidates that cross occupied cells and re-enter free space
+        before (x1, y1).
         """
         dist = math.hypot(x1 - x0, y1 - y0)
         if dist < 1e-6:
