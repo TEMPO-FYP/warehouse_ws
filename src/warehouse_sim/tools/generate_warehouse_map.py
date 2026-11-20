@@ -2,6 +2,7 @@
 """Generate a ROS 2 2D occupancy grid map from Gazebo SDF <collision> geometry."""
 
 import argparse
+import logging
 import math
 import os
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -15,6 +16,8 @@ DEFAULT_EXCLUDED_MODELS = {
     'cordless_drill_default_inertia',
     'cordless_drill_auto_inertia',
     'graspable_box',
+    'tall_box',
+    'test_pedestal',
 }
 
 
@@ -45,6 +48,42 @@ def pose_to_matrix(pose: Tuple[float, float, float, float, float, float]) -> np.
     return mat
 
 
+def _extract_model_primitives(
+    root: ET.Element,
+    model_name: str,
+) -> List[Tuple[np.ndarray, str, Tuple[Any, ...]]]:
+    """Parse all <collision> primitives from links under an SDF model element."""
+    primitives: List[Tuple[np.ndarray, str, Tuple[Any, ...]]] = []
+    for link in root.findall('.//link'):
+        t_link = pose_to_matrix(parse_pose(link.findtext('pose')))
+        for col in link.findall('collision'):
+            t_col = pose_to_matrix(parse_pose(col.findtext('pose')))
+            t_local = t_link @ t_col
+            geom = col.find('geometry')
+            if geom is None:
+                continue
+            box = geom.find('box')
+            if box is not None:
+                sz = tuple(float(v) for v in (box.findtext('size') or '').split()[:3])
+                if len(sz) == 3:
+                    primitives.append((t_local, 'box', sz))
+                continue
+            cyl = geom.find('cylinder')
+            if cyl is not None:
+                radius = float(cyl.findtext('radius') or '0.0')
+                length = float(cyl.findtext('length') or '0.0')
+                primitives.append((t_local, 'cylinder', (radius, length)))
+                continue
+            sphere = geom.find('sphere')
+            if sphere is not None:
+                radius = float(sphere.findtext('radius') or '0.0')
+                primitives.append((t_local, 'sphere', (radius,)))
+                continue
+            if geom.find('mesh') is not None:
+                primitives.append((t_local, 'mesh', (model_name,)))
+    return primitives
+
+
 def load_model_collisions(
     models_dir: str,
 ) -> Dict[str, List[Tuple[np.ndarray, str, Tuple[Any, ...]]]]:
@@ -55,35 +94,7 @@ def load_model_collisions(
         if not os.path.isfile(sdf_path):
             continue
         root = ET.parse(sdf_path).getroot()
-        primitives: List[Tuple[np.ndarray, str, Tuple[Any, ...]]] = []
-        for link in root.findall('.//link'):
-            t_link = pose_to_matrix(parse_pose(link.findtext('pose')))
-            for col in link.findall('collision'):
-                t_col = pose_to_matrix(parse_pose(col.findtext('pose')))
-                t_local = t_link @ t_col
-                geom = col.find('geometry')
-                if geom is None:
-                    continue
-                box = geom.find('box')
-                if box is not None:
-                    sz = tuple(float(v) for v in (box.findtext('size') or '').split()[:3])
-                    if len(sz) == 3:
-                        primitives.append((t_local, 'box', sz))
-                    continue
-                cyl = geom.find('cylinder')
-                if cyl is not None:
-                    radius = float(cyl.findtext('radius') or '0.0')
-                    length = float(cyl.findtext('length') or '0.0')
-                    primitives.append((t_local, 'cylinder', (radius, length)))
-                    continue
-                sphere = geom.find('sphere')
-                if sphere is not None:
-                    radius = float(sphere.findtext('radius') or '0.0')
-                    primitives.append((t_local, 'sphere', (radius,)))
-                    continue
-                if geom.find('mesh') is not None:
-                    primitives.append((t_local, 'mesh', (model_name,)))
-        cache[model_name] = primitives
+        cache[model_name] = _extract_model_primitives(root, model_name)
     return cache
 
 
@@ -220,6 +231,50 @@ def _rasterize_cylinder(
     grid[r0:r1 + 1, c0:c1 + 1][hit] = True
 
 
+def _rasterize_primitives(
+    grid: np.ndarray,
+    t_base: np.ndarray,
+    primitives: List[Tuple[np.ndarray, str, Tuple[Any, ...]]],
+    model_name: str,
+    x_min: float,
+    y_min: float,
+    resolution: float,
+    z_low: float,
+    z_high: float,
+    floor_cutoff: float,
+) -> None:
+    """Rasterize primitive collisions for a model instance and warn on mesh-only models."""
+    mesh_only = True
+    has_mesh = False
+    for t_local, gtype, params in primitives:
+        if gtype == 'mesh':
+            has_mesh = True
+            continue
+        mesh_only = False
+        t_world = t_base @ t_local
+        if gtype == 'box':
+            _rasterize_box(
+                grid, t_world, params[0], params[1], params[2],
+                x_min, y_min, resolution, z_low, z_high, floor_cutoff,
+            )
+        elif gtype == 'cylinder':
+            _rasterize_cylinder(
+                grid, t_world, params[0], params[1],
+                x_min, y_min, resolution, z_low, z_high, floor_cutoff,
+            )
+        elif gtype == 'sphere':
+            r = params[0]
+            _rasterize_box(
+                grid, t_world, 2.0 * r, 2.0 * r, 2.0 * r,
+                x_min, y_min, resolution, z_low, z_high, floor_cutoff,
+            )
+    if has_mesh and mesh_only:
+        logging.warning(
+            'Model "%s" only defines <mesh> collision geometry; skipped in 2D map rasterization.',
+            model_name,
+        )
+
+
 def build_occupancy_grid(
     world_sdf: str,
     models_dir: str,
@@ -233,7 +288,7 @@ def build_occupancy_grid(
     floor_cutoff: float = 0.095,
     excluded_models: Optional[Set[str]] = None,
 ) -> Tuple[np.ndarray, int]:
-    """Rasterize world SDF <include> collisions into a boolean occupancy grid."""
+    """Rasterize world SDF <include> and inline <model> collisions into a boolean occupancy grid."""
     if excluded_models is None:
         excluded_models = set(DEFAULT_EXCLUDED_MODELS)
 
@@ -247,7 +302,7 @@ def build_occupancy_grid(
     height = int(round((y_max - y_min) / resolution))
     grid = np.zeros((height, width), dtype=bool)
 
-    processed_includes = 0
+    processed_models = 0
     for inc in world.findall('include'):
         uri = (inc.findtext('uri') or '').replace('model://', '').strip()
         if not uri or uri in excluded_models:
@@ -256,26 +311,27 @@ def build_occupancy_grid(
         if not primitives:
             continue
         t_inc = pose_to_matrix(parse_pose(inc.findtext('pose')))
-        processed_includes += 1
-        for t_local, gtype, params in primitives:
-            t_world = t_inc @ t_local
-            if gtype == 'box':
-                _rasterize_box(
-                    grid, t_world, params[0], params[1], params[2],
-                    x_min, y_min, resolution, z_low, z_high, floor_cutoff,
-                )
-            elif gtype == 'cylinder':
-                _rasterize_cylinder(
-                    grid, t_world, params[0], params[1],
-                    x_min, y_min, resolution, z_low, z_high, floor_cutoff,
-                )
-            elif gtype == 'sphere':
-                r = params[0]
-                _rasterize_box(
-                    grid, t_world, 2.0 * r, 2.0 * r, 2.0 * r,
-                    x_min, y_min, resolution, z_low, z_high, floor_cutoff,
-                )
-    return grid, processed_includes
+        processed_models += 1
+        _rasterize_primitives(
+            grid, t_inc, primitives, uri,
+            x_min, y_min, resolution, z_low, z_high, floor_cutoff,
+        )
+
+    for model_el in world.findall('model'):
+        model_name = (model_el.get('name') or '').strip()
+        if not model_name or model_name in excluded_models:
+            continue
+        primitives = _extract_model_primitives(model_el, model_name)
+        if not primitives:
+            continue
+        t_model = pose_to_matrix(parse_pose(model_el.findtext('pose')))
+        processed_models += 1
+        _rasterize_primitives(
+            grid, t_model, primitives, model_name,
+            x_min, y_min, resolution, z_low, z_high, floor_cutoff,
+        )
+
+    return grid, processed_models
 
 
 def write_ros_map(

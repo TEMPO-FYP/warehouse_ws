@@ -24,7 +24,6 @@ data_files.extend(generate_data_files(package_name, 'xacro'))
 data_files.extend(generate_data_files(package_name, 'meshes'))
 data_files.extend(generate_data_files(package_name, 'launch'))
 data_files.extend(generate_data_files(package_name, 'config'))
-data_files.extend(generate_data_files(package_name, 'models'))
 
 
 setup(

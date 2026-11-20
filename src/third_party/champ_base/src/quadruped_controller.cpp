@@ -74,6 +74,7 @@ QuadrupedController::QuadrupedController():
     this->get_parameter("gait.swing_height",           gait_config_.swing_height);
     this->get_parameter("gait.stance_depth",           gait_config_.stance_depth);
     this->get_parameter("gait.stance_duration",        gait_config_.stance_duration);
+    this->get_parameter("gait.swing_duration",         gait_config_.swing_duration);
     this->get_parameter("gait.nominal_height",         gait_config_.nominal_height);
     this->get_parameter("gait.knee_orientation",       knee_orientation_);
     this->get_parameter("publish_foot_contacts",       publish_foot_contacts_);
@@ -122,6 +123,14 @@ QuadrupedController::QuadrupedController():
         0.0f, 0.67f, -1.30f,
         0.0f, 0.67f, -1.30f
     };
+    std::vector<double> init_joints;
+    if (this->get_parameter("initial_joint_positions", init_joints) && init_joints.size() == 12)
+    {
+        for (size_t i = 0; i < 12; ++i)
+        {
+            crouch_joints[i] = static_cast<float>(init_joints[i]);
+        }
+    }
     base_.updateJointPositions(crouch_joints);
     joint_names_ = champ::URDF::getJointNames(this->get_node_parameters_interface());
     loop_timer_ = rclcpp::create_timer(
@@ -312,6 +321,15 @@ rcl_interfaces::msg::SetParametersResult QuadrupedController::onSetParameters_(
                 return result;
             }
             next_gait.stance_duration = static_cast<float>(val);
+            gait_changed = true;
+        } else if (name == "gait.swing_duration") {
+            if (!read_double(p, val)) { return result; }
+            if (val <= 0.0) {
+                result.successful = false;
+                result.reason = "gait.swing_duration must be > 0";
+                return result;
+            }
+            next_gait.swing_duration = static_cast<float>(val);
             gait_changed = true;
         } else if (name == "gait.max_linear_velocity_x") {
             if (!read_double(p, val)) { return result; }

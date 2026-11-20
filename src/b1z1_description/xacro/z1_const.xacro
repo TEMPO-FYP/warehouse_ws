@@ -132,7 +132,8 @@
     <xacro:property name="joint6_PositionMin" value="${-PI*160/180}"/>
     <xacro:property name="joint6_PositionMax" value="${PI*160/180}"/>
     <xacro:property name="Gripper_PositionMin" value="${-PI*90/180}"/>
-    <xacro:property name="Gripper_PositionMax" value="0.0"/>
+    <!-- Small +0.02 rad buffer above physical 0.0 stop avoids MoveIt CheckStartStateBounds failures from Gazebo solver overshoot -->
+    <xacro:property name="Gripper_PositionMax" value="0.02"/>
 
     <!-- collision size -->
     <xacro:property name="motor_diameter" value="${0.065/2.0}"/>
@@ -141,7 +142,4 @@
     <xacro:property name="arm1_height" value="0.235"/>
     <xacro:property name="arm2_diameter" value="${0.04/2.0}"/>
     <xacro:property name="arm2_height" value="0.126"/>
-    <xacro:property name="gripperBox_X" value="0."/>
-    <xacro:property name="gripperBox_Y" value="0."/>
-    <xacro:property name="gripperBox_Z" value="0."/>
 </robot>

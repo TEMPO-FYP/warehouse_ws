@@ -10,11 +10,13 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>b1z1_control</exec_depend>
+  <exec_depend>b1z1_description</exec_depend>
   <exec_depend>dispatcher_node</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>llm_planner</exec_depend>
   <exec_depend>robot_controllers</exec_depend>
+  <exec_depend>ros_gz_sim</exec_depend>
   <exec_depend>solver_node</exec_depend>
   <exec_depend>warehouse_sim</exec_depend>
 

@@ -9,21 +9,56 @@ from launch.actions import (
 )
 from launch.launch_description import LaunchDescription
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node, SetParameter
+from launch_ros.actions import Node, PushRosNamespace, SetParameter
+from launch_ros.parameter_descriptions import ParameterValue
+from nav2_common.launch import RewrittenYaml
 
 
-def _build_nav2_nodes(context, default_override_file):
-    """Build Nav2 server nodes with optional static map_server and costmap override."""
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    autostart = LaunchConfiguration('autostart')
+def _resolve_namespace(raw_ns: str) -> str:
+    clean = raw_ns.strip().strip('/')
+    return clean or 'b1z1'
+
+
+def _build_nav2_nodes(context, default_override_file: str):
+    """Build namespaced Nav2 server nodes with rewritten frame names and optional static map override."""
+    ns = _resolve_namespace(LaunchConfiguration('namespace').perform(context))
+    raw_prefix = LaunchConfiguration('prefix').perform(context).strip()
+    prefix = raw_prefix if raw_prefix else f'{ns}_'
+    use_sim_time = ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool)
+    autostart = ParameterValue(LaunchConfiguration('autostart'), value_type=bool)
     params_file = LaunchConfiguration('params_file').perform(context)
     use_static_map = (
         LaunchConfiguration('use_static_map').perform(context).strip().lower() == 'true'
     )
 
-    nav_params = [params_file]
+    odom_frame = f'{prefix}odom'
+    base_frame = f'{prefix}base_footprint'
+    scan_topic = f'/{ns}/scan'
+    configured_params = RewrittenYaml(
+        source_file=params_file,
+        root_key=ns,
+        param_rewrites={
+            'bt_navigator.ros__parameters.robot_base_frame': base_frame,
+            'local_costmap.local_costmap.ros__parameters.global_frame': odom_frame,
+            'local_costmap.local_costmap.ros__parameters.robot_base_frame': base_frame,
+            'local_costmap.local_costmap.ros__parameters.obstacle_layer.scan.topic': scan_topic,
+            'global_costmap.global_costmap.ros__parameters.robot_base_frame': base_frame,
+            'global_costmap.global_costmap.ros__parameters.obstacle_layer.scan.topic': scan_topic,
+            'behavior_server.ros__parameters.local_frame': odom_frame,
+            'behavior_server.ros__parameters.robot_base_frame': base_frame,
+        },
+        convert_types=True,
+    )
+
+    nav_params = [configured_params]
     if use_static_map:
-        nav_params.append(default_override_file)
+        configured_override = RewrittenYaml(
+            source_file=default_override_file,
+            root_key=ns,
+            param_rewrites={},
+            convert_types=True,
+        )
+        nav_params.append(configured_override)
 
     lifecycle_nodes = [
         'controller_server',
@@ -80,7 +115,7 @@ def _build_nav2_nodes(context, default_override_file):
             parameters=nav_params,
             remappings=[
                 ('cmd_vel', 'cmd_vel_nav'),
-                ('cmd_vel_smoothed', '/cmd_vel'),
+                ('cmd_vel_smoothed', 'cmd_vel'),
             ],
         ),
         Node(
@@ -97,7 +132,11 @@ def _build_nav2_nodes(context, default_override_file):
 
     return [
         GroupAction(
-            actions=[SetParameter('use_sim_time', use_sim_time)] + nodes
+            actions=[
+                PushRosNamespace(ns),
+                SetParameter('use_sim_time', use_sim_time),
+                *nodes,
+            ]
         )
     ]
 
@@ -112,6 +151,16 @@ def generate_launch_description():
 
     return LaunchDescription([
         SetEnvironmentVariable('RCUTILS_LOGGING_BUFFERED_STREAM', '1'),
+        DeclareLaunchArgument(
+            'namespace',
+            default_value='b1z1',
+            description='ROS namespace for this robot Nav2 stack',
+        ),
+        DeclareLaunchArgument(
+            'prefix',
+            default_value='',
+            description='TF link prefix (defaults to <namespace>_ when empty)',
+        ),
         DeclareLaunchArgument(
             'use_sim_time',
             default_value='true',
@@ -129,7 +178,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'use_static_map',
-            default_value='false',
+            default_value='true',
             description='Enable global_costmap static_layer for the shared /map topic',
         ),
         OpaqueFunction(function=_build_nav2_nodes, args=[default_override_file]),

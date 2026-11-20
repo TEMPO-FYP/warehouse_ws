@@ -164,6 +164,7 @@ namespace champ
                 swing_height(0.0f),
                 stance_depth(0.0f),
                 stance_duration(0.0f),
+                swing_duration(0.25f),
                 nominal_height(0.0f)
             {}
             GaitConfig(const char * knee_or,
@@ -176,7 +177,8 @@ namespace champ
                 float swing_h,
                 float stan_dep,
                 float stan_dur,
-                float nom_height):
+                float nom_height,
+                float swing_dur = 0.25f):
                     knee_orientation(knee_or),
                     pantograph_leg(panto_leg),
                     odom_scaler(odom_scaler_val),
@@ -187,6 +189,7 @@ namespace champ
                     swing_height(swing_h),
                     stance_depth(stan_dep),
                     stance_duration(stan_dur),
+                    swing_duration(swing_dur),
                     nominal_height(nom_height)
             {}
             const char * knee_orientation;
@@ -199,6 +202,7 @@ namespace champ
             float swing_height;
             float stance_depth;
             float stance_duration;
+            float swing_duration;
             float nominal_height;
     };
 }

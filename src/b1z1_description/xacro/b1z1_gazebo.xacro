@@ -1,100 +1,46 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+    <xacro:property name="p" value="$(arg prefix)"/>
+
+    <!-- Macro for ground contact friction on each foot -->
+    <xacro:macro name="foot_gazebo" params="foot_link">
+        <gazebo reference="${foot_link}">
+            <mu1>1.2</mu1>
+            <mu2>1.2</mu2>
+            <kp>1000000.0</kp>
+            <kd>1.0</kd>
+        </gazebo>
+    </xacro:macro>
+
+    <!-- Macro for metallic visual styling on Z1 links -->
+    <xacro:macro name="z1_link_visual" params="link_name amb diff spec">
+        <gazebo reference="${link_name}">
+            <visual>
+                <material>
+                    <ambient>${amb}</ambient>
+                    <diffuse>${diff}</diffuse>
+                    <specular>${spec}</specular>
+                </material>
+            </visual>
+        </gazebo>
+    </xacro:macro>
+
     <!-- Ground contact friction on all 4 feet -->
-    <gazebo reference="FR_foot">
-        <mu1>1.2</mu1>
-        <mu2>1.2</mu2>
-        <kp>1000000.0</kp>
-        <kd>1.0</kd>
-    </gazebo>
-
-    <gazebo reference="FL_foot">
-        <mu1>1.2</mu1>
-        <mu2>1.2</mu2>
-        <kp>1000000.0</kp>
-        <kd>1.0</kd>
-    </gazebo>
-
-    <gazebo reference="RR_foot">
-        <mu1>1.2</mu1>
-        <mu2>1.2</mu2>
-        <kp>1000000.0</kp>
-        <kd>1.0</kd>
-    </gazebo>
-
-    <gazebo reference="RL_foot">
-        <mu1>1.2</mu1>
-        <mu2>1.2</mu2>
-        <kp>1000000.0</kp>
-        <kd>1.0</kd>
-    </gazebo>
+    <xacro:foot_gazebo foot_link="${p}FR_foot"/>
+    <xacro:foot_gazebo foot_link="${p}FL_foot"/>
+    <xacro:foot_gazebo foot_link="${p}RR_foot"/>
+    <xacro:foot_gazebo foot_link="${p}RL_foot"/>
 
     <!-- Metallic styling for Z1 Arm in Gazebo -->
-    <gazebo reference="link00">
-        <visual>
-            <material>
-                <ambient>0.2 0.2 0.2 1.0</ambient>
-                <diffuse>0.25 0.25 0.25 1.0</diffuse>
-                <specular>0.6 0.6 0.6 1.0</specular>
-            </material>
-        </visual>
-    </gazebo>
-    <gazebo reference="link01">
-        <visual>
-            <material>
-                <ambient>0.2 0.2 0.2 1.0</ambient>
-                <diffuse>0.25 0.25 0.25 1.0</diffuse>
-                <specular>0.6 0.6 0.6 1.0</specular>
-            </material>
-        </visual>
-    </gazebo>
-    <gazebo reference="link02">
-        <visual>
-            <material>
-                <ambient>0.4 0.4 0.4 1.0</ambient>
-                <diffuse>0.55 0.55 0.55 1.0</diffuse>
-                <specular>0.8 0.8 0.8 1.0</specular>
-            </material>
-        </visual>
-    </gazebo>
-    <gazebo reference="link03">
-        <visual>
-            <material>
-                <ambient>0.4 0.4 0.4 1.0</ambient>
-                <diffuse>0.55 0.55 0.55 1.0</diffuse>
-                <specular>0.8 0.8 0.8 1.0</specular>
-            </material>
-        </visual>
-    </gazebo>
-    <gazebo reference="link04">
-        <visual>
-            <material>
-                <ambient>0.2 0.2 0.2 1.0</ambient>
-                <diffuse>0.25 0.25 0.25 1.0</diffuse>
-                <specular>0.6 0.6 0.6 1.0</specular>
-            </material>
-        </visual>
-    </gazebo>
-    <gazebo reference="link05">
-        <visual>
-            <material>
-                <ambient>0.2 0.2 0.2 1.0</ambient>
-                <diffuse>0.25 0.25 0.25 1.0</diffuse>
-                <specular>0.6 0.6 0.6 1.0</specular>
-            </material>
-        </visual>
-    </gazebo>
-    <gazebo reference="link06">
-        <visual>
-            <material>
-                <ambient>0.4 0.4 0.4 1.0</ambient>
-                <diffuse>0.55 0.55 0.55 1.0</diffuse>
-                <specular>0.8 0.8 0.8 1.0</specular>
-            </material>
-        </visual>
-    </gazebo>
-    <gazebo reference="gripperStator">
+    <xacro:z1_link_visual link_name="${p}link00" amb="0.2 0.2 0.2 1.0" diff="0.25 0.25 0.25 1.0" spec="0.6 0.6 0.6 1.0"/>
+    <xacro:z1_link_visual link_name="${p}link01" amb="0.2 0.2 0.2 1.0" diff="0.25 0.25 0.25 1.0" spec="0.6 0.6 0.6 1.0"/>
+    <xacro:z1_link_visual link_name="${p}link02" amb="0.4 0.4 0.4 1.0" diff="0.55 0.55 0.55 1.0" spec="0.8 0.8 0.8 1.0"/>
+    <xacro:z1_link_visual link_name="${p}link03" amb="0.4 0.4 0.4 1.0" diff="0.55 0.55 0.55 1.0" spec="0.8 0.8 0.8 1.0"/>
+    <xacro:z1_link_visual link_name="${p}link04" amb="0.2 0.2 0.2 1.0" diff="0.25 0.25 0.25 1.0" spec="0.6 0.6 0.6 1.0"/>
+    <xacro:z1_link_visual link_name="${p}link05" amb="0.2 0.2 0.2 1.0" diff="0.25 0.25 0.25 1.0" spec="0.6 0.6 0.6 1.0"/>
+    <xacro:z1_link_visual link_name="${p}link06" amb="0.4 0.4 0.4 1.0" diff="0.55 0.55 0.55 1.0" spec="0.8 0.8 0.8 1.0"/>
+    <gazebo reference="${p}gripperStator">
         <mu1>2.0</mu1>
         <mu2>2.0</mu2>
         <kp>100000.0</kp>
@@ -108,7 +54,7 @@
             </material>
         </visual>
     </gazebo>
-    <gazebo reference="gripperMover">
+    <gazebo reference="${p}gripperMover">
         <mu1>2.0</mu1>
         <mu2>2.0</mu2>
         <kp>100000.0</kp>
@@ -128,12 +74,12 @@
         <preserveFixedJoint>true</preserveFixedJoint>
     </gazebo>
 
-    <gazebo reference="imu_link">
+    <gazebo reference="${p}imu_link">
         <sensor name="imu_sensor" type="imu">
             <always_on>1</always_on>
             <update_rate>250</update_rate>
-            <topic>/imu/data</topic>
-            <gz_frame_id>imu_link</gz_frame_id>
+            <topic>/$(arg namespace)/imu/data</topic>
+            <gz_frame_id>${p}imu_link</gz_frame_id>
             <imu>
                 <angular_velocity>
                     <x>
@@ -184,13 +130,13 @@
         <preserveFixedJoint>true</preserveFixedJoint>
     </gazebo>
 
-    <gazebo reference="lidar_link">
+    <gazebo reference="${p}lidar_link">
         <sensor name="gpu_lidar" type="gpu_lidar">
             <always_on>1</always_on>
             <update_rate>20</update_rate>
             <visualize>false</visualize>
-            <topic>/scan</topic>
-            <gz_frame_id>lidar_link</gz_frame_id>
+            <topic>/$(arg namespace)/scan</topic>
+            <gz_frame_id>${p}lidar_link</gz_frame_id>
             <lidar>
                 <scan>
                     <horizontal>
@@ -225,12 +171,12 @@
         <gazebo reference="follow_camera_joint">
             <preserveFixedJoint>true</preserveFixedJoint>
         </gazebo>
-        <gazebo reference="follow_camera_link">
+        <gazebo reference="${p}follow_camera_link">
             <sensor name="video_camera" type="camera">
                 <always_on>1</always_on>
                 <update_rate>15</update_rate>
                 <visualize>false</visualize>
-                <topic>/video_camera</topic>
+                <topic>/$(arg namespace)/video_camera</topic>
                 <camera>
                     <horizontal_fov>1.25</horizontal_fov>
                     <image>
@@ -250,15 +196,26 @@
     <gazebo>
         <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>
         <plugin filename="gz-sim-odometry-publisher-system" name="gz::sim::systems::OdometryPublisher">
-            <odom_frame>odom</odom_frame>
-            <robot_base_frame>base_link</robot_base_frame>
-            <odom_topic>/odom_gz</odom_topic>
+            <odom_frame>${p}odom</odom_frame>
+            <robot_base_frame>${p}base_footprint</robot_base_frame>
+            <odom_topic>/$(arg namespace)/odom</odom_topic>
+            <tf_topic>/$(arg namespace)/tf</tf_topic>
             <odom_publish_frequency>50</odom_publish_frequency>
             <dimensions>3</dimensions>
         </plugin>
         <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-            <parameters>$(find b1z1_control)/config/ros2_controllers.yaml</parameters>
+            <xacro:if value="${'$(arg controllers_yaml)' != ''}">
+                <parameters>$(arg controllers_yaml)</parameters>
+            </xacro:if>
+            <ros>
+                <namespace>/$(arg namespace)</namespace>
+            </ros>
             <position_proportional_gain>2.0</position_proportional_gain>
+        </plugin>
+        <plugin filename="libdynamic_attach_system.so" name="b1z1::DynamicAttachSystem">
+            <parent_link>${p}link06</parent_link>
+            <attach_topic>/$(arg namespace)/attach</attach_topic>
+            <detach_topic>/$(arg namespace)/detach</detach_topic>
         </plugin>
     </gazebo>
 

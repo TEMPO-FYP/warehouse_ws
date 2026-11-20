@@ -1,169 +1,143 @@
 #!/usr/bin/env python3
-"""MoveIt 2 pick-and-place verification script for Unitree B1Z1."""
+"""Native MoveIt 2 pick-and-place verification script for Unitree B1Z1."""
 
 import argparse
 import math
 import time
+from typing import Dict, Optional
+import xml.etree.ElementTree as ET
+
+from geometry_msgs.msg import PoseStamped, Vector3
+from moveit_msgs.action import ExecuteTrajectory, MoveGroup
+from moveit_msgs.msg import (
+    BoundingVolume,
+    Constraints,
+    JointConstraint,
+    MotionPlanRequest,
+    OrientationConstraint,
+    PositionConstraint,
+    RobotState,
+)
+from moveit_msgs.srv import GetCartesianPath, GetPositionIK
+from rcl_interfaces.srv import GetParameters
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.parameter import Parameter
-
-from moveit_msgs.action import MoveGroup
-from moveit_msgs.msg import (
-    Constraints,
-    JointConstraint,
-    MotionPlanRequest,
-)
 from sensor_msgs.msg import JointState
+from shape_msgs.msg import SolidPrimitive
+from tf2_msgs.msg import TFMessage
 import tf2_ros
 
 
-def _matmul4(a, b):
-    return [
-        [sum(a[i][k] * b[k][j] for k in range(4)) for j in range(4)]
-        for i in range(4)
-    ]
+def _rpy_to_quat(roll: float, pitch: float, yaw: float):
+    cr, sr = math.cos(roll / 2.0), math.sin(roll / 2.0)
+    cp, sp = math.cos(pitch / 2.0), math.sin(pitch / 2.0)
+    cy, sy = math.cos(yaw / 2.0), math.sin(yaw / 2.0)
+    return (
+        sr * cp * cy - cr * sp * sy,
+        cr * sp * cy + sr * cp * sy,
+        cr * cp * sy - sr * sp * cy,
+        cr * cp * cy + sr * sp * sy,
+    )
 
 
-def _rot_x(a):
-    c, s = math.cos(a), math.sin(a)
-    return [[1.0, 0.0, 0.0, 0.0], [0.0, c, -s, 0.0], [0.0, s, c, 0.0], [0.0, 0.0, 0.0, 1.0]]
-
-
-def _rot_y(a):
-    c, s = math.cos(a), math.sin(a)
-    return [[c, 0.0, s, 0.0], [0.0, 1.0, 0.0, 0.0], [-s, 0.0, c, 0.0], [0.0, 0.0, 0.0, 1.0]]
-
-
-def _rot_z(a):
-    c, s = math.cos(a), math.sin(a)
-    return [[c, -s, 0.0, 0.0], [s, c, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
-
-
-def _trans(x, y, z):
-    return [[1.0, 0.0, 0.0, x], [0.0, 1.0, 0.0, y], [0.0, 0.0, 1.0, z], [0.0, 0.0, 0.0, 1.0]]
-
-
-def fk_tcp_base_link(j1: float, j2: float, j3: float, j4: float, j5: float = 0.0, j6: float = 1.57):
-    """Forward kinematics from base_link to gripper_tcp matching b1z1.urdf.xacro + z1_arm.xacro."""
-    t = _trans(0.20, 0.0, 0.08)
-    t = _matmul4(t, _matmul4(_trans(0.0, 0.0, 0.0585), _rot_z(j1)))
-    t = _matmul4(t, _matmul4(_trans(0.0, 0.0, 0.045), _rot_y(j2)))
-    t = _matmul4(t, _matmul4(_trans(-0.35, 0.0, 0.0), _rot_y(j3)))
-    t = _matmul4(t, _matmul4(_trans(0.218, 0.0, 0.057), _rot_y(j4)))
-    t = _matmul4(t, _matmul4(_trans(0.07, 0.0, 0.0), _rot_z(j5)))
-    t = _matmul4(t, _matmul4(_trans(0.0492, 0.0, 0.0), _rot_x(j6)))
-    t = _matmul4(t, _trans(0.151, 0.0, 0.0))  # 0.051 stator + 0.10 tcp
-    return (t[0][3], t[1][3], t[2][3])
-
-
-def _solve_4x4(a, b):
-    """Solve 4x4 linear system Ax = b via partial-pivot Gaussian elimination."""
-    m = [list(a[i]) + [b[i]] for i in range(4)]
-    for col in range(4):
-        piv = max(range(col, 4), key=lambda r: abs(m[r][col]))
-        m[col], m[piv] = m[piv], m[col]
-        if abs(m[col][col]) < 1e-12:
-            return [0.0, 0.0, 0.0, 0.0]
-        div = m[col][col]
-        for j in range(col, 5):
-            m[col][j] /= div
-        for r in range(4):
-            if r != col:
-                fac = m[r][col]
-                for j in range(col, 5):
-                    m[r][j] -= fac * m[col][j]
-    return [m[i][4] for i in range(4)]
-
-
-def solve_z1_ik(tx: float, ty: float, tz: float, j6: float = 1.57) -> dict:
-    """Solve damped least-squares side-pinch IK for gripper_tcp in base_link within Z1 joint limits."""
-    # Roll joint6=1.57 places the moving jaw off-center; offset Y by +0.025 m so jaw gap centers on target.
-    aim_y = ty + 0.025
-    q = [math.atan2(aim_y, max(tx - 0.20, 0.05)), 2.1, -0.95, -0.95]
-    lo = [-2.50, 0.10, -2.80, -1.40]
-    hi = [2.50, 2.92, -0.10, 1.40]
-
-    def residual(x):
-        px, py, pz = fk_tcp_base_link(x[0], x[1], x[2], x[3], 0.0, j6)
-        return [
-            (px - tx) * 30.0,
-            (py - aim_y) * 30.0,
-            (pz - tz) * 30.0,
-            (x[2] - (-0.95)) * 0.5,
-            (x[3] - (-1.00)) * 0.5,
-        ]
-
-    for _ in range(100):
-        r = residual(q)
-        pos_err = math.sqrt((r[0] ** 2 + r[1] ** 2 + r[2] ** 2)) / 30.0
-        if pos_err < 1e-4:
-            break
-        eps = 1e-5
-        cols = []
-        for k in range(4):
-            qk = list(q)
-            qk[k] += eps
-            rk = residual(qk)
-            cols.append([(rk[i] - r[i]) / eps for i in range(5)])
-        jtj = [[sum(cols[i][m] * cols[j][m] for m in range(5)) for j in range(4)] for i in range(4)]
-        for i in range(4):
-            jtj[i][i] += 1e-2
-        jtr = [-sum(cols[i][m] * r[m] for m in range(5)) for i in range(4)]
-        dq = _solve_4x4(jtj, jtr)
-        for i in range(4):
-            q[i] = max(lo[i], min(hi[i], q[i] + 0.5 * dq[i]))
-
-    return {
-        'joint1': q[0],
-        'joint2': q[1],
-        'joint3': q[2],
-        'joint4': q[3],
-        'joint5': 0.0,
-        'joint6': j6,
-    }
+def _parse_srdf_states(srdf_xml: str) -> Dict[str, Dict[str, Dict[str, float]]]:
+    states: Dict[str, Dict[str, Dict[str, float]]] = {}
+    root = ET.fromstring(srdf_xml)
+    for gs in root.findall('.//group_state'):
+        group = gs.get('group', '').strip()
+        name = gs.get('name', '').strip()
+        joints = {
+            j.get('name', '').strip(): float(j.get('value'))
+            for j in gs.findall('joint')
+            if j.get('name') and j.get('value') is not None
+        }
+        if group and name and joints:
+            states.setdefault(group, {})[name] = joints
+    return states
 
 
 class B1Z1PickPlaceTester(Node):
-    """Execute a full pre-grasp -> grasp -> lift -> place sequence via /move_action."""
+    """Execute a native MoveIt 2 pre-grasp -> grasp -> lift -> place sequence."""
 
-    def __init__(self) -> None:
+    def __init__(self, namespace: str, prefix: str, box_name: str, world_name: str) -> None:
         super().__init__(
             'b1z1_pick_place_tester',
             parameter_overrides=[Parameter('use_sim_time', Parameter.Type.BOOL, True)],
         )
-        self._client = ActionClient(self, MoveGroup, '/move_action')
+        ns = namespace.strip().strip('/')
+        self._ns_prefix = f'/{ns}' if ns else ''
+        self._prefix = prefix if prefix else f'{ns}_'
+        self._base_frame = f'{self._prefix}base_link'
+        self._odom_frame = f'{self._prefix}odom'
+        self._tcp_frame = f'{self._prefix}gripper_tcp'
+        self._box_name = box_name
+
+        self._move_client = ActionClient(self, MoveGroup, f'{self._ns_prefix}/move_action')
+        self._exec_client = ActionClient(
+            self, ExecuteTrajectory, f'{self._ns_prefix}/execute_trajectory'
+        )
+        self._ik_client = self.create_client(GetPositionIK, f'{self._ns_prefix}/compute_ik')
+        self._cart_client = self.create_client(
+            GetCartesianPath, f'{self._ns_prefix}/compute_cartesian_path'
+        )
+        self._param_client = self.create_client(
+            GetParameters, f'{self._ns_prefix}/move_group/get_parameters'
+        )
         self._tf_buffer = tf2_ros.Buffer()
         self._tf_listener = tf2_ros.TransformListener(self._tf_buffer, self)
-        self._joint_positions = {}
-        self.create_subscription(JointState, '/joint_states', self._js_cb, 10)
+        self._joint_positions: Dict[str, float] = {}
+        self._entity_poses: Dict[str, tuple] = {}
+        self._srdf_states: Dict[str, Dict[str, Dict[str, float]]] = {}
+
+        self.create_subscription(JointState, f'{self._ns_prefix}/joint_states', self._js_cb, 10)
+        self.create_subscription(
+            TFMessage, f'/world/{world_name}/pose/info', self._pose_cb, 10
+        )
 
     def _js_cb(self, msg: JointState) -> None:
         for name, pos in zip(msg.name, msg.position):
-            self._joint_positions[name] = pos
+            self._joint_positions[name] = float(pos)
+
+    def _pose_cb(self, msg: TFMessage) -> None:
+        for tr in msg.transforms:
+            if tr.child_frame_id:
+                p = tr.transform.translation
+                self._entity_poses[tr.child_frame_id] = (p.x, p.y, p.z)
 
     def wait_ready(self, timeout_sec: float = 30.0) -> bool:
-        self.get_logger().info('Waiting for /move_action and TF odom->base_link...')
-        if not self._client.wait_for_server(timeout_sec=timeout_sec):
-            self.get_logger().error('/move_action action server did not become available')
+        self.get_logger().info(
+            f'Waiting for {self._ns_prefix}/move_action and TF {self._odom_frame}->{self._base_frame}...'
+        )
+        if not self._move_client.wait_for_server(timeout_sec=timeout_sec):
+            self.get_logger().error('move_action server did not become available')
             return False
 
         deadline = time.monotonic() + timeout_sec
         while time.monotonic() < deadline and rclpy.ok():
             rclpy.spin_once(self, timeout_sec=0.1)
             if self._joint_positions and self._tf_buffer.can_transform(
-                'base_link', 'odom', rclpy.time.Time()
+                self._base_frame, self._odom_frame, rclpy.time.Time()
             ):
-                return True
-        self.get_logger().error('Timed out waiting for /joint_states or TF odom->base_link')
-        return False
+                break
+        else:
+            self.get_logger().error('Timed out waiting for joint_states or TF transform')
+            return False
+
+        if self._param_client.wait_for_service(timeout_sec=5.0):
+            req = GetParameters.Request(names=['robot_description_semantic'])
+            fut = self._param_client.call_async(req)
+            rclpy.spin_until_future_complete(self, fut, timeout_sec=5.0)
+            res = fut.result()
+            if res and res.values and res.values[0].string_value:
+                self._srdf_states = _parse_srdf_states(res.values[0].string_value)
+        return True
 
     def world_to_base_link(self, wx: float, wy: float, wz: float):
-        """Transform an odom-frame coordinate into current base_link frame."""
         tf = self._tf_buffer.lookup_transform(
-            'base_link', 'odom', rclpy.time.Time(), timeout=Duration(seconds=2.0)
+            self._base_frame, self._odom_frame, rclpy.time.Time(), timeout=Duration(seconds=2.0)
         )
         q = tf.transform.rotation
         t = tf.transform.translation
@@ -175,96 +149,190 @@ class B1Z1PickPlaceTester(Node):
         vz = wz + q.w * tz + (q.x * ty - q.y * tx) + t.z
         return vx, vy, vz
 
-    def _send_goal(self, req: MotionPlanRequest, label: str) -> bool:
+    def _send_move_goal(self, req: MotionPlanRequest, label: str) -> bool:
         goal = MoveGroup.Goal()
         goal.request = req
         goal.planning_options.plan_only = False
         goal.planning_options.replan = True
         goal.planning_options.replan_attempts = 2
-
-        self.get_logger().info(f'Planning + executing [{label}]...')
-        send_future = self._client.send_goal_async(goal)
-        rclpy.spin_until_future_complete(self, send_future, timeout_sec=15.0)
-        goal_handle = send_future.result()
-        if goal_handle is None or not goal_handle.accepted:
+        fut = self._move_client.send_goal_async(goal)
+        rclpy.spin_until_future_complete(self, fut, timeout_sec=15.0)
+        gh = fut.result()
+        if gh is None or not gh.accepted:
             self.get_logger().error(f'[{label}] goal rejected')
             return False
-
-        result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self, result_future, timeout_sec=30.0)
-        wrapped = result_future.result()
-        if wrapped is None:
-            self.get_logger().error(f'[{label}] timed out waiting for result')
-            return False
-
-        code = wrapped.result.error_code.val
-        if code != 1:  # moveit_msgs/MoveItErrorCodes.SUCCESS == 1
+        res_fut = gh.get_result_async()
+        rclpy.spin_until_future_complete(self, res_fut, timeout_sec=30.0)
+        wrapped = res_fut.result()
+        if wrapped is None or wrapped.result.error_code.val != 1:
+            code = wrapped.result.error_code.val if wrapped else -1
             self.get_logger().error(f'[{label}] failed with MoveItErrorCode={code}')
             return False
-
         self.get_logger().info(f'[{label}] SUCCEEDED')
         return True
 
-    def move_joints(self, group: str, targets: dict, label: str, tol: float = 0.005) -> bool:
-        req = MotionPlanRequest()
-        req.group_name = group
-        req.num_planning_attempts = 3
-        req.allowed_planning_time = 5.0
-        req.max_velocity_scaling_factor = 0.5
-        req.max_acceleration_scaling_factor = 0.5
+    def move_named_state(self, group: str, state_name: str, label: str, tol: float = 0.01) -> bool:
+        targets = self._srdf_states.get(group, {}).get(state_name)
+        if not targets:
+            self.get_logger().error(f"SRDF state '{state_name}' missing in group '{group}'")
+            return False
+        return self.move_joints(group, targets, label, tol=tol)
 
+    def move_joints(self, group: str, targets: Dict[str, float], label: str, tol: float = 0.005) -> bool:
+        req = MotionPlanRequest(group_name=group, num_planning_attempts=3, allowed_planning_time=5.0)
+        req.max_velocity_scaling_factor = 0.45
+        req.max_acceleration_scaling_factor = 0.45
         c = Constraints()
-        for joint_name, val in targets.items():
-            jc = JointConstraint()
-            jc.joint_name = joint_name
-            jc.position = float(val)
-            jc.tolerance_above = tol
-            jc.tolerance_below = tol
-            jc.weight = 1.0
-            c.joint_constraints.append(jc)
+        for jname, val in targets.items():
+            c.joint_constraints.append(
+                JointConstraint(
+                    joint_name=jname, position=float(val),
+                    tolerance_above=tol, tolerance_below=tol, weight=1.0,
+                )
+            )
         req.goal_constraints.append(c)
-        return self._send_goal(req, label)
+        return self._send_move_goal(req, label)
+
+    def _make_pose_stamped(self, bx: float, by: float, bz: float, roll: float) -> PoseStamped:
+        yaw = math.atan2(by, max(bx - 0.15, 0.05))
+        qx, qy, qz, qw = _rpy_to_quat(roll, 0.0, yaw)
+        ps = PoseStamped()
+        ps.header.frame_id = self._base_frame
+        ps.header.stamp = self.get_clock().now().to_msg()
+        ps.pose.position.x = bx
+        ps.pose.position.y = by
+        ps.pose.position.z = bz
+        ps.pose.orientation.x = qx
+        ps.pose.orientation.y = qy
+        ps.pose.orientation.z = qz
+        ps.pose.orientation.w = qw
+        return ps
+
+    def move_to_pose(self, ps: PoseStamped, label: str) -> bool:
+        if self._ik_client.wait_for_service(timeout_sec=2.0):
+            ik_req = GetPositionIK.Request()
+            ik_req.ik_request.group_name = 'z1_arm'
+            ik_req.ik_request.ik_link_name = self._tcp_frame
+            ik_req.ik_request.pose_stamped = ps
+            merged = dict(self._joint_positions)
+            merged.update(self._srdf_states.get('z1_arm', {}).get('pre_fold', {}))
+            rs = RobotState()
+            rs.joint_state.name = list(merged.keys())
+            rs.joint_state.position = [merged[k] for k in rs.joint_state.name]
+            ik_req.ik_request.robot_state = rs
+            ik_req.ik_request.avoid_collisions = True
+            fut = self._ik_client.call_async(ik_req)
+            rclpy.spin_until_future_complete(self, fut, timeout_sec=5.0)
+            resp = fut.result()
+            if resp and resp.error_code.val == 1:
+                arm_names = list(self._srdf_states.get('z1_arm', {}).get('home', {}).keys()) or [
+                    f'joint{i}' for i in range(1, 7)
+                ]
+                sol = dict(zip(resp.solution.joint_state.name, resp.solution.joint_state.position))
+                return self.move_joints('z1_arm', {k: sol[k] for k in arm_names if k in sol}, label)
+
+        req = MotionPlanRequest(group_name='z1_arm', num_planning_attempts=5, allowed_planning_time=8.0)
+        req.max_velocity_scaling_factor = 0.35
+        req.max_acceleration_scaling_factor = 0.35
+        sphere = SolidPrimitive(type=SolidPrimitive.SPHERE, dimensions=[0.015])
+        pc = PositionConstraint(
+            header=ps.header, link_name=self._tcp_frame,
+            target_point_offset=Vector3(x=0.0, y=0.0, z=0.0),
+            constraint_region=BoundingVolume(primitives=[sphere], primitive_poses=[ps.pose]),
+            weight=1.0,
+        )
+        oc = OrientationConstraint(
+            header=ps.header, link_name=self._tcp_frame, orientation=ps.pose.orientation,
+            absolute_x_axis_tolerance=0.35, absolute_y_axis_tolerance=0.35,
+            absolute_z_axis_tolerance=0.35, weight=1.0,
+        )
+        req.goal_constraints.append(Constraints(position_constraints=[pc], orientation_constraints=[oc]))
+        return self._send_move_goal(req, label)
+
+    def move_cartesian(self, ps: PoseStamped, label: str) -> bool:
+        if self._cart_client.wait_for_service(timeout_sec=2.0) and self._exec_client.wait_for_server(timeout_sec=2.0):
+            req = GetCartesianPath.Request()
+            req.header = ps.header
+            rs = RobotState()
+            rs.joint_state.name = list(self._joint_positions.keys())
+            rs.joint_state.position = [self._joint_positions[k] for k in rs.joint_state.name]
+            req.start_state = rs
+            req.group_name = 'z1_arm'
+            req.link_name = self._tcp_frame
+            req.waypoints = [ps.pose]
+            req.max_step = 0.01
+            req.jump_threshold = 0.0
+            req.prismatic_jump_threshold = 0.0
+            req.revolute_jump_threshold = 1.5
+            req.avoid_collisions = True
+            req.max_velocity_scaling_factor = 0.35
+            req.max_acceleration_scaling_factor = 0.35
+            fut = self._cart_client.call_async(req)
+            rclpy.spin_until_future_complete(self, fut, timeout_sec=8.0)
+            resp = fut.result()
+            if resp and resp.error_code.val == 1 and resp.fraction >= 0.90 and resp.solution.joint_trajectory.points:
+                pts = resp.solution.joint_trajectory.points
+                last_ns = pts[-1].time_from_start.sec * 1_000_000_000 + pts[-1].time_from_start.nanosec
+                if last_ns == 0:
+                    for idx, pt in enumerate(pts):
+                        pt.time_from_start = Duration(seconds=0.1 * idx).to_msg()
+                goal = ExecuteTrajectory.Goal(trajectory=resp.solution)
+                gf = self._exec_client.send_goal_async(goal)
+                rclpy.spin_until_future_complete(self, gf, timeout_sec=10.0)
+                gh = gf.result()
+                if gh and gh.accepted:
+                    rf = gh.get_result_async()
+                    rclpy.spin_until_future_complete(self, rf, timeout_sec=30.0)
+                    wr = rf.result()
+                    if wr and wr.result.error_code.val == 1:
+                        self.get_logger().info(f'[{label}] Cartesian SUCCEEDED')
+                        return True
+        return self.move_to_pose(ps, label)
 
     def spin_pause(self, seconds: float) -> None:
         end = time.monotonic() + seconds
         while time.monotonic() < end and rclpy.ok():
             rclpy.spin_once(self, timeout_sec=0.05)
 
+    def get_box_z(self) -> Optional[float]:
+        rclpy.spin_once(self, timeout_sec=0.2)
+        pose = self._entity_poses.get(self._box_name)
+        return pose[2] if pose else None
+
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description='MoveIt 2 pick-and-place verification for B1Z1')
+    parser = argparse.ArgumentParser(description='Native MoveIt 2 pick-and-place verification for B1Z1')
+    parser.add_argument('--namespace', default='b1z1', help='Robot ROS namespace (default b1z1)')
+    parser.add_argument('--prefix', default='', help='TF link prefix (default <namespace>_)')
+    parser.add_argument('--world-name', default='default', help='Gazebo world name (default default)')
+    parser.add_argument('--box-name', default='graspable_box', help='Target Gazebo box model name')
     parser.add_argument('--box-x', type=float, default=0.73, help='Box world X (default 0.73)')
-    parser.add_argument('--box-y', type=float, default=0.00, help='Box world Y (default 0.00)')
+    parser.add_argument('--box-y', type=float, default=16.00, help='Box world Y (default 16.00)')
     parser.add_argument('--box-z', type=float, default=0.731, help='Box world Z (default 0.731)')
     args, ros_args = parser.parse_known_args()
 
     rclpy.init(args=ros_args)
-    tester = B1Z1PickPlaceTester()
+    tester = B1Z1PickPlaceTester(args.namespace, args.prefix, args.box_name, args.world_name)
     try:
         if not tester.wait_ready(timeout_sec=30.0):
             return 1
 
         bx, by, bz = tester.world_to_base_link(args.box_x, args.box_y, args.box_z)
-        tester.get_logger().info(
-            f'Resolved target box in base_link: x={bx:.3f}, y={by:.3f}, z={bz:.3f}'
-        )
+        pre_z = tester.get_box_z() or args.box_z
+        tester.get_logger().info(f'Resolved target box in {tester._base_frame}: x={bx:.3f}, y={by:.3f}, z={bz:.3f}')
 
-        q_pre_fold = {'joint1': 0.0, 'joint2': 0.8, 'joint3': -0.95, 'joint4': -0.95, 'joint5': 0.0, 'joint6': 1.57}
-        q_pre_grasp = solve_z1_ik(bx - 0.030, by, bz + 0.15)
-        q_grasp = solve_z1_ik(bx - 0.030, by, bz + 0.028)
-        q_lift = solve_z1_ik(bx - 0.050, by, bz + 0.22)
-        q_place = solve_z1_ik(bx - 0.050, by + 0.22, bz + 0.10)
-        q_home = {'joint1': 0.0, 'joint2': 0.5, 'joint3': -0.5, 'joint4': 0.0, 'joint5': 0.0, 'joint6': 0.0}
+        p_pre_grasp = tester._make_pose_stamped(bx - 0.025, by, bz + 0.15, math.pi / 2.0)
+        p_grasp = tester._make_pose_stamped(bx - 0.025, by, bz + 0.022, math.pi / 2.0)
+        p_lift = tester._make_pose_stamped(bx - 0.045, by, bz + 0.22, math.pi / 2.0)
+        p_place = tester._make_pose_stamped(bx - 0.045, by + 0.22, bz + 0.10, math.pi / 2.0)
 
-        steps = [
-            lambda: tester.move_joints('z1_gripper', {'jointGripper': -1.50}, 'open_gripper', tol=0.08),
-            lambda: tester.move_joints('z1_arm', q_pre_fold, 'arm_pre_fold'),
-            lambda: tester.move_joints('z1_arm', q_pre_grasp, 'pre_grasp'),
-            lambda: tester.move_joints('z1_arm', q_grasp, 'grasp_approach'),
-            lambda: tester.move_joints('z1_gripper', {'jointGripper': -0.05}, 'close_gripper', tol=0.02),
-        ]
-
-        for fn in steps:
+        for fn in (
+            lambda: tester.move_named_state('z1_gripper', 'open', 'open_gripper', tol=0.08),
+            lambda: tester.move_named_state('z1_arm', 'pre_fold', 'arm_pre_fold'),
+            lambda: tester.move_to_pose(p_pre_grasp, 'pre_grasp'),
+            lambda: tester.move_cartesian(p_grasp, 'grasp_approach'),
+            lambda: tester.move_named_state('z1_gripper', 'close', 'close_gripper', tol=0.02),
+        ):
             if not fn():
                 return 1
             tester.spin_pause(0.8)
@@ -272,19 +340,25 @@ def main() -> int:
         grip_pos = tester._joint_positions.get('jointGripper', float('nan'))
         tester.get_logger().info(f'Gripper settled position after close: {grip_pos:.3f} rad')
 
-        post_grasp_steps = [
-            lambda: tester.move_joints('z1_arm', q_lift, 'lift_box'),
-            lambda: tester.move_joints('z1_arm', q_place, 'place_pose'),
-            lambda: tester.move_joints('z1_gripper', {'jointGripper': -1.50}, 'release_box', tol=0.08),
-            lambda: tester.move_joints('z1_arm', q_home, 'return_home'),
-        ]
+        if not tester.move_cartesian(p_lift, 'lift_box'):
+            return 1
+        tester.spin_pause(1.0)
 
-        for fn in post_grasp_steps:
+        post_z = tester.get_box_z()
+        if post_z is not None and post_z < pre_z + 0.05:
+            tester.get_logger().error(f'Box Z did not lift cleanly: {post_z:.3f} vs pre {pre_z:.3f}')
+            return 1
+
+        for fn in (
+            lambda: tester.move_to_pose(p_place, 'place_pose'),
+            lambda: tester.move_named_state('z1_gripper', 'open', 'release_box', tol=0.08),
+            lambda: tester.move_named_state('z1_arm', 'home', 'return_home'),
+        ):
             if not fn():
                 return 1
             tester.spin_pause(0.5)
 
-        tester.get_logger().info('Full MoveIt 2 pick-and-place verification PASSED.')
+        tester.get_logger().info('Native MoveIt 2 pick-and-place verification PASSED.')
         return 0
     finally:
         tester.destroy_node()

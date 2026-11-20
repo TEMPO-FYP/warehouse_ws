@@ -99,7 +99,7 @@ class TestSceneGraphNavigator(unittest.TestCase):
         self.assertIn("Looking for shelf in aisle 1", trace)
 
     def test_get_grounded_entities_and_environment_prompt(self):
-        """Valid entities include exposed objects, fixtures, and zone IDs."""
+        """Valid entities include exposed physical fixtures and objects (not semantic zones/aisles)."""
         self.nav.expand(["Picking_Shelves.001", "packing_zone"])
         valid_objs, valid_locs, objs_meta = self.nav.get_grounded_entities()
 
@@ -107,15 +107,15 @@ class TestSceneGraphNavigator(unittest.TestCase):
         self.assertIn("small_box_001_1", valid_objs)
         self.assertIn("small_box_001_1", valid_locs)
         self.assertIn("Picking_Shelves.001", valid_locs)
-        self.assertIn("aisle_1", valid_locs)
+        self.assertIn("Packing_Station", valid_locs)
         # Shelves in collapsed aisles (e.g. aisle_2 -> Picking_Shelves.014) must NOT be exposed
         self.assertNotIn("Picking_Shelves.014", valid_locs)
-        # Collapsed aisles and zones must NOT be in valid_locations
+        # Semantic zones and aisles must NOT be valid navigate_to / place targets
+        self.assertNotIn("aisle_1", valid_locs)
         self.assertNotIn("aisle_2", valid_locs)
         self.assertNotIn("staging_area", valid_locs)
-        self.assertIn("Packing_Station", valid_locs)
-        self.assertIn("packing_zone", valid_locs)
-        self.assertIn("picking_zone", valid_locs)
+        self.assertNotIn("packing_zone", valid_locs)
+        self.assertNotIn("picking_zone", valid_locs)
 
         # Object metadata includes exact weight and parent location
         meta_1 = objs_meta["small_box_001_1"]

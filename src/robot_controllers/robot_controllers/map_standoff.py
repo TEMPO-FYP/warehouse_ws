@@ -96,6 +96,40 @@ class OccupancyMap:
         mask = ((gx - wx) ** 2 + (gy - wy) ** 2) <= (clearance_radius * clearance_radius)
         return not bool(np.any(self._occupied[r0:r1 + 1, c0:c1 + 1][mask]))
 
+    def has_line_of_sight(
+        self,
+        x0: float,
+        y0: float,
+        x1: float,
+        y1: float,
+    ) -> bool:
+        """
+        Return True iff no separate obstacle or wall lies between (x0, y0) and target (x1, y1).
+
+        Allows the ray to terminate inside the target fixture's own occupied footprint,
+        while rejecting candidates that cross occupied cells and re-enter free space before (x1, y1).
+        """
+        dist = math.hypot(x1 - x0, y1 - y0)
+        if dist < 1e-6:
+            return True
+        step = max(0.02, 0.5 * self.resolution)
+        n_steps = max(1, int(math.ceil(dist / step)))
+        saw_occupied = False
+        for i in range(n_steps + 1):
+            t = i / n_steps
+            wx = x0 + t * (x1 - x0)
+            wy = y0 + t * (y1 - y0)
+            col = int(math.floor((wx - self.origin_x) / self.resolution))
+            row = int(math.floor((wy - self.origin_y) / self.resolution))
+            if col < 0 or row < 0 or col >= self.width or row >= self.height:
+                return False
+            occupied = bool(self._occupied[row, col])
+            if occupied:
+                saw_occupied = True
+            elif saw_occupied:
+                return False
+        return True
+
     def find_standoff_pose(
         self,
         tx: float,
@@ -105,8 +139,9 @@ class OccupancyMap:
         robot_y: Optional[float] = None,
         preferred_dist: float = 0.90,
         clearance_radius: float = 0.36,
+        max_standoff_dist: Optional[float] = None,
     ) -> Tuple[float, float, float]:
-        """Select a collision-free standoff (x, y, yaw) facing (tx, ty)."""
+        """Select a collision-free standoff (x, y, yaw) facing (tx, ty) with line of sight."""
         approach_angle = (
             math.atan2(robot_y - ty, robot_x - tx)
             if robot_x is not None and robot_y is not None
@@ -129,17 +164,28 @@ class OccupancyMap:
             preferred_dist + 1.05,
             max(0.55, preferred_dist - 0.15),
         ]
+        if max_standoff_dist is not None:
+            radii = [r for r in radii if r <= max_standoff_dist + 1e-6]
+            if not radii:
+                radii = [min(preferred_dist, max_standoff_dist)]
 
         for radius in radii:
             for dtheta in angle_offsets:
                 theta = approach_angle + dtheta
                 cand_x = tx + radius * math.cos(theta)
                 cand_y = ty + radius * math.sin(theta)
-                if self.is_world_free(cand_x, cand_y, clearance_radius=clearance_radius):
+                if self.is_world_free(
+                    cand_x, cand_y, clearance_radius=clearance_radius
+                ) and self.has_line_of_sight(cand_x, cand_y, tx, ty):
                     facing_yaw = math.atan2(ty - cand_y, tx - cand_x)
                     return cand_x, cand_y, facing_yaw
 
         # Fallback along approach direction if map bounds/radii fail.
-        cand_x = tx + preferred_dist * math.cos(approach_angle)
-        cand_y = ty + preferred_dist * math.sin(approach_angle)
+        fallback_dist = (
+            min(preferred_dist, max_standoff_dist)
+            if max_standoff_dist is not None
+            else preferred_dist
+        )
+        cand_x = tx + fallback_dist * math.cos(approach_angle)
+        cand_y = ty + fallback_dist * math.sin(approach_angle)
         return cand_x, cand_y, math.atan2(ty - cand_y, tx - cand_x)

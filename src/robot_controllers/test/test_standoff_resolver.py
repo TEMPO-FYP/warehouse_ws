@@ -12,24 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for SDF occupancy standoff resolution and Z1 IK transforms."""
+"""Unit tests for SDF occupancy standoff resolution, line-of-sight, and geometry utilities."""
 
 import math
 import os
+from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
-from robot_controllers.map_standoff import OccupancyMap
-from robot_controllers.z1_ik import (
-    fk_tcp_base_link,
-    solve_z1_ik,
+import numpy as np
+from robot_controllers.geometry_utils import (
     transform_base_to_world,
     transform_world_to_base,
 )
+from robot_controllers.map_standoff import OccupancyMap
 
 
 def _get_warehouse_map() -> OccupancyMap:
     pkg_dir = get_package_share_directory('warehouse_sim')
     return OccupancyMap(os.path.join(pkg_dir, 'maps', 'warehouse_map.yaml'))
+
+
+def _make_synthetic_map(tmp_path: Path, occ_mask: np.ndarray, res: float = 0.1) -> OccupancyMap:
+    h, w = occ_mask.shape
+    pgm_path = tmp_path / 'synthetic.pgm'
+    yaml_path = tmp_path / 'synthetic.yaml'
+    img = np.where(np.flipud(occ_mask), 0, 254).astype(np.uint8)
+    with open(pgm_path, 'wb') as f:
+        f.write(f'P5\n{w} {h}\n255\n'.encode('ascii'))
+        f.write(img.tobytes())
+    yaml_path.write_text(
+        f'image: {pgm_path.name}\nmode: trinary\nresolution: {res}\norigin: [0.0, 0.0, 0.0]\n'
+        'negate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.25\n',
+        encoding='utf-8',
+    )
+    return OccupancyMap(str(yaml_path))
 
 
 def test_staging_and_aisle_free():
@@ -73,7 +89,31 @@ def test_standoff_for_packing_station():
     assert abs(yaw - expected_yaw) < 1e-6
 
 
-def test_z1_ik_and_world_to_base():
+def test_line_of_sight_rejects_wall_between_standoff_and_target(tmp_path: Path):
+    """Standoffs must not be chosen on the opposite side of an intervening wall."""
+    occ_mask = np.zeros((60, 60), dtype=bool)
+    # Place a thin horizontal wall at y in [2.6, 2.8] (rows 26..27) blocking approach from y < 2.6.
+    occ_mask[26:28, 10:50] = True
+    occ = _make_synthetic_map(tmp_path, occ_mask, res=0.1)
+
+    assert not occ.has_line_of_sight(3.0, 2.0, 3.0, 3.0)
+    assert occ.has_line_of_sight(3.0, 3.9, 3.0, 3.0)
+
+    gx, gy, _ = occ.find_standoff_pose(
+        tx=3.0,
+        ty=3.0,
+        target_yaw=0.0,
+        robot_x=3.0,
+        robot_y=1.0,
+        preferred_dist=0.90,
+        clearance_radius=0.30,
+        max_standoff_dist=0.95,
+    )
+    assert gy > 2.8
+    assert math.hypot(gx - 3.0, gy - 3.0) <= 0.95 + 1e-6
+
+
+def test_world_to_base_and_round_trip():
     bx, by, bz = transform_world_to_base(
         wx=0.0,
         wy=16.73,
@@ -85,23 +125,14 @@ def test_z1_ik_and_world_to_base():
     assert math.isclose(by, 0.0, abs_tol=1e-4)
     assert math.isclose(bz, 0.17, abs_tol=1e-4)
 
-    q = solve_z1_ik(bx, by, bz)
-    px, py, pz = fk_tcp_base_link(
-        q['joint1'], q['joint2'], q['joint3'], q['joint4'], q['joint5'], q['joint6']
-    )
-    err = math.dist((px, py, pz), (bx, by + 0.025, bz))
-    assert err < 0.005
-
-
-def test_transform_base_to_world_round_trip():
     base_pos = (1.25, -3.40, 0.56)
     base_quat = (0.05, -0.03, math.sin(0.65), math.cos(0.65))
     norm = math.sqrt(sum(c * c for c in base_quat))
     base_quat = tuple(c / norm for c in base_quat)
 
     world_pt = (2.10, -2.75, 0.82)
-    bx, by, bz = transform_world_to_base(*world_pt, base_pos=base_pos, base_quat=base_quat)
-    rx, ry, rz = transform_base_to_world(bx, by, bz, base_pos=base_pos, base_quat=base_quat)
+    bx2, by2, bz2 = transform_world_to_base(*world_pt, base_pos=base_pos, base_quat=base_quat)
+    rx, ry, rz = transform_base_to_world(bx2, by2, bz2, base_pos=base_pos, base_quat=base_quat)
 
     assert math.isclose(rx, world_pt[0], abs_tol=1e-6)
     assert math.isclose(ry, world_pt[1], abs_tol=1e-6)

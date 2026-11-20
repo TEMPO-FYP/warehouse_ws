@@ -60,7 +60,10 @@ namespace champ
             void run(float target_velocity, float step_length, Time time = now())
             {
                 unsigned long elapsed_time_ref = 0;
-                float swing_phase_period = 0.25f * SECONDS_TO_MICROS;
+                float swing_duration_sec = (base_->gait_config.swing_duration > 0.0f)
+                    ? base_->gait_config.swing_duration
+                    : 0.25f;
+                float swing_phase_period = swing_duration_sec * SECONDS_TO_MICROS;
                 float leg_clocks[4] = {0.0f,0.0f,0.0f,0.0f};
                 float stance_phase_period =  base_->gait_config.stance_duration * SECONDS_TO_MICROS;
                 float stride_period = stance_phase_period + swing_phase_period;

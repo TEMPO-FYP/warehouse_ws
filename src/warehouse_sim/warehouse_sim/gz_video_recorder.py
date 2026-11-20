@@ -28,9 +28,12 @@ from rclpy.node import Node
 
 
 def _default_recordings_dir() -> str:
-    ws_src = '/root/warehouse_ws/src'
-    if os.path.isdir(ws_src):
-        return os.path.join(ws_src, 'recordings')
+    """Resolve recordings directory relative to workspace src/ when run from source or symlink-install."""
+    cur = os.path.dirname(os.path.realpath(__file__))
+    while cur and cur != os.path.dirname(cur):
+        if os.path.basename(cur) == 'src':
+            return os.path.join(cur, 'recordings')
+        cur = os.path.dirname(cur)
     return os.path.abspath('recordings')
 
 
@@ -71,6 +74,7 @@ class GzVideoRecorderNode(Node):
         self._writer: Optional[Any] = None
         self._frame_count: int = 0
         self._closed: bool = False
+        self._warned_encoding: bool = False
 
         self._gz_node = GzNode()
         ok = self._gz_node.subscribe(Image, topic, self._on_gz_image)
@@ -93,6 +97,12 @@ class GzVideoRecorderNode(Node):
         elif raw.size == width * height * 4:
             frame = cv2.cvtColor(raw.reshape((height, width, 4)), cv2.COLOR_RGBA2BGR)
         else:
+            if not self._warned_encoding:
+                self._warned_encoding = True
+                self.get_logger().warning(
+                    f'Unsupported image buffer size {raw.size} for {width}x{height}; '
+                    'expected 3-channel RGB or 4-channel RGBA uint8 frames.'
+                )
             return
 
         with self._lock:

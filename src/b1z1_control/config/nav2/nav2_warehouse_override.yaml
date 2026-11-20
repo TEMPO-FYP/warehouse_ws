@@ -7,25 +7,5 @@ global_costmap:
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         enabled: true
+        map_topic: "/map"
         map_subscribe_transient_local: true
-
-controller_server:
-  ros__parameters:
-    progress_checker:
-      required_movement_radius: 0.20
-      movement_time_allowance: 35.0
-    general_goal_checker:
-      xy_goal_tolerance: 0.35
-      yaw_goal_tolerance: 0.40
-    FollowPath:
-      lookahead_dist: 0.52
-      min_lookahead_dist: 0.48
-      rotate_to_heading_angular_vel: 0.28
-      max_angular_accel: 5.0
-
-velocity_smoother:
-  ros__parameters:
-    max_velocity: [0.28, 0.15, 0.28]
-    min_velocity: [-0.15, -0.15, -0.28]
-    max_accel: [0.5, 0.3, 1.2]
-    max_decel: [-0.5, -0.3, -1.2]

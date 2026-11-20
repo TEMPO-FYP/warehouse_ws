@@ -49,6 +49,7 @@ RUN apt-get update && \
     ros-${ROS_DISTRO}-demo-nodes-cpp \
     ros-${ROS_DISTRO}-demo-nodes-py \
     ros-${ROS_DISTRO}-rviz2 \
+    ros-${ROS_DISTRO}-moveit-ros-visualization \
     ros-${ROS_DISTRO}-rqt-reconfigure \
     ros-${ROS_DISTRO}-teleop-twist-keyboard
 

@@ -1,7 +1,11 @@
 <?xml version="1.0"?>
 <robot name="b1z1" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
+    <xacro:arg name="namespace" default="b1z1"/>
+    <xacro:arg name="prefix" default="$(arg namespace)_"/>
+    <xacro:arg name="controllers_yaml" default=""/>
     <xacro:arg name="enable_video_cam" default="false"/>
+    <xacro:property name="p" value="$(arg prefix)"/>
 
     <!-- Include subcomponents -->
     <xacro:include filename="$(find b1z1_description)/xacro/materials.xacro"/>
@@ -11,16 +15,16 @@
     <xacro:include filename="$(find b1z1_description)/xacro/b1z1_gazebo.xacro"/>
 
     <!-- Base link (projection on ground or root frame) -->
-    <link name="base_link"/>
+    <link name="${p}base_link"/>
 
     <joint name="base_to_trunk" type="fixed">
         <origin xyz="0 0 0" rpy="0 0 0"/>
-        <parent link="base_link"/>
-        <child link="trunk"/>
+        <parent link="${p}base_link"/>
+        <child link="${p}trunk"/>
     </joint>
 
     <!-- B1 Trunk -->
-    <link name="trunk">
+    <link name="${p}trunk">
         <visual>
             <origin rpy="0 0 0" xyz="0 0 0"/>
             <geometry>
@@ -46,12 +50,12 @@
 
     <!-- IMU sensor frame -->
     <joint name="imu_joint" type="fixed">
-        <parent link="trunk"/>
-        <child link="imu_link"/>
+        <parent link="${p}trunk"/>
+        <child link="${p}imu_link"/>
         <origin rpy="0 0 0" xyz="0 0 0"/>
     </joint>
 
-    <link name="imu_link">
+    <link name="${p}imu_link">
         <inertial>
             <mass value="0.001"/>
             <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -61,12 +65,12 @@
 
     <!-- 2D LiDAR sensor frame on front snout of trunk -->
     <joint name="lidar_joint" type="fixed">
-        <parent link="trunk"/>
-        <child link="lidar_link"/>
+        <parent link="${p}trunk"/>
+        <child link="${p}lidar_link"/>
         <origin rpy="0 0 0" xyz="0.45 0.0 0.105"/>
     </joint>
 
-    <link name="lidar_link">
+    <link name="${p}lidar_link">
         <visual>
             <origin rpy="0 0 0" xyz="0 0 0"/>
             <geometry>
@@ -74,6 +78,12 @@
             </geometry>
             <material name="black"/>
         </visual>
+        <collision>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <cylinder length="0.04" radius="0.03"/>
+            </geometry>
+        </collision>
         <inertial>
             <mass value="0.05"/>
             <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -82,24 +92,24 @@
     </link>
 
     <!-- Instantiate the 4 B1 Quadruped Legs -->
-    <xacro:leg name="FR" mirror="-1" mirror_dae="False" front_hind="1"  front_hind_dae="True"/>
-    <xacro:leg name="FL" mirror="1"  mirror_dae="True"  front_hind="1"  front_hind_dae="True"/>
-    <xacro:leg name="RR" mirror="-1" mirror_dae="False" front_hind="-1" front_hind_dae="False"/>
-    <xacro:leg name="RL" mirror="1"  mirror_dae="True"  front_hind="-1" front_hind_dae="False"/>
+    <xacro:leg name="FR" mirror="-1" mirror_dae="False" front_hind="1"  front_hind_dae="True"  prefix="${p}"/>
+    <xacro:leg name="FL" mirror="1"  mirror_dae="True"  front_hind="1"  front_hind_dae="True"  prefix="${p}"/>
+    <xacro:leg name="RR" mirror="-1" mirror_dae="False" front_hind="-1" front_hind_dae="False" prefix="${p}"/>
+    <xacro:leg name="RL" mirror="1"  mirror_dae="True"  front_hind="-1" front_hind_dae="False" prefix="${p}"/>
 
     <!-- Mount the Unitree Z1 6-DOF Manipulator on the front-top of the B1 Trunk -->
-    <xacro:z1_arm parent="trunk" UnitreeGripper="true">
+    <xacro:z1_arm parent="${p}trunk" prefix="${p}" UnitreeGripper="true">
         <origin xyz="0.20 0.0 0.08" rpy="0 0 0"/>
     </xacro:z1_arm>
 
     <!-- Optional third-person follow camera for headless MP4 video recording -->
     <xacro:if value="$(arg enable_video_cam)">
         <joint name="follow_camera_joint" type="fixed">
-            <parent link="trunk"/>
-            <child link="follow_camera_link"/>
+            <parent link="${p}trunk"/>
+            <child link="${p}follow_camera_link"/>
             <origin xyz="-1.15 -0.38 0.72" rpy="0 0.36 0.25"/>
         </joint>
-        <link name="follow_camera_link">
+        <link name="${p}follow_camera_link">
             <inertial>
                 <mass value="0.001"/>
                 <origin rpy="0 0 0" xyz="0 0 0"/>

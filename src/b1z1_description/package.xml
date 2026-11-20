@@ -3,8 +3,8 @@
 <package format="3">
   <name>b1z1_description</name>
   <version>0.1.0</version>
-  <description>Robot description package for Unitree B1 quadruped with Z1 manipilator</description>
-  <maintainer email="tz09220@st.habib.edu.pk">root</maintainer>
+  <description>Robot description package for Unitree B1 quadruped with Z1 manipulator</description>
+  <maintainer email="tz09220@st.habib.edu.pk">Taha Zahid</maintainer>
   <license>BSD-3-Clause</license>
 
   <exec_depend>ament_index_python</exec_depend>

@@ -41,7 +41,7 @@ def _launch_gz_sim(context, pkg_warehouse_sim, pkg_ros_gz_sim):
     if headless == 'true' and (save_video == 'true' or video_path):
         args_parts.append('--headless-rendering')
     if record_path:
-        args_parts.append(f'--record-path {record_path} --log-overwrite')
+        args_parts.append(f'--record-path "{record_path}" --log-overwrite')
     elif record == 'true':
         args_parts.append('--record')
     if (record_path or record == 'true') and record_period and float(record_period) > 0.0:
@@ -67,6 +67,9 @@ def _launch_video_recorder(context):
     if save_video != 'true' and not video_path:
         return []
 
+    use_sim_time = LaunchConfiguration('use_sim_time').perform(context).strip().lower() == 'true'
+    video_topic = LaunchConfiguration('video_topic').perform(context).strip() or '/b1z1/video_camera'
+    video_fps = float(LaunchConfiguration('video_fps').perform(context))
     return [
         Node(
             package='warehouse_sim',
@@ -74,9 +77,10 @@ def _launch_video_recorder(context):
             name='video_recorder',
             output='screen',
             parameters=[{
-                'topic': '/video_camera',
+                'topic': video_topic,
                 'output_path': video_path,
-                'fps': 15.0,
+                'fps': video_fps,
+                'use_sim_time': use_sim_time,
             }],
         )
     ]
@@ -90,13 +94,14 @@ def _launch_map_server(context):
         return []
 
     map_yaml = LaunchConfiguration('map_yaml').perform(context).strip()
+    use_sim_time = LaunchConfiguration('use_sim_time').perform(context).strip().lower() == 'true'
     return [
         Node(
             package='nav2_map_server',
             executable='map_server',
             name='map_server',
             output='screen',
-            parameters=[{'use_sim_time': True, 'yaml_filename': map_yaml}],
+            parameters=[{'use_sim_time': use_sim_time, 'yaml_filename': map_yaml}],
         ),
         Node(
             package='nav2_lifecycle_manager',
@@ -104,7 +109,7 @@ def _launch_map_server(context):
             name='lifecycle_manager_map',
             output='screen',
             parameters=[
-                {'use_sim_time': True},
+                {'use_sim_time': use_sim_time},
                 {'autostart': True},
                 {'node_names': ['map_server']},
             ],
@@ -122,15 +127,22 @@ def generate_launch_description():
     models_path = os.path.join(pkg_warehouse_sim, 'models')
     worlds_path = os.path.join(pkg_warehouse_sim, 'worlds')
 
-    # Resolve b1z1_description parent share path for package:// URI resolution
-    pkg_b1z1 = get_package_share_directory('b1z1_description')
-    b1z1_share_parent = os.path.dirname(pkg_b1z1)
-
     # Declare world argument
     world_arg = DeclareLaunchArgument(
         'world',
         default_value=default_world_path,
         description='Path to the SDF world file to load'
+    )
+    world_name_arg = DeclareLaunchArgument(
+        'world_name',
+        default_value='default',
+        description='Gazebo world name used for /world/<world_name>/pose/info',
+    )
+    use_sim_time_arg = DeclareLaunchArgument(
+        'use_sim_time',
+        default_value='true',
+        choices=['true', 'false'],
+        description='Use simulation clock across launched warehouse_sim nodes',
     )
     headless_arg = DeclareLaunchArgument(
         'headless',
@@ -165,6 +177,16 @@ def generate_launch_description():
         default_value='',
         description='Output MP4 path (relative paths save under src/recordings/)',
     )
+    video_topic_arg = DeclareLaunchArgument(
+        'video_topic',
+        default_value='/b1z1/video_camera',
+        description='Gazebo camera topic recorded by gz_video_recorder',
+    )
+    video_fps_arg = DeclareLaunchArgument(
+        'video_fps',
+        default_value='15.0',
+        description='Output MP4 frame rate for gz_video_recorder',
+    )
     use_static_map_arg = DeclareLaunchArgument(
         'use_static_map',
         default_value='auto',
@@ -177,12 +199,17 @@ def generate_launch_description():
         description='Path to the static 2D occupancy map YAML',
     )
 
-    # Set GZ_SIM_RESOURCE_PATH so Gazebo Sim finds all local models
+    # Set GZ_SIM_RESOURCE_PATH so Gazebo Sim finds local models and sourced package:// assets
     existing_resource_path = os.environ.get('GZ_SIM_RESOURCE_PATH', '')
+    ament_share_paths = [
+        os.path.join(p, 'share')
+        for p in os.environ.get('AMENT_PREFIX_PATH', '').split(os.pathsep)
+        if p and os.path.isdir(os.path.join(p, 'share'))
+    ]
     resource_paths = [
         models_path,
         worlds_path,
-        b1z1_share_parent,
+        *ament_share_paths,
         existing_resource_path,
     ]
     gz_resource_path = SetEnvironmentVariable(
@@ -205,12 +232,16 @@ def generate_launch_description():
         arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
     )
 
-    # Bridge Gazebo world entity poses to ROS 2 (/world/default/pose/info)
+    # Bridge Gazebo world entity poses to ROS 2 (/world/<world_name>/pose/info)
     pose_bridge = Node(
         package='warehouse_sim',
         executable='gz_pose_bridge',
         name='pose_bridge',
         output='screen',
+        parameters=[{
+            'world_name': LaunchConfiguration('world_name'),
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+        }],
     )
 
     map_server_action = OpaqueFunction(function=_launch_map_server)
@@ -218,12 +249,16 @@ def generate_launch_description():
 
     return LaunchDescription([
         world_arg,
+        world_name_arg,
+        use_sim_time_arg,
         headless_arg,
         record_arg,
         record_path_arg,
         record_period_arg,
         save_video_arg,
         video_path_arg,
+        video_topic_arg,
+        video_fps_arg,
         use_static_map_arg,
         map_yaml_arg,
         gz_resource_path,

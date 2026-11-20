@@ -50,20 +50,29 @@ class PlanningSceneManager:
         node: Node,
         service_timeout_sec: float = 3.0,
         spin_locally: bool = False,
+        namespace: str = '',
+        touch_links: Optional[Sequence[str]] = None,
     ) -> None:
-        """Initialise MoveIt planning scene service clients."""
+        """Initialise MoveIt planning scene service clients for an optional robot namespace."""
         self.node = node
         self.logger = node.get_logger()
         self._tracked_objects: set = set()
         self._tracked_attached: set = set()
         self.spin_locally = spin_locally
         self.service_timeout_sec = service_timeout_sec
+        ns = namespace.strip().strip('/')
+        ns_prefix = f'/{ns}' if ns else ''
+        self._apply_srv_name = f'{ns_prefix}/apply_planning_scene'
+        self._get_srv_name = f'{ns_prefix}/get_planning_scene'
+        self._default_touch_links: List[str] = (
+            list(touch_links) if touch_links is not None else list(DEFAULT_GRIPPER_TOUCH_LINKS)
+        )
 
         self._apply_scene_client = self.node.create_client(
-            ApplyPlanningScene, '/apply_planning_scene'
+            ApplyPlanningScene, self._apply_srv_name
         )
         self._get_scene_client = self.node.create_client(
-            GetPlanningScene, '/get_planning_scene'
+            GetPlanningScene, self._get_srv_name
         )
 
     def _wait_future(self, future) -> None:
@@ -85,7 +94,7 @@ class PlanningSceneManager:
         """Send a PlanningScene diff request and return True if accepted."""
         if not self._apply_scene_client.service_is_ready():
             if not self.wait_for_service(timeout_sec=1.5):
-                self.logger.warn("Service '/apply_planning_scene' not ready.")
+                self.logger.warn(f"Service '{self._apply_srv_name}' not ready.")
                 return False
 
         request = ApplyPlanningScene.Request()
@@ -95,7 +104,7 @@ class PlanningSceneManager:
         self._wait_future(future)
 
         if not future.done():
-            self.logger.error("Call to '/apply_planning_scene' timed out.")
+            self.logger.error(f"Call to '{self._apply_srv_name}' timed out.")
             return False
 
         response = future.result()
@@ -179,7 +188,7 @@ class PlanningSceneManager:
         resolved_links = (
             list(touch_links)
             if touch_links is not None
-            else list(DEFAULT_GRIPPER_TOUCH_LINKS)
+            else list(self._default_touch_links)
         )
         if link_name not in resolved_links:
             resolved_links.append(link_name)
@@ -196,9 +205,11 @@ class PlanningSceneManager:
             self._tracked_attached.add(name)
         return success
 
-    def detach_object(self, name: str) -> bool:
+    def detach_object(self, name: str, link_name: str = '') -> bool:
         """Detach an attached object from the robot link back to the world."""
         attached_obj = AttachedCollisionObject()
+        if link_name:
+            attached_obj.link_name = link_name
         attached_obj.object.id = name
         attached_obj.object.operation = CollisionObject.REMOVE
 
@@ -288,7 +299,7 @@ class PlanningSceneManager:
         extra_links: Optional[Sequence[str]] = None,
     ) -> bool:
         """Allow or forbid gripper link contact with object_name in MoveIt ACM."""
-        links = list(DEFAULT_GRIPPER_TOUCH_LINKS)
+        links = list(self._default_touch_links)
         if extra_links:
             for item in extra_links:
                 if item not in links:

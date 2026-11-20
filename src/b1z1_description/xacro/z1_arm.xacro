@@ -3,15 +3,15 @@
 
     <xacro:include filename="$(find b1z1_description)/xacro/z1_const.xacro"/>
 
-    <xacro:macro name="z1_arm" params="parent *origin UnitreeGripper:=true">
+    <xacro:macro name="z1_arm" params="parent *origin UnitreeGripper:=true prefix:=''">
 
         <joint name="trunk_arm_joint" type="fixed">
             <xacro:insert_block name="origin"/>
             <parent link="${parent}"/>
-            <child link="link00"/>
+            <child link="${prefix}link00"/>
         </joint>
 
-        <link name="link00">
+        <link name="${prefix}link00">
             <visual>
                 <origin rpy="0 0 0" xyz="0 0 0"/>
                 <geometry>
@@ -37,14 +37,14 @@
 
         <joint name="joint1" type="revolute">
             <origin rpy="0 0 0" xyz="0 0 0.0585"/>
-            <parent link="link00"/>
-            <child link="link01"/>
+            <parent link="${prefix}link00"/>
+            <child link="${prefix}link01"/>
             <axis xyz="0 0 1"/>
             <dynamics damping="${jointDamping}" friction="${jointFriction}"/>
             <limit effort="${torqueMax}" velocity="${velocityMax}" lower="${joint1_PositionMin}" upper="${joint1_PositionMax}"/>
         </joint>
 
-        <link name="link01">
+        <link name="${prefix}link01">
             <visual>
                 <origin rpy="0 0 0" xyz="0 0 0"/>
                 <geometry>
@@ -64,14 +64,14 @@
 
         <joint name="joint2" type="revolute">
             <origin rpy="0 0 0" xyz="0 0 0.045"/>
-            <parent link="link01"/>
-            <child link="link02"/>
+            <parent link="${prefix}link01"/>
+            <child link="${prefix}link02"/>
             <axis xyz="0 1 0"/>
             <dynamics damping="${2*jointDamping}" friction="${2*jointFriction}"/>
             <limit effort="${2*torqueMax}" velocity="${velocityMax}" lower="${joint2_PositionMin}" upper="${joint2_PositionMax}"/>
         </joint>
 
-        <link name="link02">
+        <link name="${prefix}link02">
             <visual>
                 <origin rpy="0 0 0" xyz="0 0 0"/>
                 <geometry>
@@ -109,14 +109,14 @@
 
         <joint name="joint3" type="revolute">
             <origin rpy="0 0 0" xyz="-0.35 0 0"/>
-            <parent link="link02"/>
-            <child link="link03"/>
+            <parent link="${prefix}link02"/>
+            <child link="${prefix}link03"/>
             <axis xyz="0 1 0"/>
             <dynamics damping="${jointDamping}" friction="${jointFriction}"/>
             <limit effort="${torqueMax}" velocity="${velocityMax}" lower="${joint3_PositionMin}" upper="${joint3_PositionMax}"/>
         </joint>
 
-        <link name="link03">
+        <link name="${prefix}link03">
             <visual>
                 <origin rpy="0 0 0" xyz="0 0 0"/>
                 <geometry>
@@ -148,14 +148,14 @@
 
         <joint name="joint4" type="revolute">
             <origin rpy="0 0 0" xyz="0.218 0 0.057"/>
-            <parent link="link03"/>
-            <child link="link04"/>
+            <parent link="${prefix}link03"/>
+            <child link="${prefix}link04"/>
             <axis xyz="0 1 0"/>
             <dynamics damping="${jointDamping}" friction="${jointFriction}"/>
             <limit effort="${torqueMax}" velocity="${velocityMax}" lower="${joint4_PositionMin}" upper="${joint4_PositionMax}"/>
         </joint>
 
-        <link name="link04">
+        <link name="${prefix}link04">
             <visual>
                 <origin rpy="0 0 0" xyz="0 0 0"/>
                 <geometry>
@@ -181,14 +181,14 @@
 
         <joint name="joint5" type="revolute">
             <origin rpy="0 0 0" xyz="0.07 0.0 0.0"/>
-            <parent link="link04"/>
-            <child link="link05"/>
+            <parent link="${prefix}link04"/>
+            <child link="${prefix}link05"/>
             <axis xyz="0 0 1"/>
             <dynamics damping="${jointDamping}" friction="${jointFriction}"/>
             <limit effort="${torqueMax}" velocity="${velocityMax}" lower="${joint5_PositionMin}" upper="${joint5_PositionMax}"/>
         </joint>
 
-        <link name="link05">
+        <link name="${prefix}link05">
             <visual>
                 <origin rpy="0 0 0" xyz="0 0 0"/>
                 <geometry>
@@ -208,14 +208,14 @@
 
         <joint name="joint6" type="revolute">
             <origin rpy="0 0 0" xyz="0.0492 0.0 0.0"/>
-            <parent link="link05"/>
-            <child link="link06"/>
+            <parent link="${prefix}link05"/>
+            <child link="${prefix}link06"/>
             <axis xyz="1 0 0"/>
             <dynamics damping="${jointDamping}" friction="${jointFriction}"/>
             <limit effort="${torqueMax}" velocity="${velocityMax}" lower="${joint6_PositionMin}" upper="${joint6_PositionMax}"/>
         </joint>
 
-        <link name="link06">
+        <link name="${prefix}link06">
             <visual>
                 <origin rpy="0 0 0" xyz="0 0 0"/>
                 <geometry>
@@ -243,11 +243,11 @@
         <xacro:if value="${UnitreeGripper}">
             <joint name="gripper_stator_joint" type="fixed">
                 <origin rpy="0 0 0" xyz="0.051 0.0 0.0"/>
-                <parent link="link06"/>
-                <child link="gripperStator"/>
+                <parent link="${prefix}link06"/>
+                <child link="${prefix}gripperStator"/>
             </joint>
 
-            <link name="gripperStator">
+            <link name="${prefix}gripperStator">
                 <visual>
                     <geometry>
                         <mesh filename="package://b1z1_description/meshes/z1/visual/z1_GripperStator.dae" scale="1 1 1"/>
@@ -271,14 +271,14 @@
 
             <joint name="jointGripper" type="revolute">
                 <origin rpy="0 0 0" xyz="0.049 0.0 0"/>
-                <parent link="gripperStator"/>
-                <child link="gripperMover"/>
+                <parent link="${prefix}gripperStator"/>
+                <child link="${prefix}gripperMover"/>
                 <axis xyz="0 1 0"/>
                 <dynamics damping="${jointDamping}" friction="${jointFriction}"/>
                 <limit effort="${torqueMax}" velocity="${velocityMax}" lower="${Gripper_PositionMin}" upper="${Gripper_PositionMax}"/>
             </joint>
 
-            <link name="gripperMover">
+            <link name="${prefix}gripperMover">
                 <visual>
                     <geometry>
                         <mesh filename="package://b1z1_description/meshes/z1/visual/z1_GripperMover.dae" scale="1 1 1"/>
@@ -300,13 +300,13 @@
                 </inertial>
             </link>
 
-            <!-- TCP (Tool Center Point) virtual link at tip of gripper -->
+            <!-- TCP (Tool Center Point) centered between fixed pad (z=-0.009) and mover jaw -->
             <joint name="gripper_tcp_joint" type="fixed">
-                <origin rpy="0 0 0" xyz="0.10 0 0"/>
-                <parent link="gripperStator"/>
-                <child link="gripper_tcp"/>
+                <origin rpy="0 0 0" xyz="0.10 0.0 0.014"/>
+                <parent link="${prefix}gripperStator"/>
+                <child link="${prefix}gripper_tcp"/>
             </joint>
-            <link name="gripper_tcp"/>
+            <link name="${prefix}gripper_tcp"/>
         </xacro:if>
 
     </xacro:macro>

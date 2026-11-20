@@ -2,8 +2,8 @@ bt_navigator:
   ros__parameters:
     use_sim_time: true
     global_frame: map
-    robot_base_frame: base_footprint
-    odom_topic: /odom
+    robot_base_frame: b1z1_base_footprint
+    odom_topic: odom
     bt_loop_duration: 10
     default_server_timeout: 20
     wait_for_service_timeout: 1000
@@ -36,23 +36,23 @@ controller_server:
 
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.25
-      movement_time_allowance: 25.0
+      required_movement_radius: 0.20
+      movement_time_allowance: 35.0
 
     general_goal_checker:
       stateful: true
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.16
-      yaw_goal_tolerance: 0.25
+      xy_goal_tolerance: 0.35
+      yaw_goal_tolerance: 0.40
 
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
       desired_linear_vel: 0.26
-      lookahead_dist: 0.45
-      min_lookahead_dist: 0.25
-      max_lookahead_dist: 0.60
+      lookahead_dist: 0.50
+      min_lookahead_dist: 0.45
+      max_lookahead_dist: 0.65
       lookahead_time: 1.0
-      rotate_to_heading_angular_vel: 0.40
+      rotate_to_heading_angular_vel: 0.28
       transform_tolerance: 0.2
       use_velocity_scaled_lookahead_dist: true
       min_approach_linear_velocity: 0.16
@@ -67,8 +67,8 @@ controller_server:
       curvature_lookahead_dist: 0.6
       use_rotate_to_heading: true
       allow_reversing: false
-      rotate_to_heading_min_angle: 0.785
-      max_angular_accel: 25.0
+      rotate_to_heading_min_angle: 1.57
+      max_angular_accel: 5.0
       max_robot_pose_search_dist: 10.0
 
 local_costmap:
@@ -77,20 +77,20 @@ local_costmap:
       use_sim_time: true
       update_frequency: 5.0
       publish_frequency: 2.0
-      global_frame: odom
-      robot_base_frame: base_footprint
+      global_frame: b1z1_odom
+      robot_base_frame: b1z1_base_footprint
       rolling_window: true
       width: 6
       height: 6
       resolution: 0.05
-      robot_radius: 0.28
+      footprint: "[[0.46, 0.28], [0.46, -0.28], [-0.40, -0.28], [-0.40, 0.28]]"
       plugins: ["obstacle_layer", "inflation_layer"]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
         observation_sources: scan
         scan:
-          topic: /scan
+          topic: /b1z1/scan
           max_obstacle_height: 2.0
           min_obstacle_height: 0.0
           clearing: true
@@ -103,8 +103,8 @@ local_costmap:
           obstacle_min_range: 0.0
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 5.0
-        inflation_radius: 0.35
+        cost_scaling_factor: 2.5
+        inflation_radius: 0.55
       always_send_full_costmap: true
 
 global_costmap:
@@ -114,20 +114,20 @@ global_costmap:
       update_frequency: 2.0
       publish_frequency: 1.0
       global_frame: map
-      robot_base_frame: base_footprint
+      robot_base_frame: b1z1_base_footprint
       rolling_window: true
       width: 30
       height: 30
       resolution: 0.05
       track_unknown_space: false
-      robot_radius: 0.28
+      footprint: "[[0.46, 0.28], [0.46, -0.28], [-0.40, -0.28], [-0.40, 0.28]]"
       plugins: ["obstacle_layer", "inflation_layer"]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
         observation_sources: scan
         scan:
-          topic: /scan
+          topic: /b1z1/scan
           max_obstacle_height: 2.0
           min_obstacle_height: 0.0
           clearing: true
@@ -140,8 +140,8 @@ global_costmap:
           obstacle_min_range: 0.0
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 5.0
-        inflation_radius: 0.35
+        cost_scaling_factor: 2.5
+        inflation_radius: 0.55
       always_send_full_costmap: true
 
 planner_server:
@@ -184,9 +184,9 @@ behavior_server:
       plugin: "nav2_behaviors::DriveOnHeading"
     wait:
       plugin: "nav2_behaviors::Wait"
-    local_frame: odom
+    local_frame: b1z1_odom
     global_frame: map
-    robot_base_frame: base_footprint
+    robot_base_frame: b1z1_base_footprint
     transform_tolerance: 0.2
     simulate_ahead_time: 2.0
     max_rotational_vel: 0.4
@@ -200,11 +200,11 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: false
     feedback: "OPEN_LOOP"
-    max_velocity: [0.28, 0.15, 0.40]
-    min_velocity: [-0.15, -0.15, -0.40]
-    max_accel: [0.5, 0.3, 1.5]
-    max_decel: [-0.5, -0.3, -1.5]
-    odom_topic: "/odom"
+    max_velocity: [0.28, 0.15, 0.28]
+    min_velocity: [-0.15, -0.15, -0.28]
+    max_accel: [0.5, 0.3, 1.2]
+    max_decel: [-0.5, -0.3, -1.2]
+    odom_topic: "odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
     velocity_timeout: 1.0

@@ -15,6 +15,7 @@
 """Bridge named Gazebo Pose_V messages to ROS 2 TFMessage."""
 
 from collections import Counter
+import re
 from typing import Any, Dict, Optional, Tuple
 
 from geometry_msgs.msg import TransformStamped
@@ -24,14 +25,26 @@ import rclpy
 from rclpy.node import Node
 from tf2_msgs.msg import TFMessage
 
+_CHILD_LINK_SUFFIX_RE = re.compile(
+    r'(?:^|_|/)(?:'
+    r'base_link|base_footprint|trunk|imu_link|lidar_link|follow_camera_link'
+    r'|link0[0-6]|gripperStator|gripperMover|gripper_tcp'
+    r'|(?:FR|FL|RR|RL)_(?:hip|hip_rotor|thigh|thigh_rotor|calf|calf_rotor|foot)'
+    r')$'
+)
+
 
 def _is_model_pose_name(name: str, count: int) -> bool:
-    """Return True if a Gazebo Pose_V entry represents a uniquely named model."""
+    """Return True if a Gazebo Pose_V entry represents a uniquely named top-level model."""
     if not name or count != 1:
+        return False
+    if '::' in name:
         return False
     if name.endswith(('_visual', '_collision')):
         return False
     if '_visual_' in name or '_collision_' in name:
+        return False
+    if _CHILD_LINK_SUFFIX_RE.search(name):
         return False
     return True
 

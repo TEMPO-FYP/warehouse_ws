@@ -14,20 +14,27 @@ def generate_launch_description():
     pkg_b1z1_control = get_package_share_directory('b1z1_control')
     pkg_b1z1_moveit = get_package_share_directory('b1z1_moveit_config')
 
+    default_controllers_yaml = os.path.join(pkg_b1z1_control, 'config', 'ros2_controllers.yaml')
+
+    namespace_arg = DeclareLaunchArgument(
+        'namespace',
+        default_value='b1z1',
+        description='ROS namespace for this robot instance',
+    )
+    prefix_arg = DeclareLaunchArgument(
+        'prefix',
+        default_value='',
+        description='TF/URDF/SRDF link prefix (defaults to <namespace>_ when empty)',
+    )
+    use_sim_time_arg = DeclareLaunchArgument(
+        'use_sim_time',
+        default_value='true',
+        description='Use simulation clock across spawned nodes',
+    )
     x_arg = DeclareLaunchArgument('x', default_value='0.0', description='Spawn X position')
     y_arg = DeclareLaunchArgument('y', default_value='16.0', description='Spawn Y position')
     z_arg = DeclareLaunchArgument('z', default_value='0.65', description='Spawn Z position')
     yaw_arg = DeclareLaunchArgument('yaw', default_value='0.0', description='Spawn Yaw rotation')
-    spawn_test_target_arg = DeclareLaunchArgument(
-        'spawn_test_target',
-        default_value='false',
-        description='Spawn static pedestal and graspable_box in front of b1z1',
-    )
-    test_target_dist_arg = DeclareLaunchArgument(
-        'test_target_dist',
-        default_value='0.73',
-        description='Distance ahead of b1z1 to spawn optional test pedestal/box',
-    )
     use_moveit_arg = DeclareLaunchArgument(
         'use_moveit',
         default_value='true',
@@ -56,6 +63,11 @@ def generate_launch_description():
         default_value='false',
         description='Attach third-person follow camera sensor to b1z1 for MP4 recording',
     )
+    controllers_yaml_arg = DeclareLaunchArgument(
+        'controllers_yaml',
+        default_value=default_controllers_yaml,
+        description='ros2_controllers configuration YAML passed into GazeboSimROS2ControlPlugin',
+    )
 
     spawn_period = PythonExpression(["float('", LaunchConfiguration('spawn_delay'), "')"])
     move_group_period = PythonExpression([
@@ -73,20 +85,23 @@ def generate_launch_description():
                     os.path.join(pkg_b1z1_description, 'launch', 'spawn_b1z1.launch.py')
                 ),
                 launch_arguments={
+                    'namespace': LaunchConfiguration('namespace'),
+                    'prefix': LaunchConfiguration('prefix'),
+                    'name': LaunchConfiguration('namespace'),
+                    'use_sim_time': LaunchConfiguration('use_sim_time'),
+                    'controllers_yaml': LaunchConfiguration('controllers_yaml'),
                     'x': LaunchConfiguration('x'),
                     'y': LaunchConfiguration('y'),
                     'z': LaunchConfiguration('z'),
                     'yaw': LaunchConfiguration('yaw'),
-                    'spawn_test_target': LaunchConfiguration('spawn_test_target'),
-                    'test_target_dist': LaunchConfiguration('test_target_dist'),
                     'enable_video_cam': LaunchConfiguration('enable_video_cam'),
                 }.items(),
             )
         ],
     )
 
-    # Controller spawners wait for /controller_manager, which only exists once b1z1 is
-    # spawned (gz_ros2_control plugin), so start them together with spawn_launch.
+    # Controller spawners wait for /<ns>/controller_manager, which only exists once
+    # b1z1 is spawned (gz_ros2_control plugin), so start them together with spawn_launch.
     control_launch = TimerAction(
         period=spawn_period,
         actions=[
@@ -94,6 +109,13 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     os.path.join(pkg_b1z1_control, 'launch', 'b1z1_control.launch.py')
                 ),
+                launch_arguments={
+                    'namespace': LaunchConfiguration('namespace'),
+                    'prefix': LaunchConfiguration('prefix'),
+                    'use_sim_time': LaunchConfiguration('use_sim_time'),
+                    'enable_video_cam': LaunchConfiguration('enable_video_cam'),
+                    'controllers_yaml': LaunchConfiguration('controllers_yaml'),
+                }.items(),
             )
         ],
     )
@@ -105,6 +127,12 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     os.path.join(pkg_b1z1_moveit, 'launch', 'move_group.launch.py')
                 ),
+                launch_arguments={
+                    'namespace': LaunchConfiguration('namespace'),
+                    'prefix': LaunchConfiguration('prefix'),
+                    'use_sim_time': LaunchConfiguration('use_sim_time'),
+                    'enable_video_cam': LaunchConfiguration('enable_video_cam'),
+                }.items(),
                 condition=IfCondition(LaunchConfiguration('use_moveit')),
             )
         ],
@@ -118,6 +146,9 @@ def generate_launch_description():
                     os.path.join(pkg_b1z1_control, 'launch', 'b1z1_nav2.launch.py')
                 ),
                 launch_arguments={
+                    'namespace': LaunchConfiguration('namespace'),
+                    'prefix': LaunchConfiguration('prefix'),
+                    'use_sim_time': LaunchConfiguration('use_sim_time'),
                     'use_static_map': LaunchConfiguration('use_static_map'),
                 }.items(),
                 condition=IfCondition(LaunchConfiguration('use_nav2')),
@@ -126,17 +157,19 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        namespace_arg,
+        prefix_arg,
+        use_sim_time_arg,
         x_arg,
         y_arg,
         z_arg,
         yaw_arg,
-        spawn_test_target_arg,
-        test_target_dist_arg,
         use_moveit_arg,
         use_nav2_arg,
         use_static_map_arg,
         spawn_delay_arg,
         enable_video_cam_arg,
+        controllers_yaml_arg,
         spawn_launch,
         control_launch,
         move_group_launch,
