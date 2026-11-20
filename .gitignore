@@ -39,3 +39,7 @@ log/
 .env
 .env.*
 !.env.example
+
+# Recorded simulation videos
+src/recordings/
+*.mp4

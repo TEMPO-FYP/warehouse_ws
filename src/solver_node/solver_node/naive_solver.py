@@ -25,7 +25,7 @@ def allocate_subtasks(
         return []
 
     if not fleet_robots:
-        fleet_robots = ['mobile_robot_1']
+        fleet_robots = ['b1z1_1']
 
     # Reconstruct the dependency DAG
     G = nx.DiGraph()

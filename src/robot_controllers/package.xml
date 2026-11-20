@@ -5,23 +5,29 @@
   <name>robot_controllers</name>
   <version>0.0.1</version>
   <description>
-    Robot controller nodes for TEMPO: executes assigned subtasks by
-    interfacing with Nav2, MoveIt2, and gripper controllers.
+    Shared multi-robot controller package for TEMPO: executes assigned subtasks
+    across heterogeneous mobile manipulators (e.g., B1Z1 and Husky+UR5e) via
+    Nav2, MoveIt 2, and Gazebo world entity pose bridging.
   </description>
-  <maintainer email="abdullahshheikh2@gmail.com">abdullah-shaikh</maintainer>
+  <maintainer email="tz09220@st.habib.edu.pk">Taha Zahid</maintainer>
   <license>Apache-2.0</license>
 
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>ament_index_python</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>nav2_msgs</exec_depend>
-  <exec_depend>moveit_msgs</exec_depend>
-  <exec_depend>control_msgs</exec_depend>
   <exec_depend>action_msgs</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>moveit_msgs</exec_depend>
+  <exec_depend>nav2_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-yaml</exec_depend>
-  <exec_depend>tf2_msgs</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>shape_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>tf2_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>warehouse_sim</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
