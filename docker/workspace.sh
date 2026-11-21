@@ -21,6 +21,9 @@ echo "Installing ROS 2 dependencies..."
 rosdep update
 rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y
 
+# Re-source ROS 2 setup so hooks from newly installed vendor packages (e.g. gz_sim_vendor) are loaded
+source /opt/ros/$ROS_DISTRO/setup.bash
+
 # Fix PCL warning if PCL is installed
 echo "Fixing PCL warnings..."
 if ls -d /usr/include/pcl* 1> /dev/null 2>&1; then
