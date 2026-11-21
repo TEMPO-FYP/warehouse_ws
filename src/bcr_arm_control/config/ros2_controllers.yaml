@@ -43,13 +43,13 @@
       constraints:
         stopped_velocity_tolerance: 0.02
         goal_time: 0.0
-        joint1: {trajectory: 0.35, goal: 0.02}
-        joint2: {trajectory: 0.35, goal: 0.02}
-        joint3: {trajectory: 0.35, goal: 0.02}
-        joint4: {trajectory: 0.35, goal: 0.02}
-        joint5: {trajectory: 0.35, goal: 0.02}
-        joint6: {trajectory: 0.35, goal: 0.02}
-        joint7: {trajectory: 0.35, goal: 0.02}
+        joint1: {trajectory: 1.0, goal: 0.02}
+        joint2: {trajectory: 1.0, goal: 0.02}
+        joint3: {trajectory: 1.0, goal: 0.02}
+        joint4: {trajectory: 1.0, goal: 0.02}
+        joint5: {trajectory: 1.0, goal: 0.02}
+        joint6: {trajectory: 1.0, goal: 0.02}
+        joint7: {trajectory: 1.0, goal: 0.02}
 
   gripper_controller:
     ros__parameters:

@@ -84,9 +84,9 @@ def z_approach_quat_tuple(yaw: float, pitch_down: float) -> Tuple[float, float, 
     """
     ca, sa = math.cos(pitch_down), math.sin(pitch_down)
     cy, sy = math.cos(yaw), math.sin(yaw)
-    m00, m01, m02 = -sy, -cy * sa, cy * ca
-    m10, m11, m12 = cy, -sy * sa, sy * ca
-    m20, m21, m22 = 0.0, -ca, -sa
+    m00, m01, m02 = -sy, cy * sa, cy * ca
+    m10, m11, m12 = cy, sy * sa, sy * ca
+    m20, m21, m22 = 0.0, ca, -sa
     tr = m00 + m11 + m22
     if tr > 0.0:
         s = math.sqrt(tr + 1.0) * 2.0

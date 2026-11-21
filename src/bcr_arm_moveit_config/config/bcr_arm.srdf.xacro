@@ -45,7 +45,7 @@
 
   <!-- Named Group States (bcr_gripper) -->
   <group_state name="open" group="bcr_gripper">
-    <joint name="robotiq_85_left_knuckle_joint" value="0.0"/>
+    <joint name="robotiq_85_left_knuckle_joint" value="0.05"/>
   </group_state>
 
   <group_state name="attach" group="bcr_gripper">

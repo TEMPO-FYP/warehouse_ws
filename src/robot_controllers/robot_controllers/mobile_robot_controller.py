@@ -21,7 +21,7 @@ import os
 import queue
 import threading
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from action_msgs.msg import GoalStatus
 from ament_index_python.packages import get_package_share_directory
@@ -48,6 +48,11 @@ from robot_controllers.geometry_utils import (
 from robot_controllers.map_standoff import OccupancyMap
 from robot_controllers.moveit_client import MoveItRobotClient
 from robot_controllers.planning_scene_manager import PlanningSceneManager
+from robot_controllers.sdf_scene_loader import (
+    build_world_collision_objects,
+    parse_world_sdf_includes,
+    WorldIncludeMap,
+)
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String
 from tf2_msgs.msg import TFMessage
@@ -185,6 +190,17 @@ class MobileRobotController(Node):
             str(world_cfg.get('map_package', 'warehouse_sim')),
             str(world_cfg.get('map_yaml_relpath', 'maps/warehouse_map.yaml')),
         )
+        self._world_includes: WorldIncludeMap = {}
+        try:
+            sim_share = get_package_share_directory(
+                str(world_cfg.get('map_package', 'warehouse_sim'))
+            )
+            world_sdf_path = os.path.join(sim_share, 'worlds', f'{self._world_name}.sdf')
+            if not os.path.isfile(world_sdf_path):
+                world_sdf_path = os.path.join(sim_share, 'worlds', 'warehouse.sdf')
+            self._world_includes = parse_world_sdf_includes(world_sdf_path)
+        except Exception:
+            self._world_includes = {}
 
         raw_profiles = config.get('robot_profiles', {})
         raw_instances = config.get('robot_instances', {})
@@ -894,17 +910,29 @@ class MobileRobotController(Node):
         target_x: float,
         target_y: float,
         preferred_fixture: Optional[str] = None,
-    ) -> Optional[str]:
-        """Register the closest known support fixture box in MoveIt's PlanningScene."""
+        exclude_names: Sequence[str] = (),
+    ) -> List[str]:
+        """Register exact SDF colliders (or coarse fallback box) in MoveIt's PlanningScene."""
+        with self._pose_lock:
+            snapshot = dict(self._pose_registry)
+
+        collision_objs = build_world_collision_objects(
+            snapshot,
+            center_xy=(target_x, target_y),
+            radius_m=1.8,
+            world_includes=self._world_includes or None,
+            exclude_names=tuple(exclude_names) + tuple(self._profiles.keys()),
+            frame_id='map',
+        )
+        if collision_objs and self._scene_managers[robot].add_collision_objects(collision_objs):
+            return [obj.id for obj in collision_objs]
+
         best_name: Optional[str] = None
         best_dims: Optional[Tuple[float, float, float]] = None
         best_pose: Optional[PoseEntry] = None
         best_dist = 1.5
 
-        with self._pose_lock:
-            snapshot = list(self._pose_registry.items())
-
-        for entity_name, pose_entry in snapshot:
+        for entity_name, pose_entry in snapshot.items():
             if preferred_fixture and entity_name != preferred_fixture and best_name is not None:
                 continue
             dims = next(
@@ -921,7 +949,7 @@ class MobileRobotController(Node):
                 best_dist = dist if entity_name != preferred_fixture else -1.0
 
         if best_name is None or best_dims is None or best_pose is None:
-            return None
+            return []
 
         scene_id = f'fixture_{best_name}'
         center_z = 0.5 * best_dims[2]
@@ -932,8 +960,8 @@ class MobileRobotController(Node):
             orientation=best_pose[3],
             frame_id='map',
         ):
-            return scene_id
-        return None
+            return [scene_id]
+        return []
 
     def _open_gripper(self, robot: str, label: str, pause_sim: float = 0.3) -> bool:
         prof = self._profiles[robot]
@@ -1160,7 +1188,9 @@ class MobileRobotController(Node):
             )
             return
 
-        fixture_scene_id = self._add_nearby_fixture_obstacle(robot, wx, wy)
+        fixture_scene_ids = self._add_nearby_fixture_obstacle(
+            robot, wx, wy, exclude_names=(object_name,)
+        )
         try:
             if not (
                 self._open_gripper(robot, f'{task_id}_open')
@@ -1355,8 +1385,8 @@ class MobileRobotController(Node):
                 )
                 return
         finally:
-            if fixture_scene_id:
-                self._scene_managers[robot].remove_object(fixture_scene_id)
+            if fixture_scene_ids:
+                self._scene_managers[robot].remove_objects(fixture_scene_ids)
 
         self._publish_feedback(
             plan_id, task_id, robot, status='success', stage='complete',
@@ -1487,8 +1517,8 @@ class MobileRobotController(Node):
             prof, bx + lat_dx, by + lat_dy, bz + 0.18, prof.grasp_roll_rad, prof.grasp_pitch_rad
         )
 
-        fixture_scene_id = self._add_nearby_fixture_obstacle(
-            robot, lx, ly, preferred_fixture=location
+        fixture_scene_ids = self._add_nearby_fixture_obstacle(
+            robot, lx, ly, preferred_fixture=location, exclude_names=(object_name,)
         )
         try:
             descend_ok = (
@@ -1537,8 +1567,8 @@ class MobileRobotController(Node):
                 )
                 return
         finally:
-            if fixture_scene_id:
-                self._scene_managers[robot].remove_object(fixture_scene_id)
+            if fixture_scene_ids:
+                self._scene_managers[robot].remove_objects(fixture_scene_ids)
 
         if object_name != 'object':
             with self._pose_lock:

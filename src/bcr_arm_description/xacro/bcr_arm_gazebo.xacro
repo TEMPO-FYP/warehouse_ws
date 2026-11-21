@@ -11,7 +11,7 @@
       <ros>
         <namespace>/$(arg namespace)</namespace>
       </ros>
-      <position_proportional_gain>2.0</position_proportional_gain>
+      <position_proportional_gain>1.0</position_proportional_gain>
     </plugin>
 
     <plugin filename="libdynamic_attach_system.so" name="b1z1::DynamicAttachSystem">
