@@ -134,7 +134,7 @@ A core architectural pillar of TEMPO is **closed-loop online replanning with dyn
    - **`ND[ST-SR-IA]` $\rightarrow$ `ND[ST-SR-TA]` or `ID[ST-SR-TA]`**: If 3 robots are executing 3 independent tasks (`ND[ST-SR-IA]`) and 1 robot suffers a hardware fault or battery depletion, the remaining 2 robots must now sequence the 3 tasks over time (`TA`), potentially introducing intra-schedule routing dependencies (`ID[ST-SR-TA]`).
    - **`XD[ST-MR-TA]` $\rightarrow$ `ND[ST-SR-IA]` / `ID[ST-SR-TA]`**: Once a heavy collaborative lift (`MR` task) is completed and a subsequent subtask fails, the remaining unexecuted tasks may only involve light single-robot (`SR`) items—allowing the replanner to downgrade the problem from an expensive `XD[ST-MR-TA]` MILP to a fast `ND` or `ID` solver.
    - **`ND[ST-SR-TA]` $\rightarrow$ `XD[ST-SR-TA]`**: If a mobile manipulator's gripper or locomotion fails mid-delivery or an aisle becomes blocked, requiring a relay handoff at a staging zone to another robot or stationary arm, an independent schedule becomes coupled via cross-schedule precedence (`XD`).
-   - **Payload / Fleet Degradation**: If the high-payload `robotic_arm` (`15.0 kg`) goes offline, a `12.0 kg` object that was previously a Single-Robot (`SR`) task for the arm now exceeds the `10.0 kg` payload limit of the remaining `b1z1` mobile manipulators—transitioning the task model from `SR` to `MR` (`XD[ST-MR-*]`).
+   - **Payload / Fleet Degradation**: If the high-payload `bcr_arm` (`15.0 kg`) goes offline, a `12.0 kg` object that was previously a Single-Robot (`SR`) task for the arm now exceeds the `10.0 kg` payload limit of the remaining `b1z1` mobile manipulators—transitioning the task model from `SR` to `MR` (`XD[ST-MR-*]`).
 2. **How the Loop Operates**:
    - **Trigger Conditions**:
      - A subtask reports `status in {"failed", "failure", "error", "rejected"}` on `/mission/feedback`.
@@ -174,6 +174,10 @@ warehouse_ws/
     ├── b1z1_moveit_config/            # MoveIt 2 SRDF, kinematics, OMPL config, move_group & RViz launches (ament_cmake)
     ├── b2_cargo_description/          # Unitree B2 cargo transport quadruped URDF/xacro, meshes, spawner (ament_python)
     ├── b2_cargo_control/              # CHAMP quadruped control, ros2_control, Nav2 for b2_cargo (ament_cmake)
+    ├── bcr_arm_description/           # 7-DOF BCR arm + Robotiq 2F-85 URDF/xacro, meshes, spawner (ament_python)
+    ├── bcr_arm_control/               # Stationary arm ros2_control, static TF placement, bringup (ament_cmake)
+    ├── bcr_arm_moveit_config/         # MoveIt 2 SRDF, kinematics, OMPL config, move_group & RViz launches (ament_cmake)
+    ├── third_party/                   # Vendored third-party packages (champ*, robotiq_description 2F-85)
     └── tempo_bringup/                 # Top-level combined bringup & TEMPO pipeline launch files (ament_cmake)
 ```
 
@@ -240,14 +244,14 @@ The core intelligence package implementing the 3-stage grounded planning and tax
 - **[robot_fleet.json](file:///home/taha/Desktop/FYP/warehouse_ws/src/llm_planner/knowledge_base/robot_fleet.json)** & **[robot_registry.json](file:///home/taha/Desktop/FYP/warehouse_ws/src/llm_planner/knowledge_base/robot_registry.json)**:
   - `b1z1` (quantity: `1`, `payload_capacity_kg: 10.0`, `speed_m_s: 1.0`, skills: `["navigate_to", "pick", "place"]`) $\rightarrow$ instance `b1z1_1`.
   - `b2_cargo` (quantity: `1`, `payload_capacity_kg: 15.0`, `speed_m_s: 0.35`, skills: `["navigate_to"]`) $\rightarrow$ instance `b2_cargo_1`.
-  - `robotic_arm` (quantity: `1`, `payload_capacity_kg: 15.0`, `speed_m_s: 0.0` [stationary], skills: `["pick", "place"]`) $\rightarrow$ instance `robotic_arm_1`.
+  - `bcr_arm` (quantity: `1`, `payload_capacity_kg: 15.0`, `speed_m_s: 0.0` [stationary], skills: `["pick", "place"]`) $\rightarrow$ instance `bcr_arm_1`.
 - **[korsah_taxonomy_axes.json](file:///home/taha/Desktop/FYP/warehouse_ws/src/llm_planner/knowledge_base/korsah_taxonomy_axes.json)**: Formal definitions of the 4 iTax axes (`robot_model`, `task_model`, `time_horizon`, `dependency`) and the 7 target subclasses.
 - **[few_shot_examples.json](file:///home/taha/Desktop/FYP/warehouse_ws/src/llm_planner/knowledge_base/few_shot_examples.json)** & **[few_shot_examples_taxonomy.json](file:///home/taha/Desktop/FYP/warehouse_ws/src/llm_planner/knowledge_base/few_shot_examples_taxonomy.json)**: Few-shot exemplars for Stage 1 decomposition and Stage 2 iTax classification (1 exemplar per target subclass).
 
 ---
 
 ### 4.4 `solver_node` (`src/solver_node/`)
-Receives the validated, taxonomy-classified DAG on `/mission/plan` and allocates specific robot instances (e.g., `b1z1_1`, `robotic_arm_1`) to every subtask.
+Receives the validated, taxonomy-classified DAG on `/mission/plan` and allocates specific robot instances (e.g., `b1z1_1`, `bcr_arm_1`) to every subtask.
 - **[solver_node.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/solver_node/solver_node/solver_node.py)** (`SolverNode`):
   - Subscribes to `/mission/plan` (`std_msgs/String`).
   - Validates incoming JSON envelope (`status == "ok"`, non-empty `subtasks`), extracts `itax_subclass` and `fleet` instances, dispatches to the solver, and publishes the assigned plan to `/mission/assigned_plan` (`std_msgs/String`).
@@ -328,11 +332,26 @@ Dedicated ROS 2 + Gazebo Harmonic simulation and navigation stack for the Unitre
 
 ---
 
-### 4.10 `tempo_bringup` (`src/tempo_bringup/`)
+### 4.10 BCR Stationary Arm Stack (`bcr_arm_description`, `bcr_arm_control`, `bcr_arm_moveit_config`, `third_party/robotiq_description`)
+Dedicated ROS 2 + Gazebo Harmonic manipulation stack for the stationary 7-DOF `bcr_arm` manipulator with a Robotiq 2F-85 parallel gripper (namespaced under `/bcr_arm` with `bcr_arm_` link prefix):
+- **`third_party/robotiq_description`** (`src/third_party/robotiq_description/`, `ament_cmake`): Trimmed Robotiq 2F-85 gripper description (`urdf/robotiq_2f_85_macro.urdf.xacro`, `2f_85.ros2_control.xacro`, meshes).
+- **`bcr_arm_description`** (`src/bcr_arm_description/`):
+  - URDF/Xacro (`xacro/bcr_arm.urdf.xacro`, `bcr_arm_mech.urdf.xacro`, `bcr_arm_gazebo.xacro`) with optional mounting pedestal (`use_pedestal`, `pedestal_height`), namespaced `gz_ros2_control`, and `b1z1::DynamicAttachSystem` plugin (`/bcr_arm/attach`, `/bcr_arm/detach`).
+  - [spawn_bcr_arm.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/bcr_arm_description/launch/spawn_bcr_arm.launch.py): Launches `robot_state_publisher` and spawns `bcr_arm` into Gazebo.
+- **`bcr_arm_control`** (`src/bcr_arm_control/`, `ament_cmake`):
+  - **Controllers** ([bcr_arm_control.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/bcr_arm_control/launch/bcr_arm_control.launch.py), `config/ros2_controllers.yaml`): Publishes static `map -> <prefix>mount_link` TF and sequentially spawns `joint_state_broadcaster`, `arm_trajectory_controller`, and `gripper_controller`.
+  - **[bcr_arm_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/bcr_arm_control/launch/bcr_arm_bringup.launch.py)**: Orchestrates `spawn_bcr_arm`, `bcr_arm_control`, and MoveIt `move_group`.
+- **`bcr_arm_moveit_config`** (`src/bcr_arm_moveit_config/`, `ament_cmake`):
+  - MoveIt 2 config (`config/bcr_arm.srdf.xacro`, `kinematics.yaml`, `joint_limits.yaml`, `moveit_controllers.yaml`, `ompl_planning.yaml`), `launch/move_group.launch.py`, `launch/moveit_rviz.launch.py`, and standalone MoveIt verification script `scripts/test_pick_place.py`.
+
+---
+
+### 4.11 `tempo_bringup` (`src/tempo_bringup/`)
 Top-level launch orchestration package unifying simulation, robot bringup, and the TEMPO planning/execution stack:
 - **[warehouse_b1z1_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_b1z1_bringup.launch.py)**: Single entrypoint launching `warehouse_sim/warehouse.launch.py` + `b1z1_control/b1z1_bringup.launch.py` + optional test pedestals/boxes (`spawn_test_target:=true`) + optional TEMPO pipeline (`use_tempo:=true`).
 - **[warehouse_b2_cargo_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_b2_cargo_bringup.launch.py)**: Single entrypoint launching `warehouse_sim/warehouse.launch.py` + `b2_cargo_control/b2_cargo_bringup.launch.py` + optional `spawn_test_cargo:=true` + optional TEMPO pipeline (`use_tempo:=true`).
-- **[warehouse_multi_robot_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_multi_robot_bringup.launch.py)**: Launches `warehouse_sim` with toggleable `spawn_b1z1` and `spawn_b2_cargo` arguments (allowing isolated `b2_cargo` testing via `spawn_b1z1:=false`) and optional TEMPO pipeline.
+- **[warehouse_bcr_arm_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_bcr_arm_bringup.launch.py)**: Single entrypoint launching `warehouse_sim/warehouse.launch.py` + `bcr_arm_control/bcr_arm_bringup.launch.py` adjacent to `Packing_Station` + optional TEMPO pipeline (`use_tempo:=true`).
+- **[warehouse_multi_robot_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_multi_robot_bringup.launch.py)**: Launches `warehouse_sim` with toggleable `spawn_b1z1`, `spawn_b2_cargo`, and `spawn_bcr_arm` arguments and optional TEMPO pipeline.
 - **[tempo_warehouse_pipeline.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/tempo_warehouse_pipeline.launch.py)**: Launches `llm_planner/planner_node`, `solver_node/solver_node`, `dispatcher_node/dispatcher_node`, and `robot_controllers/mobile_robot_controller` together with synchronized `use_sim_time`.
 
 ---
@@ -360,7 +379,7 @@ All mission pipeline topic payloads use `std_msgs/msg/String` containing UTF-8 J
   },
   "fleet": {
     "b1z1_1": { "robot_type": "b1z1", "skills": ["navigate_to", "pick", "place"] },
-    "robotic_arm_1": { "robot_type": "robotic_arm", "skills": ["pick", "place"] }
+    "bcr_arm_1": { "robot_type": "bcr_arm", "skills": ["pick", "place"] }
   },
   "plan": {
     "plan_id": "9f8c2b1a-...",
@@ -536,7 +555,7 @@ colcon test-result --verbose
 When modifying or extending this repository, **always** enforce these invariants:
 
 1. **Strict Separation of Concerns Across Pipeline Stages**:
-   - **Stage 1 (`prompt_builder.py`, `dag_builder.py`) is strictly robot-agnostic**: Subtasks in Stage 1 must NEVER assign a specific robot ID (`b1z1_1`, `robotic_arm_1`) or include a `robot` argument. Robot allocation belongs exclusively to `solver_node`.
+   - **Stage 1 (`prompt_builder.py`, `dag_builder.py`) is strictly robot-agnostic**: Subtasks in Stage 1 must NEVER assign a specific robot ID (`b1z1_1`, `bcr_arm_1`) or include a `robot` argument. Robot allocation belongs exclusively to `solver_node`.
    - **Stage 2 (`taxonomy_classifier.py`, `taxonomy_validator.py`) classifies the problem, NOT the solver**: Check 3 in `taxonomy_validator.py` explicitly rejects any LLM output containing `"matched_solver"`. The mapping from `itax_subclass` to a mathematical solver is a deterministic software routing step in `solver_node`.
 2. **One Atomic Skill Per Subtask**:
    - Check 4 in `dag_builder.py` enforces `len(required_skills) == 1`. Composite actions (e.g., "fetch X and place at Y") must be decomposed into atomic subtasks (`T1: navigate_to`, `T2: pick`, `T3: navigate_to`, `T4: place`) linked by `dependencies`, using exact argument keys from `master_skills.json` (`location`, `object`).
@@ -544,7 +563,7 @@ When modifying or extending this repository, **always** enforce these invariants
    - Every `object` and `location` argument in a Stage 1 plan is validated against the `valid_entities` set extracted by Stage 0 (`SceneGraphGrounder`) from `warehouse_scene_graph.json`.
    - In Stage 0 (`scene_graph_grounder.py`), the LLM must expand down to Layer 4 (fixtures/shelves) to discover objects before calling `done`. Do not weaken the premature-`done` guardrail in `SceneGraphGrounder.ground_instruction()`.
 4. **Physical Payload Grounding Drives `SR` vs. `MR` (`task_model`)**:
-   - Never let Stage 2 guess object weights from object names. `extract_objects_dict()` in `taxonomy_prompt_builder.py` injects ground-truth `weight_kg` from Stage 0 `objects_metadata` alongside `robot_fleet.json` / `robot_registry.json` payload capacities (`10.0 kg` for `b1z1`, `15.0 kg` for `robotic_arm`).
+   - Never let Stage 2 guess object weights from object names. `extract_objects_dict()` in `taxonomy_prompt_builder.py` injects ground-truth `weight_kg` from Stage 0 `objects_metadata` alongside `robot_fleet.json` / `robot_registry.json` payload capacities (`10.0 kg` for `b1z1`, `15.0 kg` for `bcr_arm`).
    - If an object requires transport (`navigate_to`) and `weight_kg > 10.0` (the mobile manipulator payload limit), or if `weight_kg > 15.0` overall, it requires a multi-robot coalition (`task_model = "MR"` and `dependency = "XD"`).
 5. **Online Replanning Must Always Trigger Stage 2 Reclassification**:
    - When implementing or modifying the online replanning loop (triggered by `/mission/feedback` failures, robot dropouts, or dynamic environment changes), **never bypass Stage 2 (`TaxonomyClassifier`)** by reusing the old plan's `itax_subclass`. Always re-run `plan_and_classify` on the updated world/fleet state and residual mission so subclass transitions (e.g., `ND[ST-SR-IA]` $\rightarrow$ `ID[ST-SR-TA]` or `XD[ST-MR-TA]` $\rightarrow$ `ND[ST-SR-TA]`) are properly detected and routed to the appropriate solver.

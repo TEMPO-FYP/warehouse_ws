@@ -16,18 +16,23 @@ from launch.substitutions import LaunchConfiguration, PythonExpression
 
 
 def generate_launch_description():
-    """Launch warehouse_sim with toggleable b1z1 and b2_cargo robots plus optional TEMPO."""
+    """Launch warehouse_sim with toggleable b1z1, b2_cargo, and bcr_arm robots plus TEMPO."""
     pkg_warehouse_sim = get_package_share_directory('warehouse_sim')
     pkg_b1z1_description = get_package_share_directory('b1z1_description')
     pkg_b1z1_control = get_package_share_directory('b1z1_control')
     pkg_b2_cargo_description = get_package_share_directory('b2_cargo_description')
     pkg_b2_cargo_control = get_package_share_directory('b2_cargo_control')
+    pkg_bcr_arm_description = get_package_share_directory('bcr_arm_description')
+    pkg_bcr_arm_control = get_package_share_directory('bcr_arm_control')
+    pkg_robotiq_description = get_package_share_directory('robotiq_description')
     pkg_tempo_bringup = get_package_share_directory('tempo_bringup')
 
     default_map_yaml = os.path.join(pkg_warehouse_sim, 'maps', 'warehouse_map.yaml')
 
     b1z1_parent = os.path.dirname(pkg_b1z1_description)
     b2_parent = os.path.dirname(pkg_b2_cargo_description)
+    arm_parent = os.path.dirname(pkg_bcr_arm_description)
+    robotiq_parent = os.path.dirname(pkg_robotiq_description)
     existing_gz_path = os.environ.get('GZ_SIM_RESOURCE_PATH', '')
     gz_resource_path = SetEnvironmentVariable(
         name='GZ_SIM_RESOURCE_PATH',
@@ -36,6 +41,10 @@ def generate_launch_description():
             pkg_b1z1_description,
             b2_parent,
             pkg_b2_cargo_description,
+            arm_parent,
+            pkg_bcr_arm_description,
+            robotiq_parent,
+            pkg_robotiq_description,
             existing_gz_path,
         ])),
     )
@@ -89,7 +98,7 @@ def generate_launch_description():
     use_moveit_arg = DeclareLaunchArgument(
         'use_moveit',
         default_value='true',
-        description='Launch MoveIt 2 move_group for b1z1 when spawn_b1z1:=true',
+        description='Launch MoveIt 2 move_group for enabled manipulators (b1z1, bcr_arm)',
     )
     use_tempo_arg = DeclareLaunchArgument(
         'use_tempo',
@@ -146,6 +155,45 @@ def generate_launch_description():
         'spawn_test_cargo',
         default_value='false',
         description='Spawn a sample small_box payload centered inside b2_cargo cargo_rack',
+    )
+
+    spawn_bcr_arm_arg = DeclareLaunchArgument(
+        'spawn_bcr_arm',
+        default_value='true',
+        choices=['true', 'false'],
+        description='Spawn and bring up bcr_arm stationary manipulator',
+    )
+    bcr_arm_name_arg = DeclareLaunchArgument(
+        'bcr_arm_name',
+        default_value='bcr_arm',
+        description='Gazebo model name for bcr_arm',
+    )
+    bcr_arm_namespace_arg = DeclareLaunchArgument(
+        'bcr_arm_namespace',
+        default_value='bcr_arm',
+        description='ROS namespace for bcr_arm',
+    )
+    bcr_arm_x_arg = DeclareLaunchArgument(
+        'bcr_arm_x', default_value='1.75', description='bcr_arm Spawn X'
+    )
+    bcr_arm_y_arg = DeclareLaunchArgument(
+        'bcr_arm_y', default_value='13.08', description='bcr_arm Spawn Y'
+    )
+    bcr_arm_z_arg = DeclareLaunchArgument(
+        'bcr_arm_z', default_value='0.0', description='bcr_arm Spawn Z'
+    )
+    bcr_arm_yaw_arg = DeclareLaunchArgument(
+        'bcr_arm_yaw', default_value='3.14159', description='bcr_arm Spawn Yaw'
+    )
+    bcr_arm_use_pedestal_arg = DeclareLaunchArgument(
+        'bcr_arm_use_pedestal',
+        default_value='true',
+        description='Mount bcr_arm on built-in pedestal',
+    )
+    bcr_arm_pedestal_height_arg = DeclareLaunchArgument(
+        'bcr_arm_pedestal_height',
+        default_value='0.55',
+        description='bcr_arm built-in pedestal height (m)',
     )
 
     nav2_use_static_map = PythonExpression([
@@ -212,6 +260,26 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('spawn_b2_cargo')),
     )
 
+    bcr_arm_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_bcr_arm_control, 'launch', 'bcr_arm_bringup.launch.py')
+        ),
+        launch_arguments={
+            'name': LaunchConfiguration('bcr_arm_name'),
+            'namespace': LaunchConfiguration('bcr_arm_namespace'),
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+            'x': LaunchConfiguration('bcr_arm_x'),
+            'y': LaunchConfiguration('bcr_arm_y'),
+            'z': LaunchConfiguration('bcr_arm_z'),
+            'yaw': LaunchConfiguration('bcr_arm_yaw'),
+            'use_pedestal': LaunchConfiguration('bcr_arm_use_pedestal'),
+            'pedestal_height': LaunchConfiguration('bcr_arm_pedestal_height'),
+            'use_moveit': LaunchConfiguration('use_moveit'),
+            'spawn_delay': effective_spawn_delay,
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('spawn_bcr_arm')),
+    )
+
     tempo_pipeline_launch = TimerAction(
         period=PythonExpression(["float('", effective_spawn_delay, "') + 12.0"]),
         actions=[
@@ -253,8 +321,18 @@ def generate_launch_description():
         b2_cargo_z_arg,
         b2_cargo_yaw_arg,
         spawn_test_cargo_arg,
+        spawn_bcr_arm_arg,
+        bcr_arm_name_arg,
+        bcr_arm_namespace_arg,
+        bcr_arm_x_arg,
+        bcr_arm_y_arg,
+        bcr_arm_z_arg,
+        bcr_arm_yaw_arg,
+        bcr_arm_use_pedestal_arg,
+        bcr_arm_pedestal_height_arg,
         warehouse_launch,
         b1z1_launch,
         b2_cargo_launch,
+        bcr_arm_launch,
         tempo_pipeline_launch,
     ])

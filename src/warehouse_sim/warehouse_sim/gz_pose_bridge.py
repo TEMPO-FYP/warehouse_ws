@@ -27,8 +27,10 @@ from tf2_msgs.msg import TFMessage
 
 _CHILD_LINK_SUFFIX_RE = re.compile(
     r'(?:^|_|/)(?:'
-    r'base_link|base_footprint|trunk|imu_link|lidar_link|follow_camera_link'
-    r'|link0[0-6]|gripperStator|gripperMover|gripper_tcp'
+    r'base_link|base_footprint|mount_link|pedestal_link'
+    r'|trunk|imu_link|lidar_link|follow_camera_link'
+    r'|link0[0-6]|link[1-6]|flange|grasp_tcp|gripperStator|gripperMover|gripper_tcp'
+    r'|robotiq_85_.*'
     r'|(?:FR|FL|RR|RL)_(?:hip|hip_rotor|thigh|thigh_rotor|calf|calf_rotor|foot)'
     r')$'
 )

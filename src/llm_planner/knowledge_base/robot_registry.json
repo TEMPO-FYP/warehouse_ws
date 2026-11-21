@@ -18,7 +18,7 @@
       "status": "active"
     },
     {
-      "robot_type": "robotic_arm",
+      "robot_type": "bcr_arm",
       "capabilities": [
         "manipulation"
       ],

@@ -157,20 +157,41 @@ class PlanningSceneManager:
             self._tracked_objects.add(name)
         return success
 
-    def remove_object(self, name: str) -> bool:
-        """Remove a collision object from the world planning scene."""
-        collision_obj = CollisionObject()
-        collision_obj.id = name
-        collision_obj.operation = CollisionObject.REMOVE
-
+    def add_collision_objects(self, collision_objects: Sequence[CollisionObject]) -> bool:
+        """Add multiple MoveIt CollisionObjects in a single PlanningScene diff."""
+        if not collision_objects:
+            return True
         scene = PlanningScene()
         scene.is_diff = True
         scene.world = PlanningSceneWorld()
-        scene.world.collision_objects = [collision_obj]
+        scene.world.collision_objects = list(collision_objects)
+        success = self.apply_scene_diff(scene)
+        if success:
+            for obj in collision_objects:
+                self._tracked_objects.add(obj.id)
+        return success
+
+    def remove_object(self, name: str) -> bool:
+        """Remove a collision object from the world planning scene."""
+        return self.remove_objects([name])
+
+    def remove_objects(self, names: Sequence[str]) -> bool:
+        """Remove multiple collision objects from the world planning scene in one diff."""
+        if not names:
+            return True
+        scene = PlanningScene()
+        scene.is_diff = True
+        scene.world = PlanningSceneWorld()
+        for name in names:
+            co = CollisionObject()
+            co.id = name
+            co.operation = CollisionObject.REMOVE
+            scene.world.collision_objects.append(co)
 
         success = self.apply_scene_diff(scene)
         if success:
-            self._tracked_objects.discard(name)
+            for name in names:
+                self._tracked_objects.discard(name)
         return success
 
     def attach_object(

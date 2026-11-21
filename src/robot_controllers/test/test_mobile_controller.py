@@ -16,15 +16,22 @@
 
 import json
 import math
+import os
 import threading
 import time
 from unittest.mock import MagicMock
 
+from ament_index_python.packages import get_package_share_directory
 from moveit_msgs.msg import CollisionObject
 import rclpy
 from robot_controllers.mobile_robot_controller import _load_config, MobileRobotController
-from robot_controllers.moveit_client import parse_srdf_group_states
+from robot_controllers.moveit_client import parse_srdf_group_states, unwrap_ik_solution
 from robot_controllers.planning_scene_manager import PlanningSceneManager
+from robot_controllers.sdf_scene_loader import (
+    build_world_collision_objects,
+    parse_model_sdf_collisions,
+    parse_world_sdf_includes,
+)
 from std_msgs.msg import String
 
 
@@ -41,9 +48,11 @@ def _init_node_with_poses():
     })
     psm = MagicMock()
     psm.add_box.return_value = True
+    psm.add_collision_objects.return_value = True
     psm.attach_object.return_value = True
     psm.detach_object.return_value = True
     psm.remove_object.return_value = True
+    psm.remove_objects.return_value = True
     node._scene_managers['b1z1_1'] = psm
     node._gz_node = MagicMock()
     node._gz_node.request.return_value = (True, MagicMock(data=True))
@@ -473,3 +482,192 @@ def test_execute_pick_from_b2_cargo_raises_grasp_clearance_and_pitch():
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+
+
+def test_bcr_arm_profile_and_rejects_navigate_to():
+    """Verify bcr_arm profile config and unsupported_skill rejection for navigate_to."""
+    from robot_controllers.geometry_utils import z_approach_quat_tuple
+
+    cfg = _load_config()
+    assert 'bcr_arm' in cfg['robot_profiles']
+    assert cfg['robot_instances']['bcr_arm_1'] == 'bcr_arm'
+    assert cfg['robot_profiles']['bcr_arm']['supports_navigation'] is False
+    assert cfg['robot_profiles']['bcr_arm']['supports_manipulation'] is True
+    assert cfg['robot_profiles']['bcr_arm']['manipulation']['tcp_approach_axis'] == 'z'
+
+    for yaw_val, pitch_val in (
+        (0.0, 0.0),
+        (0.0, 0.314),
+        (math.pi, 0.314),
+        (math.pi / 2.0, math.pi / 2.0),
+    ):
+        qx, qy, qz, qw = z_approach_quat_tuple(yaw_val, pitch_val)
+        assert math.isclose(qx * qx + qy * qy + qz * qz + qw * qw, 1.0, abs_tol=1e-6)
+        r02 = 2.0 * (qx * qz + qw * qy)
+        r12 = 2.0 * (qy * qz - qw * qx)
+        r22 = 1.0 - 2.0 * (qx * qx + qy * qy)
+        r01 = 2.0 * (qx * qy - qw * qz)
+        r11 = 1.0 - 2.0 * (qx * qx + qz * qz)
+        r21 = 2.0 * (qy * qz + qw * qx)
+        cy, sy = math.cos(yaw_val), math.sin(yaw_val)
+        ca, sa = math.cos(pitch_val), math.sin(pitch_val)
+        assert math.isclose(r02, cy * ca, abs_tol=1e-6)
+        assert math.isclose(r12, sy * ca, abs_tol=1e-6)
+        assert math.isclose(r22, -sa, abs_tol=1e-6)
+        assert math.isclose(r01, cy * sa, abs_tol=1e-6)
+        assert math.isclose(r11, sy * sa, abs_tol=1e-6)
+        assert math.isclose(r21, ca, abs_tol=1e-6)
+
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        assert 'bcr_arm_1' in node._moveit_clients
+        assert 'bcr_arm_1' not in node._nav_clients
+        assert 'bcr_arm_1' not in node._cmd_vel_pubs
+
+        feedbacks = []
+        node._publish_feedback = lambda *a, **kw: feedbacks.append((a, kw))
+        node._handle_subtask({
+            'plan_id': 'p_arm',
+            'task_id': 'T_nav',
+            'robot': 'bcr_arm_1',
+            'required_skills': ['navigate_to'],
+            'args': {'location': 'Packing_Station'},
+        })
+        assert len(feedbacks) == 1
+        assert feedbacks[0][1]['status'] == 'failed'
+        assert feedbacks[0][1]['stage'] == 'unsupported_skill'
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_bcr_arm_stationary_reachability_and_pick_place():
+    """Verify 360-deg stationary reachability check and mocked pick/place on bcr_arm_1."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        psm = MagicMock()
+        psm.add_box.return_value = True
+        psm.add_collision_objects.return_value = True
+        psm.attach_object.return_value = True
+        psm.detach_object.return_value = True
+        psm.remove_object.return_value = True
+        psm.remove_objects.return_value = True
+        node._scene_managers['bcr_arm_1'] = psm
+        node._gz_attach_pubs['bcr_arm_1'] = MagicMock()
+        node._gz_attach_pubs['bcr_arm_1'].publish.return_value = True
+        node._gz_detach_pubs['bcr_arm_1'] = MagicMock()
+        node._gz_detach_pubs['bcr_arm_1'].publish.return_value = True
+        node._joint_positions['bcr_arm_1'].update({f'joint{i}': 0.0 for i in range(1, 8)})
+
+        # Stationary base at (1.75, 13.08, 0.55) via TF2
+        node._lookup_frame_in_map = MagicMock(
+            return_value=(1.75, 13.08, 0.55, (0.0, 0.0, 0.0, 1.0))
+        )
+
+        # Target behind base (-X direction in base_link, 0.55 m away) must be reachable!
+        ok_rear, err_rear = node._ensure_aligned('bcr_arm_1', 1.20, 13.08, 'T_pick', 0.92, 0.72)
+        assert ok_rear, err_rear
+
+        # Target 1.50 m away must be rejected as out of reach.
+        ok_far, err_far = node._ensure_aligned('bcr_arm_1', 3.25, 13.08, 'T_far', 0.92, 0.72)
+        assert not ok_far
+        assert 'reachability window' in err_far
+
+        # Mocked pick & place execution
+        node._pose_registry['graspable_box'] = (1.20, 13.08, 0.945, (0.0, 0.0, 0.0, 1.0))
+        node._pose_registry['Packing_Station'] = (0.934, 13.08, 0.0, (0.0, 0.0, 0.0, 1.0))
+        node._open_gripper = MagicMock(return_value=True)
+        node._close_gripper = MagicMock(return_value=True)
+        node._move_arm_state = MagicMock(return_value=True)
+        recorded = {}
+
+        def fake_move_pose(robot, ps, label, **kwargs):
+            recorded[label] = ps
+            return True
+
+        node._move_arm_to_pose = fake_move_pose
+        node._attach_kinematic_object = MagicMock(return_value=None)
+        node._confirm_object_z = MagicMock(return_value=1.10)
+        feedbacks = []
+        node._publish_feedback = lambda *a, **kw: feedbacks.append((a, kw))
+
+        node._execute_pick('p1', 'T1', 'bcr_arm_1', {'object': 'graspable_box'})
+        assert feedbacks[-1][1]['status'] == 'success'
+        assert feedbacks[-1][1]['stage'] == 'complete'
+        assert recorded['T1_grasp'].pose.position.x < 0.0
+
+        node._attached_objects['bcr_arm_1'] = 'graspable_box'
+        node._execute_place(
+            'p1', 'T2', 'bcr_arm_1', {'object': 'graspable_box', 'location': 'Packing_Station'}
+        )
+        assert feedbacks[-1][1]['status'] == 'success'
+        assert feedbacks[-1][1]['stage'] == 'complete'
+        assert math.hypot(
+            recorded['T2_place_descend'].pose.position.x,
+            recorded['T2_place_descend'].pose.position.y,
+        ) <= 0.721
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_sdf_scene_loader_parses_packing_station_and_builds_collision_objects():
+    """Verify SDF collider parsing for Packing_Station and batch PlanningScene diffs."""
+    sim_share = get_package_share_directory('warehouse_sim')
+    ps_sdf = os.path.join(sim_share, 'models', 'Packing_Station', 'model.sdf')
+    specs = parse_model_sdf_collisions(ps_sdf)
+    assert len(specs) == 33
+
+    includes = parse_world_sdf_includes(os.path.join(sim_share, 'worlds', 'warehouse.sdf'))
+    assert 'Packing_Station' in includes
+
+    objs = build_world_collision_objects(
+        entity_poses={'graspable_box': (1.20, 13.08, 0.945, (0.0, 0.0, 0.0, 1.0))},
+        center_xy=(1.75, 13.08),
+        radius_m=2.0,
+        world_includes=includes,
+        exclude_names=('graspable_box',),
+        frame_id='map',
+    )
+    by_id = {o.id: o for o in objs}
+    assert 'world_Packing_Station' in by_id
+    assert 'world_Packing_Station.002' in by_id
+    assert 'world_graspable_box' not in by_id
+    assert len(by_id['world_Packing_Station'].primitives) == 33
+
+    rclpy.init()
+    node = rclpy.create_node('test_batch_psm_node')
+    try:
+        psm = PlanningSceneManager(node, spin_locally=False, namespace='/bcr_arm')
+        sent_scenes = []
+        psm.apply_scene_diff = lambda scene: sent_scenes.append(scene) or True
+
+        assert psm.add_collision_objects(objs)
+        assert 'world_Packing_Station' in psm._tracked_objects
+        assert len(sent_scenes[-1].world.collision_objects) == len(objs)
+
+        assert psm.remove_objects([o.id for o in objs])
+        assert 'world_Packing_Station' not in psm._tracked_objects
+        assert all(
+            co.operation == CollisionObject.REMOVE
+            for co in sent_scenes[-1].world.collision_objects
+        )
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_unwrap_ik_solution_avoids_full_turn_spins():
+    """Verify 2*pi IK unwrapping picks the branch closest to current joints."""
+    current = {'joint1': 0.035, 'joint2': 0.273, 'joint3': -1.353}
+    raw_ik = {'joint1': 5.85, 'joint2': -1.53, 'joint3': -4.85, 'joint4': 3.10}
+    unwrapped = unwrap_ik_solution(raw_ik, current)
+    assert math.isclose(unwrapped['joint1'], 5.85 - 2.0 * math.pi, abs_tol=1e-9)
+    assert math.isclose(unwrapped['joint3'], -4.85 + 2.0 * math.pi, abs_tol=1e-9)
+    assert math.isclose(unwrapped['joint2'], -1.53, abs_tol=1e-9)
+    assert math.isclose(unwrapped['joint4'], 3.10, abs_tol=1e-9)
