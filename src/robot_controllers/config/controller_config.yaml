@@ -80,5 +80,19 @@ robot_profiles:
       use_kinematic_attach: false
       default_object_dims: [0.06, 0.06, 0.06]
 
+  b2_cargo:
+    namespace: "/b2_cargo"
+    gazebo_model_name: "b2_cargo"
+    base_frame: "b2_cargo/base_link"
+    tcp_frame: "b2_cargo/cargo_rack_link"
+    supports_manipulation: false
+    navigation:
+      standoff_distance: 0.90
+      manipulation_standoff: 0.73
+      nav_timeout_sec: 150.0
+      robot_clearance_radius: 0.42
+      fine_align_pulses: false
+
 robot_instances:
   b1z1_1: "b1z1"
+  b2_cargo_1: "b2_cargo"

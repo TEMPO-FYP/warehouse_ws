@@ -56,9 +56,13 @@ def test_controller_config_exposes_b1z1_and_husky_profiles():
     assert 'named_locations' not in cfg.get('navigation', {})
     assert 'b1z1' in cfg['robot_profiles']
     assert 'husky_ur5e' in cfg['robot_profiles']
+    assert 'b2_cargo' in cfg['robot_profiles']
     assert cfg['robot_profiles']['b1z1']['namespace'] == '/b1z1'
     assert cfg['robot_profiles']['husky_ur5e']['namespace'] == '/a200_0000'
     assert cfg['robot_profiles']['husky_ur5e']['manipulation']['gripper_mode'] == 'gripper_command'
+    assert cfg['robot_profiles']['b2_cargo']['namespace'] == '/b2_cargo'
+    assert cfg['robot_profiles']['b2_cargo']['supports_manipulation'] is False
+    assert cfg['robot_instances']['b2_cargo_1'] == 'b2_cargo'
 
 
 def test_parse_srdf_group_states():
@@ -313,6 +317,158 @@ def test_unmanaged_mobile_robot_prefix_ignored():
         })
         node._subtask_callback(msg)
         assert feedbacks == []
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_b2_cargo_nav_only_profile_rejects_manipulation():
+    """Verify b2_cargo skips MoveIt/scene setup and fails pick/place as unsupported_skill."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        assert 'b2_cargo_1' in node._nav_clients
+        assert 'b2_cargo_1' in node._cmd_vel_pubs
+        assert 'b2_cargo_1' not in node._moveit_clients
+        assert 'b2_cargo_1' not in node._scene_managers
+
+        feedbacks = []
+        node._publish_feedback = lambda *a, **kw: feedbacks.append((a, kw))
+        for skill in ('pick', 'place'):
+            node._handle_subtask({
+                'plan_id': 'p1',
+                'task_id': f'T_{skill}',
+                'robot': 'b2_cargo_1',
+                'required_skills': [skill],
+                'args': {'object': 'small_box_1', 'location': 'Packing_Station'},
+            })
+
+        assert len(feedbacks) == 2
+        for _, kw in feedbacks:
+            assert kw['status'] == 'failed'
+            assert kw['stage'] == 'unsupported_skill'
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_b2_cargo_subtask_queue_executes_navigate_to():
+    """Verify navigate_to tasks for b2_cargo_1 flow through its dedicated worker queue."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        calls = []
+        node._execute_navigate_to = (
+            lambda plan_id, task_id, robot, args: calls.append((plan_id, task_id, robot, args))
+        )
+        msg = String()
+        msg.data = json.dumps({
+            'plan_id': 'p2',
+            'task_id': 'T_nav',
+            'robot': 'b2_cargo_1',
+            'required_skills': ['navigate_to'],
+            'args': {'location': 'Packing_Station'},
+        })
+        node._subtask_callback(msg)
+        node._robot_queues['b2_cargo_1'].join()
+        assert calls == [('p2', 'T_nav', 'b2_cargo_1', {'location': 'Packing_Station'})]
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_execute_place_into_b2_cargo_aims_at_crate_center():
+    """Verify placing onto b2_cargo aims at cargo_rack center instead of clamping to 0.72."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        node._pose_registry['b2_cargo'] = (1.84, 2.0, 0.58, (0.0, 0.0, 0.0, 1.0))
+        node._pose_registry['Packing_Station'] = (1.90, 2.0, 0.0, (0.0, 0.0, 0.0, 1.0))
+        node._lookup_frame_in_map = MagicMock(
+            return_value=(1.82, 2.0, 0.668, (0.0, 0.0, 0.0, 1.0))
+        )
+        align_calls = []
+        node._ensure_aligned = (
+            lambda robot, tx, ty, tid, max_d, pref_d, tight=True:
+            align_calls.append((tid, pref_d, tight)) or (True, '')
+        )
+        recorded_poses = {}
+
+        def fake_move_pose(robot, pose_stamped, label, **kwargs):
+            recorded_poses[label] = pose_stamped
+            return True
+
+        node._move_arm_to_pose = fake_move_pose
+        node._open_gripper = MagicMock(return_value=True)
+        node._move_arm_state = MagicMock(return_value=True)
+        feedbacks = []
+        node._publish_feedback = lambda *a, **kw: feedbacks.append((a, kw))
+
+        node._execute_place(
+            'p1', 'T3', 'b1z1_1', {'object': 'tall_box', 'location': 'b2_cargo'}
+        )
+
+        assert align_calls == [('T3', 0.80, True)]
+        place_pt = recorded_poses['T3_place_descend'].pose.position
+        assert math.isclose(place_pt.x, 0.795, abs_tol=1e-6)
+        assert math.isclose(place_pt.y, 0.028, abs_tol=1e-6)
+        assert math.isclose(place_pt.z, 0.252, abs_tol=1e-6)
+        assert feedbacks[-1][1]['status'] == 'success'
+
+        # Large fixtures still clamp to place_drop_standoff (0.72 m).
+        node._execute_place(
+            'p1', 'T_pack', 'b1z1_1', {'object': 'tall_box', 'location': 'Packing_Station'}
+        )
+        pack_pt = recorded_poses['T_pack_place_descend'].pose.position
+        assert math.isclose(pack_pt.x, 0.72, abs_tol=1e-6)
+
+        assert node._is_inside_cargo_robot(1.82, 2.0) is True
+        assert node._is_inside_cargo_robot(5.0, 5.0) is False
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_execute_pick_from_b2_cargo_raises_grasp_clearance_and_pitch():
+    """Verify picking out of b2_cargo raises grasp Z clearance and wrist pitch."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        node._pose_registry['b2_cargo'] = (1.82, 2.0, 0.58, (0.0, 0.0, 0.0, 1.0))
+        node._pose_registry['tall_box'] = (1.82, 2.0, 0.735, (0.0, 0.0, 0.0, 1.0))
+        align_calls = []
+        node._ensure_aligned = (
+            lambda robot, tx, ty, tid, max_d, pref_d, tight=True:
+            align_calls.append((tid, pref_d, tight)) or (True, '')
+        )
+        recorded_poses = {}
+
+        def fake_move_pose(robot, pose_stamped, label, **kwargs):
+            recorded_poses[label] = pose_stamped
+            return True
+
+        node._open_gripper = MagicMock(return_value=True)
+        node._move_arm_state = MagicMock(return_value=True)
+        node._move_arm_to_pose = fake_move_pose
+        node._attach_kinematic_object = MagicMock(return_value=None)
+        node._close_gripper = MagicMock(return_value=True)
+        node._confirm_object_z = MagicMock(return_value=0.90)
+        feedbacks = []
+        node._publish_feedback = lambda *a, **kw: feedbacks.append((a, kw))
+
+        node._execute_pick('p1', 'T5', 'b1z1_1', {'object': 'tall_box'})
+
+        assert align_calls == [('T5', 0.80, True)]
+        grasp_pt = recorded_poses['T5_grasp'].pose.position
+        lift_pt = recorded_poses['T5_lift'].pose.position
+        assert math.isclose(grasp_pt.z, 0.230, abs_tol=1e-6)
+        assert math.isclose(lift_pt.z, 0.355, abs_tol=1e-6)
+        assert math.isclose(lift_pt.x, 0.760, abs_tol=1e-6)
+        assert feedbacks[-1][1]['status'] == 'success'
     finally:
         node.destroy_node()
         if rclpy.ok():

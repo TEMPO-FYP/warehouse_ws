@@ -1,6 +1,7 @@
 {
   "fleet": {
     "b1z1": 1,
+    "b2_cargo": 1,
     "robotic_arm": 1
   }
 }
