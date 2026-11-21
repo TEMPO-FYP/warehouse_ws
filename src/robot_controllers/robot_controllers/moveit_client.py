@@ -14,6 +14,7 @@
 
 """Shared MoveIt 2 action/service client helpers for heterogeneous manipulators."""
 
+import math
 from typing import Any, Callable, Dict, List, Optional, Sequence
 import xml.etree.ElementTree as ET
 
@@ -39,6 +40,22 @@ from rclpy.callback_groups import CallbackGroup
 from rclpy.duration import Duration
 from rclpy.node import Node
 from shape_msgs.msg import SolidPrimitive
+
+
+def unwrap_ik_solution(
+    ik_sol: Dict[str, float],
+    current_joints: Dict[str, float],
+) -> Dict[str, float]:
+    """Unwrap `2*pi`-equivalent IK angles to the closest value near `current_joints`."""
+    out: Dict[str, float] = {}
+    for joint_name, val in ik_sol.items():
+        if abs(val) > math.pi:
+            wrapped = val - 2.0 * math.pi if val > 0.0 else val + 2.0 * math.pi
+            cur = float(current_joints.get(joint_name, 0.0))
+            if abs(wrapped - cur) < abs(val - cur):
+                val = wrapped
+        out[joint_name] = float(val)
+    return out
 
 
 def parse_srdf_group_states(srdf_xml: str) -> Dict[str, Dict[str, Dict[str, float]]]:
@@ -261,8 +278,8 @@ class MoveItRobotClient:
         """Plan and execute a joint-space goal via MoveGroup."""
         req = MotionPlanRequest()
         req.group_name = group
-        req.num_planning_attempts = 3
-        req.allowed_planning_time = 5.0
+        req.num_planning_attempts = 5
+        req.allowed_planning_time = 8.0
         req.max_velocity_scaling_factor = float(vel_scale)
         req.max_acceleration_scaling_factor = float(vel_scale)
 
@@ -387,22 +404,28 @@ class MoveItRobotClient:
 
         Falls back to PositionConstraint + OrientationConstraint in OMPL if `/compute_ik` fails.
         """
-        ik_sol = self.compute_ik(
-            group, link_name, pose_stamped, current_joints, seed_overrides=seed_overrides
+        seed_candidates: List[Optional[Dict[str, float]]] = (
+            [seed_overrides, None] if seed_overrides is not None else [None]
         )
-        if ik_sol:
+        for seed in seed_candidates:
+            ik_sol = self.compute_ik(
+                group, link_name, pose_stamped, current_joints, seed_overrides=seed
+            )
+            if not ik_sol:
+                continue
+            unwrapped = unwrap_ik_solution(ik_sol, current_joints)
             group_states = self._ensure_srdf_states().get(group, {})
             if seed_overrides:
                 target_names: Sequence[str] = list(seed_overrides.keys())
             elif group_states:
                 target_names = list(next(iter(group_states.values())).keys())
             else:
-                target_names = list(ik_sol.keys())
-            arm_targets = {k: ik_sol[k] for k in target_names if k in ik_sol}
-            if arm_targets:
-                return self.move_to_joints(
-                    group, arm_targets, label, tol=arm_tol, vel_scale=vel_scale
-                )
+                target_names = list(unwrapped.keys())
+            arm_targets = {k: unwrapped[k] for k in target_names if k in unwrapped}
+            if arm_targets and self.move_to_joints(
+                group, arm_targets, label, tol=arm_tol, vel_scale=vel_scale
+            ):
+                return True
 
         req = MotionPlanRequest()
         req.group_name = group

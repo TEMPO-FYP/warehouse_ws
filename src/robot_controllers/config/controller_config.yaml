@@ -126,7 +126,7 @@ robot_profiles:
       gripper_open_tolerance: 0.05
       gripper_closed_tolerance: 0.05
       arm_joint_tolerance: 0.01
-      moveit_timeout_sec: 45.0
+      moveit_timeout_sec: 90.0
       min_reach_m: 0.20
       max_reach_m: 0.92
       place_drop_standoff: 0.72

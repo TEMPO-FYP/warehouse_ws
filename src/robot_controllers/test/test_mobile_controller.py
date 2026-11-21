@@ -25,7 +25,7 @@ from ament_index_python.packages import get_package_share_directory
 from moveit_msgs.msg import CollisionObject
 import rclpy
 from robot_controllers.mobile_robot_controller import _load_config, MobileRobotController
-from robot_controllers.moveit_client import parse_srdf_group_states
+from robot_controllers.moveit_client import parse_srdf_group_states, unwrap_ik_solution
 from robot_controllers.planning_scene_manager import PlanningSceneManager
 from robot_controllers.sdf_scene_loader import (
     build_world_collision_objects,
@@ -660,3 +660,14 @@ def test_sdf_scene_loader_parses_packing_station_and_builds_collision_objects():
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+
+
+def test_unwrap_ik_solution_avoids_full_turn_spins():
+    """Verify 2*pi IK unwrapping picks the branch closest to current joints."""
+    current = {'joint1': 0.035, 'joint2': 0.273, 'joint3': -1.353}
+    raw_ik = {'joint1': 5.85, 'joint2': -1.53, 'joint3': -4.85, 'joint4': 3.10}
+    unwrapped = unwrap_ik_solution(raw_ik, current)
+    assert math.isclose(unwrapped['joint1'], 5.85 - 2.0 * math.pi, abs_tol=1e-9)
+    assert math.isclose(unwrapped['joint3'], -4.85 + 2.0 * math.pi, abs_tol=1e-9)
+    assert math.isclose(unwrapped['joint2'], -1.53, abs_tol=1e-9)
+    assert math.isclose(unwrapped['joint4'], 3.10, abs_tol=1e-9)
