@@ -1,0 +1,98 @@
+world:
+  name: "default"
+  map_package: "warehouse_sim"
+  map_yaml_relpath: "maps/warehouse_map.yaml"
+  fixture_surface_z:
+    Packing_Station: 0.914
+    Picking_Shelves: 0.686
+    test_pedestal: 0.700
+    Pallet_Standard: 0.145
+  fixture_dims:
+    Packing_Station: [0.838, 2.108, 0.914]
+    Picking_Shelves: [0.902, 0.444, 0.686]
+    test_pedestal: [0.180, 0.180, 0.700]
+    Pallet_Standard: [1.200, 1.000, 0.145]
+
+robot_profiles:
+  b1z1:
+    namespace: "/b1z1"
+    gazebo_model_name: "b1z1"
+    base_frame: "b1z1_base_link"
+    tcp_frame: "b1z1_gripper_tcp"
+    navigation:
+      standoff_distance: 0.90
+      manipulation_standoff: 0.73
+      nav_timeout_sec: 150.0
+      robot_clearance_radius: 0.36
+      fine_align_pulses: true
+      min_pulse_duration_sec: 0.90
+    manipulation:
+      move_group_name: "z1_arm"
+      gripper_mode: "move_group"          # "move_group" or "gripper_command"
+      gripper_group_name: "z1_gripper"
+      srdf_states:
+        home: "home"
+        pre_fold: "pre_fold"
+        carry_retract: "carry_retract"
+        carry: "carry"
+        gripper_open: "open"
+        gripper_close: "close"
+        gripper_attach: "attach"
+      touch_links: ["b1z1_gripper_tcp", "b1z1_gripperStator", "b1z1_gripperMover", "b1z1_link06"]
+      gripper_open_tolerance: 0.08
+      gripper_closed_tolerance: 0.02
+      arm_joint_tolerance: 0.005
+      moveit_timeout_sec: 45.0
+      min_reach_m: 0.40
+      max_reach_m: 0.85
+      place_drop_standoff: 0.72
+      place_clear_z_offset: 0.055
+      use_kinematic_attach: true
+      attach_max_distance_m: 0.18
+      default_object_dims: [0.06, 0.06, 0.06]
+      grasp_pitch_rad: 0.26
+      grasp_lateral_offset_m: 0.028
+
+  husky_ur5e:
+    namespace: "/a200_0000"
+    gazebo_model_name: "a200_0000"
+    base_frame: "a200_0000/base_link"
+    tcp_frame: "a200_0000/arm_0_tool0"
+    navigation:
+      standoff_distance: 1.00
+      manipulation_standoff: 0.85
+      nav_timeout_sec: 60.0
+      robot_clearance_radius: 0.45
+      fine_align_pulses: false
+    manipulation:
+      move_group_name: "arm_0"
+      gripper_mode: "gripper_command"
+      gripper_action_name: "robotiq_gripper_controller/gripper_cmd"
+      gripper_open_position: 0.0
+      gripper_closed_position: 0.8
+      gripper_max_effort: 50.0
+      arm_joint_tolerance: 0.01
+      moveit_timeout_sec: 30.0
+      min_reach_m: 0.35
+      max_reach_m: 0.95
+      place_drop_standoff: 0.85
+      place_clear_z_offset: 0.06
+      use_kinematic_attach: false
+      default_object_dims: [0.06, 0.06, 0.06]
+
+  b2_cargo:
+    namespace: "/b2_cargo"
+    gazebo_model_name: "b2_cargo"
+    base_frame: "b2_cargo/base_link"
+    tcp_frame: "b2_cargo/cargo_rack_link"
+    supports_manipulation: false
+    navigation:
+      standoff_distance: 0.90
+      manipulation_standoff: 0.73
+      nav_timeout_sec: 150.0
+      robot_clearance_radius: 0.42
+      fine_align_pulses: false
+
+robot_instances:
+  b1z1_1: "b1z1"
+  b2_cargo_1: "b2_cargo"

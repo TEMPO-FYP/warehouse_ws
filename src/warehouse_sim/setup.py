@@ -1,4 +1,5 @@
 import os
+
 from setuptools import find_packages, setup
 
 package_name = 'warehouse_sim'
@@ -19,8 +20,9 @@ data_files = [
     ('share/' + package_name, ['package.xml']),
 ]
 
-# Add launch, worlds, and models recursively
+# Add launch, maps, worlds, and models recursively
 data_files.extend(generate_data_files(package_name, 'launch'))
+data_files.extend(generate_data_files(package_name, 'maps'))
 data_files.extend(generate_data_files(package_name, 'worlds'))
 data_files.extend(generate_data_files(package_name, 'models'))
 
@@ -43,13 +45,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'teleop_arm = warehouse_sim.teleop_arm:main',
-            'planning_scene_manager = warehouse_sim.planning_scene_manager:main',
-            'load_scene = warehouse_sim.load_test_shelf_scene:main',
-            'verify_scene = warehouse_sim.load_test_shelf_scene:verify_main',
-            'gripper_interface = warehouse_sim.gripper_interface:main',
-            'pick_and_place = warehouse_sim.pick_and_place:main',
-            'tempo_arm_worker = warehouse_sim.pick_and_place:worker_main',
+            'gz_pose_bridge = warehouse_sim.gz_pose_bridge:main',
+            'gz_video_recorder = warehouse_sim.gz_video_recorder:main',
         ],
     },
 )

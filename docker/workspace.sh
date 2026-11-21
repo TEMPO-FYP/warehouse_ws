@@ -21,18 +21,8 @@ echo "Installing ROS 2 dependencies..."
 rosdep update
 rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y
 
-# Install MoveIt Task Constructor and Python dependencies
-echo "Installing MoveIt Task Constructor and Python dependencies..."
-apt-get install -y \
-    ros-$ROS_DISTRO-moveit-task-constructor-core \
-    ros-$ROS_DISTRO-moveit-task-constructor-msgs \
-    ros-$ROS_DISTRO-moveit-task-constructor-visualization \
-    python3-scipy \
-    python3-sklearn
-
-# Install Python dependencies for LLM planner
-echo "Installing LLM Planner Python dependencies..."
-pip install --no-cache-dir sentence-transformers groq google-genai
+# Re-source ROS 2 setup so hooks from newly installed vendor packages (e.g. gz_sim_vendor) are loaded
+source /opt/ros/$ROS_DISTRO/setup.bash
 
 # Fix PCL warning if PCL is installed
 echo "Fixing PCL warnings..."
