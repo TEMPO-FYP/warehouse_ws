@@ -219,6 +219,8 @@ class TestTaxonomyKnowledgeBase(unittest.TestCase):
         instances = load_fleet_instances()
         self.assertIn("b1z1_1", instances)
         self.assertNotIn("b1z1_2", instances)
+        self.assertIn("b2_cargo_1", instances)
+        self.assertNotIn("b2_cargo_2", instances)
         self.assertIn("robotic_arm_1", instances)
 
         b1z1 = instances["b1z1_1"]
@@ -226,6 +228,12 @@ class TestTaxonomyKnowledgeBase(unittest.TestCase):
         self.assertIn("navigate_to", b1z1["skills"])
         self.assertIn("navigation", b1z1["capabilities"])
         self.assertEqual(b1z1["specs"]["payload_capacity_kg"], 10.0)
+
+        b2_cargo = instances["b2_cargo_1"]
+        self.assertEqual(b2_cargo["robot_type"], "b2_cargo")
+        self.assertEqual(b2_cargo["skills"], ["navigate_to"])
+        self.assertEqual(b2_cargo["capabilities"], ["navigation"])
+        self.assertEqual(b2_cargo["specs"]["payload_capacity_kg"], 15.0)
 
         arm = instances["robotic_arm_1"]
         self.assertEqual(arm["robot_type"], "robotic_arm")
