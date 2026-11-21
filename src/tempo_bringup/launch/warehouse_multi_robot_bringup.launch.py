@@ -98,7 +98,7 @@ def generate_launch_description():
     use_moveit_arg = DeclareLaunchArgument(
         'use_moveit',
         default_value='true',
-        description='Launch MoveIt 2 move_group for b1z1 when spawn_b1z1:=true',
+        description='Launch MoveIt 2 move_group for enabled manipulators (b1z1, bcr_arm)',
     )
     use_tempo_arg = DeclareLaunchArgument(
         'use_tempo',

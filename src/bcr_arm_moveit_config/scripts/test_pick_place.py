@@ -43,6 +43,7 @@ from rclpy.action import ActionClient
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from robot_controllers.geometry_utils import z_approach_quat_tuple
 from robot_controllers.planning_scene_manager import PlanningSceneManager
 from robot_controllers.sdf_scene_loader import (
     build_world_collision_objects,
@@ -52,31 +53,6 @@ from sensor_msgs.msg import JointState
 from shape_msgs.msg import SolidPrimitive
 from tf2_msgs.msg import TFMessage
 import tf2_ros
-
-
-def _z_approach_quat(yaw: float, pitch_down: float) -> Tuple[float, float, float, float]:
-    """Return quaternion (x, y, z, w) for Convention A +Z approach TCP."""
-    ca, sa = math.cos(pitch_down), math.sin(pitch_down)
-    cy, sy = math.cos(yaw), math.sin(yaw)
-    # Columns of R: [x_tcp, y_tcp, z_tcp]
-    m00, m01, m02 = -sy, cy * sa, cy * ca
-    m10, m11, m12 = cy, sy * sa, sy * ca
-    m20, m21, m22 = 0.0, ca, -sa
-    tr = m00 + m11 + m22
-    if tr > 0.0:
-        s = math.sqrt(tr + 1.0) * 2.0
-        w, x, y, z = 0.25 * s, (m21 - m12) / s, (m02 - m20) / s, (m10 - m01) / s
-    elif m00 > m11 and m00 > m22:
-        s = math.sqrt(1.0 + m00 - m11 - m22) * 2.0
-        w, x, y, z = (m21 - m12) / s, 0.25 * s, (m01 + m10) / s, (m02 + m20) / s
-    elif m11 > m22:
-        s = math.sqrt(1.0 + m11 - m00 - m22) * 2.0
-        w, x, y, z = (m02 - m20) / s, (m01 + m10) / s, 0.25 * s, (m12 + m21) / s
-    else:
-        s = math.sqrt(1.0 + m22 - m00 - m11) * 2.0
-        w, x, y, z = (m10 - m01) / s, (m02 + m20) / s, (m12 + m21) / s, 0.25 * s
-    norm = math.sqrt(x * x + y * y + z * z + w * w)
-    return (x / norm, y / norm, z / norm, w / norm)
 
 
 def _parse_srdf_states(srdf_xml: str) -> Dict[str, Dict[str, Dict[str, float]]]:
@@ -262,7 +238,7 @@ class BcrArmPickPlaceTester(Node):
         self, bx: float, by: float, bz: float, pitch_down: float = 0.314
     ) -> PoseStamped:
         yaw = math.atan2(by, bx)
-        qx, qy, qz, qw = _z_approach_quat(yaw, pitch_down)
+        qx, qy, qz, qw = z_approach_quat_tuple(yaw, pitch_down)
         ps = PoseStamped()
         ps.header.frame_id = self._base_frame
         ps.header.stamp = self.get_clock().now().to_msg()
@@ -551,7 +527,8 @@ def main() -> int:
         return 0
     finally:
         tester.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
