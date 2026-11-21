@@ -43,6 +43,7 @@ from robot_controllers.geometry_utils import (
     transform_base_to_world,
     transform_world_to_base,
     yaw_to_quaternion,
+    z_approach_quat_tuple,
 )
 from robot_controllers.map_standoff import OccupancyMap
 from robot_controllers.moveit_client import MoveItRobotClient
@@ -97,6 +98,8 @@ class RobotProfile:
     srdf_states: Dict[str, str] = field(default_factory=dict)
     touch_links: List[str] = field(default_factory=list)
     supports_manipulation: bool = True
+    supports_navigation: bool = True
+    tcp_approach_axis: str = 'x'
 
 
 def _build_profile(instance_id: str, profile_name: str, raw: Dict[str, Any]) -> RobotProfile:
@@ -146,6 +149,8 @@ def _build_profile(instance_id: str, profile_name: str, raw: Dict[str, Any]) -> 
         srdf_states=dict(manip.get('srdf_states', {})),
         touch_links=list(manip.get('touch_links', [])),
         supports_manipulation=bool(raw.get('supports_manipulation', True)),
+        supports_navigation=bool(raw.get('supports_navigation', True)),
+        tcp_approach_axis=str(manip.get('tcp_approach_axis', 'x')).strip().lower(),
     )
 
 
@@ -243,10 +248,11 @@ class MobileRobotController(Node):
             js_topic = f'{ns_prefix}/joint_states'
             cmd_topic = f'{ns_prefix}/cmd_vel'
 
-            self._nav_clients[inst] = ActionClient(
-                self, NavigateToPose, nav_topic, callback_group=self._cb_group
-            )
-            self._cmd_vel_pubs[inst] = self.create_publisher(Twist, cmd_topic, 10)
+            if prof.supports_navigation:
+                self._nav_clients[inst] = ActionClient(
+                    self, NavigateToPose, nav_topic, callback_group=self._cb_group
+                )
+                self._cmd_vel_pubs[inst] = self.create_publisher(Twist, cmd_topic, 10)
             if prof.supports_manipulation:
                 self._moveit_clients[inst] = MoveItRobotClient(
                     self,
@@ -279,8 +285,9 @@ class MobileRobotController(Node):
                     1,
                     callback_group=self._cb_group,
                 )
+                nav_desc = f'nav={nav_topic}' if prof.supports_navigation else 'nav=disabled'
                 self.get_logger().info(
-                    f'[init] {inst} (profile={prof.profile_name}): nav={nav_topic}, '
+                    f'[init] {inst} (profile={prof.profile_name}): {nav_desc}, '
                     f'moveit={ns_prefix}/move_action, tcp={prof.tcp_frame}'
                 )
             else:
@@ -427,6 +434,10 @@ class MobileRobotController(Node):
 
     def _get_robot_pose(self, robot: str) -> Optional[PoseEntry]:
         prof = self._profiles[robot]
+        if not prof.supports_navigation:
+            tf_pose = self._lookup_frame_in_map(prof.base_frame)
+            if tf_pose is not None:
+                return tf_pose
         with self._pose_lock:
             return (
                 self._pose_registry.get(prof.gazebo_model_name)
@@ -562,6 +573,16 @@ class MobileRobotController(Node):
             return
 
         if skill == 'navigate_to':
+            if not prof.supports_navigation:
+                self._publish_feedback(
+                    plan_id, task_id, robot,
+                    status='failed', stage='unsupported_skill',
+                    detail=(
+                        f"Robot '{robot}' (profile '{prof.profile_name}') "
+                        f"does not support '{skill}'."
+                    ),
+                )
+                return
             self._execute_navigate_to(plan_id, task_id, robot, args)
         elif skill == 'pick':
             self._execute_pick(plan_id, task_id, robot, args)
@@ -740,6 +761,15 @@ class MobileRobotController(Node):
         rx, ry, rz, rquat = robot_pose
         bx, by, _ = transform_world_to_base(tx, ty, rz, (rx, ry, rz), rquat)
         horiz = math.hypot(bx, by)
+
+        if not prof.supports_navigation:
+            max_allowed = max_dist + (0.06 if tight else 0.15)
+            if horiz < prof.min_reach_m or horiz > max_allowed:
+                return False, (
+                    f'Target outside stationary arm reachability window: '
+                    f'base=({bx:.3f}, {by:.3f}), horiz={horiz:.3f}'
+                )
+            return True, ''
 
         if horiz > 1.25 or horiz < prof.min_reach_m or bx < 0.25:
             target_yaw = math.atan2(ty - ry, tx - rx)
@@ -973,8 +1003,15 @@ class MobileRobotController(Node):
         roll: float = 0.0,
         pitch: float = 0.0,
     ) -> PoseStamped:
-        aim_yaw = math.atan2(by, max(bx - 0.15, 0.05))
-        qx, qy, qz, qw = rpy_to_quat_tuple(roll, pitch, aim_yaw)
+        aim_yaw = (
+            math.atan2(by, bx)
+            if not prof.supports_navigation
+            else math.atan2(by, max(bx - 0.15, 0.05))
+        )
+        if prof.tcp_approach_axis == 'z':
+            qx, qy, qz, qw = z_approach_quat_tuple(aim_yaw, pitch)
+        else:
+            qx, qy, qz, qw = rpy_to_quat_tuple(roll, pitch, aim_yaw)
         ps = PoseStamped()
         ps.header.frame_id = prof.base_frame
         ps.header.stamp = self.get_clock().now().to_msg()
@@ -1153,14 +1190,26 @@ class MobileRobotController(Node):
             lift_x_off = 0.060 if in_cargo_crate else 0.045
             lift_z_off = 0.18 if in_cargo_crate else 0.22
 
-            aim_yaw = math.atan2(by, max(bx - 0.15, 0.05))
+            aim_yaw = (
+                math.atan2(by, bx)
+                if not prof.supports_navigation
+                else math.atan2(by, max(bx - 0.15, 0.05))
+            )
             lat_dx = -prof.grasp_lateral_offset_m * math.sin(aim_yaw)
             lat_dy = prof.grasp_lateral_offset_m * math.cos(aim_yaw)
+            if not prof.supports_navigation:
+                pre_x = bx - 0.08 * math.cos(aim_yaw) + lat_dx
+                pre_y = by - 0.08 * math.sin(aim_yaw) + lat_dy
+                pre_z = bz + 0.12
+            else:
+                pre_x = bx - 0.025 + lat_dx
+                pre_y = by + lat_dy
+                pre_z = bz + 0.15
             pre_grasp_pose = self._make_base_pose_stamped(
                 prof,
-                bx - 0.025 + lat_dx,
-                by + lat_dy,
-                bz + 0.15,
+                pre_x,
+                pre_y,
+                pre_z,
                 prof.grasp_roll_rad,
                 grasp_pitch,
             )
@@ -1184,22 +1233,37 @@ class MobileRobotController(Node):
             if base_pt_now is not None:
                 bx, by, bz = base_pt_now
                 pre_pick_z = pose_now[2]
-                aim_yaw = math.atan2(by, max(bx - 0.15, 0.05))
+                aim_yaw = (
+                    math.atan2(by, bx)
+                    if not prof.supports_navigation
+                    else math.atan2(by, max(bx - 0.15, 0.05))
+                )
                 lat_dx = -prof.grasp_lateral_offset_m * math.sin(aim_yaw)
                 lat_dy = prof.grasp_lateral_offset_m * math.cos(aim_yaw)
 
+            if not prof.supports_navigation:
+                grasp_x = bx - 0.015 * math.cos(aim_yaw) + lat_dx
+                grasp_y = by - 0.015 * math.sin(aim_yaw) + lat_dy
+                lift_x = bx - lift_x_off * math.cos(aim_yaw) + lat_dx
+                lift_y = by - lift_x_off * math.sin(aim_yaw) + lat_dy
+            else:
+                grasp_x = bx - 0.025 + lat_dx
+                grasp_y = by + lat_dy
+                lift_x = bx - lift_x_off + lat_dx
+                lift_y = by + lat_dy
+
             grasp_pose = self._make_base_pose_stamped(
                 prof,
-                bx - 0.025 + lat_dx,
-                by + lat_dy,
+                grasp_x,
+                grasp_y,
                 bz + grasp_z_off,
                 prof.grasp_roll_rad,
                 grasp_pitch,
             )
             lift_pose = self._make_base_pose_stamped(
                 prof,
-                bx - lift_x_off + lat_dx,
-                by + lat_dy,
+                lift_x,
+                lift_y,
                 bz + lift_z_off,
                 prof.grasp_roll_rad,
                 grasp_pitch,
@@ -1369,8 +1433,20 @@ class MobileRobotController(Node):
             if dist > prof.place_drop_standoff and dist > 1e-4:
                 scale = prof.place_drop_standoff / dist
                 bx, by = bx_raw * scale, by_raw * scale
+            elif not prof.supports_navigation:
+                bx, by = bx_raw, by_raw
             else:
                 bx, by = max(0.55, bx_raw - 0.03), by_raw
+        elif not prof.supports_navigation:
+            raw_yaw = math.atan2(by_raw, bx_raw)
+            target_bx = bx_raw - 0.015 * math.cos(raw_yaw)
+            target_by = by_raw - 0.015 * math.sin(raw_yaw)
+            reach_dist = math.hypot(target_bx, target_by)
+            if reach_dist > prof.max_reach_m and reach_dist > 1e-4:
+                scale = prof.max_reach_m / reach_dist
+                bx, by = target_bx * scale, target_by * scale
+            else:
+                bx, by = target_bx, target_by
         else:
             target_bx = max(0.45, bx_raw - 0.025)
             target_by = by_raw
@@ -1393,7 +1469,11 @@ class MobileRobotController(Node):
             f'base=({bx:.3f}, {by:.3f}, {bz:.3f})'
         )
 
-        aim_yaw = math.atan2(by, max(bx - 0.15, 0.05))
+        aim_yaw = (
+            math.atan2(by, bx)
+            if not prof.supports_navigation
+            else math.atan2(by, max(bx - 0.15, 0.05))
+        )
         lat_dx = -prof.grasp_lateral_offset_m * math.sin(aim_yaw)
         lat_dy = prof.grasp_lateral_offset_m * math.cos(aim_yaw)
 

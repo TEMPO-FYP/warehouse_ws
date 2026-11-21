@@ -473,3 +473,112 @@ def test_execute_pick_from_b2_cargo_raises_grasp_clearance_and_pitch():
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+
+
+def test_bcr_arm_profile_and_rejects_navigate_to():
+    """Verify bcr_arm profile config and unsupported_skill rejection for navigate_to."""
+    from robot_controllers.geometry_utils import z_approach_quat_tuple
+
+    cfg = _load_config()
+    assert 'bcr_arm' in cfg['robot_profiles']
+    assert cfg['robot_instances']['bcr_arm_1'] == 'bcr_arm'
+    assert cfg['robot_profiles']['bcr_arm']['supports_navigation'] is False
+    assert cfg['robot_profiles']['bcr_arm']['supports_manipulation'] is True
+    assert cfg['robot_profiles']['bcr_arm']['manipulation']['tcp_approach_axis'] == 'z'
+
+    qx, qy, qz, qw = z_approach_quat_tuple(math.pi, 0.0)
+    assert math.isclose(qx * qx + qy * qy + qz * qz + qw * qw, 1.0, abs_tol=1e-6)
+
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        assert 'bcr_arm_1' in node._moveit_clients
+        assert 'bcr_arm_1' not in node._nav_clients
+        assert 'bcr_arm_1' not in node._cmd_vel_pubs
+
+        feedbacks = []
+        node._publish_feedback = lambda *a, **kw: feedbacks.append((a, kw))
+        node._handle_subtask({
+            'plan_id': 'p_arm',
+            'task_id': 'T_nav',
+            'robot': 'bcr_arm_1',
+            'required_skills': ['navigate_to'],
+            'args': {'location': 'Packing_Station'},
+        })
+        assert len(feedbacks) == 1
+        assert feedbacks[0][1]['status'] == 'failed'
+        assert feedbacks[0][1]['stage'] == 'unsupported_skill'
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_bcr_arm_stationary_reachability_and_pick_place():
+    """Verify 360-deg stationary reachability check and mocked pick/place on bcr_arm_1."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        psm = MagicMock()
+        psm.add_box.return_value = True
+        psm.attach_object.return_value = True
+        psm.detach_object.return_value = True
+        psm.remove_object.return_value = True
+        node._scene_managers['bcr_arm_1'] = psm
+        node._gz_attach_pubs['bcr_arm_1'] = MagicMock()
+        node._gz_attach_pubs['bcr_arm_1'].publish.return_value = True
+        node._gz_detach_pubs['bcr_arm_1'] = MagicMock()
+        node._gz_detach_pubs['bcr_arm_1'].publish.return_value = True
+        node._joint_positions['bcr_arm_1'].update({f'joint{i}': 0.0 for i in range(1, 8)})
+
+        # Stationary base at (1.75, 13.08, 0.55) via TF2
+        node._lookup_frame_in_map = MagicMock(
+            return_value=(1.75, 13.08, 0.55, (0.0, 0.0, 0.0, 1.0))
+        )
+
+        # Target behind base (-X direction in base_link, 0.55 m away) must be reachable!
+        ok_rear, err_rear = node._ensure_aligned('bcr_arm_1', 1.20, 13.08, 'T_pick', 0.92, 0.72)
+        assert ok_rear, err_rear
+
+        # Target 1.50 m away must be rejected as out of reach.
+        ok_far, err_far = node._ensure_aligned('bcr_arm_1', 3.25, 13.08, 'T_far', 0.92, 0.72)
+        assert not ok_far
+        assert 'reachability window' in err_far
+
+        # Mocked pick & place execution
+        node._pose_registry['graspable_box'] = (1.20, 13.08, 0.945, (0.0, 0.0, 0.0, 1.0))
+        node._pose_registry['Packing_Station'] = (0.934, 13.08, 0.0, (0.0, 0.0, 0.0, 1.0))
+        node._open_gripper = MagicMock(return_value=True)
+        node._close_gripper = MagicMock(return_value=True)
+        node._move_arm_state = MagicMock(return_value=True)
+        recorded = {}
+
+        def fake_move_pose(robot, ps, label, **kwargs):
+            recorded[label] = ps
+            return True
+
+        node._move_arm_to_pose = fake_move_pose
+        node._attach_kinematic_object = MagicMock(return_value=None)
+        node._confirm_object_z = MagicMock(return_value=1.10)
+        feedbacks = []
+        node._publish_feedback = lambda *a, **kw: feedbacks.append((a, kw))
+
+        node._execute_pick('p1', 'T1', 'bcr_arm_1', {'object': 'graspable_box'})
+        assert feedbacks[-1][1]['status'] == 'success'
+        assert feedbacks[-1][1]['stage'] == 'complete'
+        assert recorded['T1_grasp'].pose.position.x < 0.0
+
+        node._attached_objects['bcr_arm_1'] = 'graspable_box'
+        node._execute_place(
+            'p1', 'T2', 'bcr_arm_1', {'object': 'graspable_box', 'location': 'Packing_Station'}
+        )
+        assert feedbacks[-1][1]['status'] == 'success'
+        assert feedbacks[-1][1]['stage'] == 'complete'
+        assert math.hypot(
+            recorded['T2_place_descend'].pose.position.x,
+            recorded['T2_place_descend'].pose.position.y,
+        ) <= 0.721
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
