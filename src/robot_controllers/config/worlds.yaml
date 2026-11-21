@@ -1,0 +1,17 @@
+# Per-world presets for mobile_robot_bringup.launch.py (world:=warehouse|empty).
+# The map is given as [package, path in its share directory]. The maps are in
+# Gazebo world coordinates, so the spawn pose is also the robot's initial pose
+# in the map (AMCL needs no manual "2D Pose Estimate"). The spawn pose must
+# match the x/y/yaw that warehouse_sim/warehouse_clearpath.launch.py spawned
+# the robot at (its defaults are 0, -3, 0 for both worlds).
+# Both worlds are named "default", which must match world.name in
+# controller_config.yaml.
+
+warehouse:
+  map: [warehouse_sim, maps/warehouse_map.yaml]
+  # (0, 0) is inside a mapped obstacle; (0, -3) is clear
+  spawn: {x: 0.0, y: -3.0, yaw: 0.0}
+
+empty:
+  map: [robot_controllers, maps/empty_map.yaml]
+  spawn: {x: 0.0, y: -3.0, yaw: 0.0}

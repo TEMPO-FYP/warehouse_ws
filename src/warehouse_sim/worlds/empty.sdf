@@ -3,12 +3,15 @@
   Empty test world for the Husky A200 + UR5e.
   World name is "default" so it matches world.name in controller_config.yaml.
 
-  Layout (metres, world frame; spawn the robot at 0 0 yaw 0):
+  Layout (metres, world frame; warehouse_clearpath.launch.py spawns the
+  robot at 0 -3 yaw 0 by default):
     - 12 x 12 m walled room
-    - obstacle_1 (1.5, 0.8) and obstacle_2 (-2.5, -1.5)
+    - obstacle_1 (1.6, 0.0), between the spawn and the stands, and
+      obstacle_2 (-2.5, -1.5)
     - pick_stand  (3.0,  2.0) with test_box on top (z 0.53)
     - place_stand (3.0, -2.0) with place_spot marker above it (z 0.56)
-  Delete any model block you do not need.
+  robot_controllers/maps/empty_map.yaml is the map of this world; regenerate
+  it if the static models change. Delete any model block you do not need.
 -->
 <sdf version="1.10">
   <world name="default">
@@ -99,7 +102,7 @@
       </link>
     </model>
     <model name="obstacle_1">
-      <pose>1.5 0.8 0.5 0 0 0</pose>
+      <pose>1.6 0.0 0.5 0 0 0</pose>
       <static>true</static>
       <link name="link">
         <collision name="collision"><geometry><box><size>0.6 0.6 1.0</size></box></geometry></collision>

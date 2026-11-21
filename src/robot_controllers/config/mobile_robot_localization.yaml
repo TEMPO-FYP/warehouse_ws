@@ -44,13 +44,16 @@ amcl:
     sigma_hit: 0.2
     tf_broadcast: true
     transform_tolerance: 1.0
-    update_min_a: 0.2
-    update_min_d: 0.25
+    # Update the filter often (Clearpath: 0.25 m / 0.2 rad): between updates
+    # map->odom is frozen and odometry drift goes uncorrected, which leaves
+    # the robot decimetres off where the arm needs it
+    update_min_a: 0.05
+    update_min_d: 0.05
     z_hit: 0.5
     z_max: 0.05
     z_rand: 0.5
     z_short: 0.05
-    # Relative: resolves to /a200_0001/sensors/lidar2d_0/scan under the namespace
+    # Overridden by mobile_robot_bringup.launch.py with the absolute topic
     scan_topic: sensors/lidar2d_0/scan
 
 map_saver:
