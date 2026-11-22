@@ -987,3 +987,121 @@ def test_moveit_client_check_ik_reachable_returns_none_when_service_unready():
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+
+
+def test_husky_ur5e_profile_namespaced_tf_and_pick_place():
+    """Verify husky_ur5e_1 profile, namespaced TF buffer, gripper attach pos, and pick/place."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        prof = node._profiles['husky_ur5e_1']
+        assert prof.namespace == '/a200_0000'
+        assert prof.gazebo_model_name == 'a200_0000'
+        assert prof.base_frame == 'base_link'
+        assert prof.tcp_frame == 'arm_0_gripper_grasp_tcp'
+        assert prof.use_namespaced_tf is True
+        assert prof.cmd_vel_stamped is True
+        assert prof.joint_states_topic == '/a200_0000/platform/joint_states'
+        assert prof.gripper_action_name == 'arm_0_gripper_controller/gripper_cmd'
+        assert math.isclose(prof.gripper_attach_position, 0.35)
+        assert prof.use_kinematic_attach is True
+        assert 'husky_ur5e_1' in node._robot_tf_buffers
+
+        # Per-robot TF buffer resolution isolates /a200_0000/tf from global /tf.
+        from geometry_msgs.msg import TransformStamped
+        from tf2_msgs.msg import TFMessage
+
+        t_msg = TFMessage()
+        tf_item = TransformStamped()
+        tf_item.header.frame_id = 'map'
+        tf_item.child_frame_id = 'arm_0_gripper_grasp_tcp'
+        tf_item.transform.translation.x = 1.25
+        tf_item.transform.translation.y = -2.50
+        tf_item.transform.translation.z = 0.85
+        tf_item.transform.rotation.w = 1.0
+        t_msg.transforms.append(tf_item)
+        node._ingest_tf(node._robot_tf_buffers['husky_ur5e_1'], t_msg, static=True)
+
+        tcp_world = node._get_tcp_world_pose('husky_ur5e_1')
+        assert tcp_world is not None
+        assert math.isclose(tcp_world[0], 1.25, abs_tol=1e-6)
+        assert math.isclose(tcp_world[1], -2.50, abs_tol=1e-6)
+        assert math.isclose(tcp_world[2], 0.85, abs_tol=1e-6)
+
+        # Stamped cmd_vel publisher emits TwistStamped for Clearpath twist_mux.
+        from geometry_msgs.msg import TwistStamped
+
+        pub_spy = MagicMock()
+        node._cmd_vel_pubs['husky_ur5e_1'] = pub_spy
+        node._publish_cmd_vel('husky_ur5e_1', vx=0.25, wz=0.1)
+        sent_vel = pub_spy.publish.call_args[0][0]
+        assert isinstance(sent_vel, TwistStamped)
+        assert sent_vel.header.frame_id == 'base_link'
+        assert math.isclose(sent_vel.twist.linear.x, 0.25, abs_tol=1e-6)
+
+        # Gripper command uses gripper_attach_position when for_attach=True.
+        gripper_cmds = []
+        node._moveit_clients['husky_ur5e_1'].move_gripper_command = (
+            lambda pos, effort, label: gripper_cmds.append((pos, effort, label)) or True
+        )
+        node._sim_sleep = lambda _s: None
+        assert node._close_gripper('husky_ur5e_1', 'attach_close', for_attach=True)
+        assert node._close_gripper('husky_ur5e_1', 'full_close', for_attach=False)
+        assert math.isclose(gripper_cmds[0][0], 0.35, abs_tol=1e-6)
+        assert math.isclose(gripper_cmds[1][0], 0.80, abs_tol=1e-6)
+
+        # Mocked pick & place with DynamicAttachSystem + MoveIt scene manager.
+        psm = MagicMock()
+        psm.add_box.return_value = True
+        psm.add_collision_objects.return_value = True
+        psm.attach_object.return_value = True
+        psm.detach_object.return_value = True
+        psm.remove_object.return_value = True
+        psm.remove_objects.return_value = True
+        node._scene_managers['husky_ur5e_1'] = psm
+        node._gz_attach_pubs['husky_ur5e_1'] = MagicMock()
+        node._gz_attach_pubs['husky_ur5e_1'].publish.return_value = True
+        node._gz_detach_pubs['husky_ur5e_1'] = MagicMock()
+        node._gz_detach_pubs['husky_ur5e_1'].publish.return_value = True
+        node._joint_positions['husky_ur5e_1'].update({
+            'arm_0_shoulder_pan_joint': 0.0,
+            'arm_0_shoulder_lift_joint': -1.5707,
+            'arm_0_elbow_joint': 1.5707,
+            'arm_0_wrist_1_joint': -1.5707,
+            'arm_0_wrist_2_joint': -1.5707,
+            'arm_0_wrist_3_joint': 0.0,
+        })
+        node._pose_registry['a200_0000'] = (0.40, -2.50, 0.15, (0.0, 0.0, 0.0, 1.0))
+        node._pose_registry['graspable_box'] = (1.25, -2.50, 0.73, (0.0, 0.0, 0.0, 1.0))
+        node._pose_registry['Packing_Station'] = (2.05, -2.50, 0.0, (0.0, 0.0, 0.0, 1.0))
+        node._ensure_aligned = MagicMock(return_value=(True, ''))
+        node._move_arm_state = MagicMock(return_value=True)
+        node._move_arm_to_pose = MagicMock(return_value=True)
+        node._open_gripper = MagicMock(return_value=True)
+        node._confirm_object_z = MagicMock(return_value=0.95)
+        feedbacks = []
+        node._publish_feedback = lambda *a, **kw: feedbacks.append((a, kw))
+
+        node._execute_pick('p_ur5e', 'T1', 'husky_ur5e_1', {'object': 'graspable_box'})
+        assert feedbacks[-1][1]['status'] == 'success'
+        assert node._attached_objects['husky_ur5e_1'] == 'graspable_box'
+        psm.attach_object.assert_called_once_with(
+            'graspable_box', link_name='arm_0_gripper_grasp_tcp'
+        )
+        assert node._gz_attach_pubs['husky_ur5e_1'].publish.called
+
+        node._pose_registry['graspable_box'] = (2.05, -2.50, 0.96, (0.0, 0.0, 0.0, 1.0))
+        node._execute_place(
+            'p_ur5e', 'T2', 'husky_ur5e_1',
+            {'object': 'graspable_box', 'location': 'Packing_Station'},
+        )
+        assert feedbacks[-1][1]['status'] == 'success'
+        assert node._attached_objects['husky_ur5e_1'] is None
+        psm.detach_object.assert_called_once_with(
+            'graspable_box', link_name='arm_0_gripper_grasp_tcp'
+        )
+        assert node._gz_detach_pubs['husky_ur5e_1'].publish.called
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()

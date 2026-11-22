@@ -59,6 +59,23 @@
         "speed_m_s": 1.0
       },
       "status": "active"
+    },
+    {
+      "robot_type": "husky_ur5e",
+      "capabilities": [
+        "navigation",
+        "manipulation"
+      ],
+      "skill_ids": [
+        "navigate_to",
+        "pick",
+        "place"
+      ],
+      "specs": {
+        "payload_capacity_kg": 5.0,
+        "speed_m_s": 1.0
+      },
+      "status": "active"
     }
   ]
 }

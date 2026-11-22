@@ -26,6 +26,7 @@ from launch.substitutions import LaunchConfiguration
 def generate_launch_description():
     """Spawn Husky A200 into a running Gazebo world and start Nav2."""
     pkg_husky_control = get_package_share_directory('husky_control')
+    default_config_yaml = os.path.join(pkg_husky_control, 'config', 'husky_transport.yaml')
 
     spawn_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -41,7 +42,10 @@ def generate_launch_description():
             'z': LaunchConfiguration('z'),
             'yaw': LaunchConfiguration('yaw'),
             'spawn_delay': LaunchConfiguration('spawn_delay'),
+            'config_yaml': LaunchConfiguration('config_yaml'),
             'use_nav2': LaunchConfiguration('use_nav2'),
+            'use_manipulation_controllers': 'false',
+            'use_moveit': 'false',
             'max_speed': LaunchConfiguration('max_speed'),
         }.items(),
     )
@@ -71,6 +75,11 @@ def generate_launch_description():
         DeclareLaunchArgument('y', default_value='-5.0', description='Spawn Y position'),
         DeclareLaunchArgument('z', default_value='0.15', description='Spawn Z position'),
         DeclareLaunchArgument('yaw', default_value='0.0', description='Spawn Yaw rotation'),
+        DeclareLaunchArgument(
+            'config_yaml',
+            default_value=default_config_yaml,
+            description='Path to Clearpath robot.yaml configuration template',
+        ),
         DeclareLaunchArgument(
             'use_nav2',
             default_value='true',
