@@ -33,7 +33,7 @@ def _build_nav2_nodes(context, default_override_file: str):
 
     odom_frame = f'{prefix}odom'
     base_frame = f'{prefix}base_footprint'
-    scan_topic = f'/{ns}/scan'
+    scan_topic = f'/{ns}/scan/points'
     configured_params = RewrittenYaml(
         source_file=params_file,
         root_key=ns,

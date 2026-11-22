@@ -16,7 +16,7 @@
 
 import math
 import os
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 import yaml
@@ -141,6 +141,7 @@ class OccupancyMap:
         preferred_dist: float = 0.90,
         clearance_radius: float = 0.36,
         max_standoff_dist: Optional[float] = None,
+        preferred_approach_angles: Optional[Sequence[float]] = None,
     ) -> Tuple[float, float, float]:
         """Select a collision-free standoff (x, y, yaw) facing (tx, ty) with line of sight."""
         approach_angle = (
@@ -157,6 +158,27 @@ class OccupancyMap:
             if step < 8:
                 angle_offsets.append(-delta)
 
+        candidate_angles: List[float] = []
+        if preferred_approach_angles:
+            raw_angles: List[float] = list(preferred_approach_angles)
+            for pref in preferred_approach_angles:
+                for fan in (math.pi / 12.0, -math.pi / 12.0, math.pi / 6.0, -math.pi / 6.0):
+                    raw_angles.append(pref + fan)
+            for dtheta in angle_offsets:
+                raw_angles.append(approach_angle + dtheta)
+
+            for ang in raw_angles:
+                norm_ang = math.atan2(math.sin(ang), math.cos(ang))
+                if not any(
+                    abs(math.atan2(math.sin(norm_ang - seen), math.cos(norm_ang - seen))) < 0.05
+                    for seen in candidate_angles
+                ):
+                    candidate_angles.append(norm_ang)
+            fallback_angle = preferred_approach_angles[0]
+        else:
+            candidate_angles = [approach_angle + dtheta for dtheta in angle_offsets]
+            fallback_angle = approach_angle
+
         radii = [
             preferred_dist,
             preferred_dist + 0.25,
@@ -171,8 +193,7 @@ class OccupancyMap:
                 radii = [min(preferred_dist, max_standoff_dist)]
 
         for radius in radii:
-            for dtheta in angle_offsets:
-                theta = approach_angle + dtheta
+            for theta in candidate_angles:
                 cand_x = tx + radius * math.cos(theta)
                 cand_y = ty + radius * math.sin(theta)
                 if self.is_world_free(
@@ -181,12 +202,12 @@ class OccupancyMap:
                     facing_yaw = math.atan2(ty - cand_y, tx - cand_x)
                     return cand_x, cand_y, facing_yaw
 
-        # Fallback along approach direction if map bounds/radii fail.
+        # Fallback along primary approach direction if map bounds/radii fail.
         fallback_dist = (
             min(preferred_dist, max_standoff_dist)
             if max_standoff_dist is not None
             else preferred_dist
         )
-        cand_x = tx + fallback_dist * math.cos(approach_angle)
-        cand_y = ty + fallback_dist * math.sin(approach_angle)
+        cand_x = tx + fallback_dist * math.cos(fallback_angle)
+        cand_y = ty + fallback_dist * math.sin(fallback_angle)
         return cand_x, cand_y, math.atan2(ty - cand_y, tx - cand_x)

@@ -67,6 +67,7 @@ def _launch_setup(context, xacro_file: str):
         arguments=[
             f'/{ns}/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
             f'/{ns}/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
+            f'/{ns}/scan/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
             f'/{ns}/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
         ],
         remappings=[(f'/{ns}/tf', '/tf')],

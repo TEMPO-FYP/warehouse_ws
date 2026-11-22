@@ -22,7 +22,13 @@ build_docker_image()
     # -t warehouse_ws:latest: Tag the image as warehouse_ws:latest
     # $PARENT_PATH: Use the parent directory as the build context, allowing access to all package files
     # --no-cache: Build the image without using the cache, ensuring fresh dependencies
-    sudo docker image build -f $SCRIPT_PATH/Dockerfile -t warehouse_ws:latest $PARENT_PATH
+    # ROS_APT_MIRROR: ROS 2 apt mirror used instead of packages.ros.org, which
+    # downloads at only ~10 KB/s from Pakistan. Defaults to the Huawei Cloud
+    # mirror; set it to empty (ROS_APT_MIRROR= bash build.sh) to use
+    # packages.ros.org, or to another mirror URL.
+    sudo docker image build -f $SCRIPT_PATH/Dockerfile -t warehouse_ws:latest \
+        --build-arg ROS_APT_MIRROR="${ROS_APT_MIRROR-https://repo.huaweicloud.com/ros2/ubuntu}" \
+        $PARENT_PATH
 }
 
 # Function to create a shared folder

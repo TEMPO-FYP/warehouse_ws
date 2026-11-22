@@ -2,7 +2,7 @@
 set -e
 
 # Set ROS 2 distribution as a variable
-ROS_DISTRO="jazzy"
+ROS_DISTRO="${ROS_DISTRO:-jazzy}"
 
 # Source ROS 2 setup
 source /opt/ros/$ROS_DISTRO/setup.bash
@@ -12,6 +12,10 @@ apt-get update && apt-get install -y \
     gnupg \
     curl \
     libpcap-dev
+
+# Add Clearpath rosdep sources so rosdep can resolve clearpath package dependencies
+wget https://raw.githubusercontent.com/clearpathrobotics/public-rosdistro/master/rosdep/50-clearpath.list \
+    -O /etc/ros/rosdep/sources.list.d/50-clearpath.list
 
 # Navigate to workspace root
 cd /root/warehouse_ws

@@ -21,7 +21,7 @@ import os
 import queue
 import threading
 import time
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from action_msgs.msg import GoalStatus
 from ament_index_python.packages import get_package_share_directory
@@ -61,6 +61,22 @@ import yaml
 
 
 PoseEntry = Tuple[float, float, float, Tuple[float, float, float, float]]
+
+
+def _is_in_cargo_bumper_cone(
+    cargo_pose: PoseEntry,
+    robot_pose: PoseEntry,
+    cone_cos: float = 0.707,
+) -> bool:
+    """Return True if `robot_pose` sits inside the ±45 deg front/rear bumper cone."""
+    dx = robot_pose[0] - cargo_pose[0]
+    dy = robot_pose[1] - cargo_pose[1]
+    dist = math.hypot(dx, dy)
+    if dist < 1e-4:
+        return False
+    cargo_yaw = quaternion_to_yaw(*cargo_pose[3])
+    proj = abs(dx * math.cos(cargo_yaw) + dy * math.sin(cargo_yaw))
+    return (proj / dist) > cone_cos
 
 
 @dataclass
@@ -105,6 +121,7 @@ class RobotProfile:
     supports_manipulation: bool = True
     supports_navigation: bool = True
     tcp_approach_axis: str = 'x'
+    cargo_surface_z_offset: float = 0.110
 
 
 def _build_profile(instance_id: str, profile_name: str, raw: Dict[str, Any]) -> RobotProfile:
@@ -156,6 +173,7 @@ def _build_profile(instance_id: str, profile_name: str, raw: Dict[str, Any]) -> 
         supports_manipulation=bool(raw.get('supports_manipulation', True)),
         supports_navigation=bool(raw.get('supports_navigation', True)),
         tcp_approach_axis=str(manip.get('tcp_approach_axis', 'x')).strip().lower(),
+        cargo_surface_z_offset=float(raw.get('cargo_surface_z_offset', 0.110)),
     )
 
 
@@ -462,10 +480,17 @@ class MobileRobotController(Node):
 
     def _resolve_target_pose(self, entity_name: str) -> Optional[PoseEntry]:
         """Resolve a physical Gazebo entity pose from `/world/<world>/pose/info`."""
+        alias = (
+            self._profiles[entity_name].gazebo_model_name
+            if entity_name in self._profiles
+            else None
+        )
         deadline = time.monotonic() + 1.5
         while True:
             with self._pose_lock:
                 entry = self._pose_registry.get(entity_name)
+                if entry is None and alias:
+                    entry = self._pose_registry.get(alias)
             if entry is not None:
                 return entry
             if time.monotonic() >= deadline:
@@ -619,6 +644,7 @@ class MobileRobotController(Node):
         target_yaw: float,
         preferred_dist: float,
         max_standoff_dist: Optional[float] = None,
+        preferred_approach_angles: Optional[Sequence[float]] = None,
     ) -> Tuple[float, float, float]:
         prof = self._profiles[robot]
         robot_pose = self._get_robot_pose(robot)
@@ -629,13 +655,15 @@ class MobileRobotController(Node):
             return self._occ_map.find_standoff_pose(
                 tx, ty, target_yaw, rx, ry, preferred_dist,
                 prof.robot_clearance_radius, max_standoff_dist=max_standoff_dist,
+                preferred_approach_angles=preferred_approach_angles,
             )
 
-        approach = (
-            math.atan2(ry - ty, rx - tx)
-            if rx is not None and ry is not None
-            else (target_yaw + math.pi)
-        )
+        if preferred_approach_angles:
+            approach = float(preferred_approach_angles[0])
+        elif rx is not None and ry is not None:
+            approach = math.atan2(ry - ty, rx - tx)
+        else:
+            approach = target_yaw + math.pi
         gx = tx + preferred_dist * math.cos(approach)
         gy = ty + preferred_dist * math.sin(approach)
         return gx, gy, math.atan2(ty - gy, tx - gx)
@@ -709,10 +737,25 @@ class MobileRobotController(Node):
         tx, ty, _, quat = pose
         target_yaw = quaternion_to_yaw(*quat)
         is_fixture = self._is_large_fixture(location)
-        pref_dist = prof.standoff_distance if is_fixture else prof.manipulation_standoff
+        broadside_angles: Optional[List[float]] = None
+        if self._find_cargo_robot_profile(location) is not None:
+            broadside_angles = self._cargo_broadside_angles(pose, self._get_robot_pose(robot))
+        else:
+            cargo_match = self._find_cargo_robot_at(tx, ty)
+            if cargo_match is not None:
+                broadside_angles = self._cargo_broadside_angles(
+                    cargo_match[1], self._get_robot_pose(robot)
+                )
+        if broadside_angles is not None:
+            pref_dist = max(prof.standoff_distance, 0.95)
+            max_nav_dist: Optional[float] = None
+        else:
+            pref_dist = prof.standoff_distance if is_fixture else prof.manipulation_standoff
+            max_nav_dist = None if is_fixture else prof.max_reach_m
         gx, gy, gyaw = self._compute_nav_goal(
             robot, tx, ty, target_yaw, pref_dist,
-            max_standoff_dist=None if is_fixture else prof.max_reach_m,
+            max_standoff_dist=max_nav_dist,
+            preferred_approach_angles=broadside_angles,
         )
 
         self.get_logger().info(
@@ -767,8 +810,12 @@ class MobileRobotController(Node):
         max_dist: float,
         preferred_standoff: float,
         tight: bool = True,
+        preferred_approach_angles: Optional[Sequence[float]] = None,
+        cargo_pose: Optional[PoseEntry] = None,
+        reachability_fn: Optional[Callable[[], Optional[bool]]] = None,
+        nav_standoff: Optional[float] = None,
     ) -> Tuple[bool, str]:
-        """Reposition `robot` so `(tx, ty)` sits inside its reach and alignment window."""
+        """Reposition `robot` until MoveIt IK (or fallback reach window) succeeds."""
         prof = self._profiles[robot]
         robot_pose = self._get_robot_pose(robot)
         if robot_pose is None:
@@ -779,6 +826,14 @@ class MobileRobotController(Node):
         horiz = math.hypot(bx, by)
 
         if not prof.supports_navigation:
+            ik_ok = reachability_fn() if reachability_fn is not None else None
+            if ik_ok is True:
+                return True, ''
+            if ik_ok is False:
+                return False, (
+                    f'Target unreachable by MoveIt IK: '
+                    f'base=({bx:.3f}, {by:.3f}), horiz={horiz:.3f}'
+                )
             max_allowed = max_dist + (0.06 if tight else 0.15)
             if horiz < prof.min_reach_m or horiz > max_allowed:
                 return False, (
@@ -787,36 +842,109 @@ class MobileRobotController(Node):
                 )
             return True, ''
 
-        if horiz > 1.25 or horiz < prof.min_reach_m or bx < 0.25:
+        ik_ok: Optional[bool] = None
+        if (
+            reachability_fn is not None
+            and bx > 0.25
+            and prof.min_reach_m <= horiz <= max_dist + 0.35
+        ):
+            ik_ok = reachability_fn()
+            if ik_ok is True:
+                self.get_logger().info(
+                    f'[{task_id}] MoveIt IK confirmed reachable from current pose; '
+                    'skipping alignment.'
+                )
+                return True, ''
+
+        in_bumper_cone = (
+            cargo_pose is not None and _is_in_cargo_bumper_cone(cargo_pose, robot_pose)
+        )
+        needs_nav = (
+            horiz > 1.25
+            or horiz < prof.min_reach_m
+            or bx < 0.25
+            or in_bumper_cone
+            or (ik_ok is False and not prof.fine_align_pulses)
+        )
+        nav_dist = nav_standoff if nav_standoff is not None else preferred_standoff
+        nav_max_dist = max(max_dist, nav_dist)
+        if needs_nav:
             target_yaw = math.atan2(ty - ry, tx - rx)
             gx, gy, gyaw = self._compute_nav_goal(
-                robot, tx, ty, target_yaw, preferred_standoff, max_standoff_dist=max_dist
+                robot, tx, ty, target_yaw, nav_dist,
+                max_standoff_dist=nav_max_dist,
+                preferred_approach_angles=preferred_approach_angles,
             )
             self.get_logger().info(
-                f'[{task_id}] Target in base_link ({bx:.2f}, {by:.2f}) far; '
-                f'navigating to ({gx:.2f}, {gy:.2f}, yaw={gyaw:.2f})'
+                f'[{task_id}] Repositioning from base=({bx:.2f}, {by:.2f}) '
+                f'via Nav2 to ({gx:.2f}, {gy:.2f}, yaw={gyaw:.2f})'
             )
             ok, err = self._send_nav_goal(robot, gx, gy, gyaw, f'{task_id}_align')
             if not ok:
                 return False, f'Pre-manipulation alignment failed: {err}'
             self._sim_sleep(0.5)
 
+            robot_pose = self._get_robot_pose(robot)
+            if robot_pose is None:
+                return False, 'Robot pose lost after Nav2 alignment.'
+            rx, ry, rz, rquat = robot_pose
+            bx, by, _ = transform_world_to_base(tx, ty, rz, (rx, ry, rz), rquat)
+            horiz = math.hypot(bx, by)
+            if reachability_fn is not None and bx > 0.25 and horiz >= prof.min_reach_m:
+                ik_ok = reachability_fn()
+                if ik_ok is True:
+                    self.get_logger().info(
+                        f'[{task_id}] MoveIt IK confirmed reachable after Nav2; '
+                        'skipping fine pulses.'
+                    )
+                    return True, ''
+
         if prof.fine_align_pulses:
             dist_tol = 0.085 if tight else 0.12
             lat_tol = 0.055 if tight else 0.16
             yaw_tol = 0.070 if tight else 0.14
-            for step in range(12):
+            max_pulses = 8 if reachability_fn is not None else 12
+            best_horiz = horiz
+            stall_count = 0
+
+            for step in range(max_pulses):
                 robot_pose = self._get_robot_pose(robot)
                 if robot_pose is None:
                     return False, 'Robot pose lost during fine alignment.'
                 rx, ry, rz, rquat = robot_pose
                 bx, by, _ = transform_world_to_base(tx, ty, rz, (rx, ry, rz), rquat)
+                horiz = math.hypot(bx, by)
+
+                ik_res: Optional[bool] = None
+                if step > 0 and reachability_fn is not None:
+                    ik_res = (
+                        reachability_fn()
+                        if (bx > 0.25 and horiz >= prof.min_reach_m)
+                        else False
+                    )
+                    if ik_res is True:
+                        self._cmd_vel_pubs[robot].publish(Twist())
+                        self._sim_sleep(0.3)
+                        self.get_logger().info(
+                            f'[{task_id}] MoveIt IK confirmed reachable after pulse {step}; '
+                            'stopping alignment.'
+                        )
+                        return True, ''
+                elif step == 0:
+                    ik_res = ik_ok
+
                 ryaw = quaternion_to_yaw(*rquat)
                 target_yaw = math.atan2(ty - ry, tx - rx)
                 yaw_err = math.atan2(math.sin(target_yaw - ryaw), math.cos(target_yaw - ryaw))
                 ex = bx - preferred_standoff
-                if abs(ex) <= dist_tol and abs(by) <= lat_tol and abs(yaw_err) <= yaw_tol:
+                if (
+                    (reachability_fn is None or ik_res is None)
+                    and abs(ex) <= dist_tol
+                    and abs(by) <= lat_tol
+                    and abs(yaw_err) <= yaw_tol
+                ):
                     break
+
                 dur = max(
                     prof.min_pulse_duration_sec,
                     min(1.35, max(abs(ex) / 0.18, abs(yaw_err) / 0.28)),
@@ -833,6 +961,26 @@ class MobileRobotController(Node):
                     f'[{task_id}] align pulse {step}: '
                     f'base=({bx:.3f}, {by:.3f}) yaw_err={yaw_err:.3f}'
                 )
+
+                if ex > dist_tol:
+                    post_pose = self._get_robot_pose(robot)
+                    if post_pose is not None:
+                        pbx, pby, _ = transform_world_to_base(
+                            tx, ty, post_pose[2], post_pose[:3], post_pose[3]
+                        )
+                        new_horiz = math.hypot(pbx, pby)
+                        if new_horiz < best_horiz - 0.02:
+                            best_horiz = new_horiz
+                            stall_count = 0
+                        else:
+                            stall_count += 1
+                            if stall_count >= 3:
+                                self.get_logger().warn(
+                                    f'[{task_id}] Physical alignment stall detected after 3 '
+                                    f'forward pulses (horiz={new_horiz:.3f}); stopping pulse loop.'
+                                )
+                                break
+
             self._cmd_vel_pubs[robot].publish(Twist())
             self._sim_sleep(1.0)
 
@@ -842,6 +990,21 @@ class MobileRobotController(Node):
         rx, ry, rz, rquat = robot_pose
         bx, by, _ = transform_world_to_base(tx, ty, rz, (rx, ry, rz), rquat)
         horiz = math.hypot(bx, by)
+
+        if reachability_fn is not None:
+            ik_final = (
+                reachability_fn()
+                if (bx > 0.25 and horiz >= prof.min_reach_m)
+                else False
+            )
+            if ik_final is True:
+                return True, ''
+            if ik_final is False:
+                return False, (
+                    f'MoveIt IK unreachable after alignment: '
+                    f'base=({bx:.3f}, {by:.3f}), horiz={horiz:.3f}'
+                )
+
         max_lat = 0.10 if tight else 0.22
         max_horiz = max_dist + 0.06 if tight else max_dist + 0.15
         if bx <= 0.25 or horiz < prof.min_reach_m or horiz > max_horiz or abs(by) > max_lat:
@@ -883,7 +1046,12 @@ class MobileRobotController(Node):
                 tf_pose = self._lookup_frame_in_map(cargo_prof.tcp_frame)
                 if tf_pose is not None:
                     return tf_pose[0], tf_pose[1], tf_pose[2] + 0.022, True
-            return fallback_pose[0], fallback_pose[1], fallback_pose[2] + 0.110, True
+            return (
+                fallback_pose[0],
+                fallback_pose[1],
+                fallback_pose[2] + cargo_prof.cargo_surface_z_offset,
+                True,
+            )
         return (
             fallback_pose[0],
             fallback_pose[1],
@@ -891,8 +1059,10 @@ class MobileRobotController(Node):
             False,
         )
 
-    def _is_inside_cargo_robot(self, wx: float, wy: float, radius_m: float = 0.40) -> bool:
-        """Return True if `(wx, wy)` lies horizontally within `radius_m` of a cargo robot."""
+    def _find_cargo_robot_at(
+        self, wx: float, wy: float, radius_m: float = 0.55
+    ) -> Optional[Tuple[RobotProfile, PoseEntry]]:
+        """Return `(profile, pose)` if `(wx, wy)` lies within `radius_m` of a cargo robot."""
         with self._pose_lock:
             snapshot = dict(self._pose_registry)
         for inst, prof in self._profiles.items():
@@ -901,8 +1071,185 @@ class MobileRobotController(Node):
             for key in (inst, prof.gazebo_model_name):
                 pose = snapshot.get(key)
                 if pose is not None and math.hypot(pose[0] - wx, pose[1] - wy) <= radius_m:
-                    return True
-        return False
+                    return prof, pose
+        return None
+
+    def _is_inside_cargo_robot(self, wx: float, wy: float, radius_m: float = 0.40) -> bool:
+        """Return True if `(wx, wy)` lies horizontally within `radius_m` of a cargo robot."""
+        return self._find_cargo_robot_at(wx, wy, radius_m=radius_m) is not None
+
+    def _cargo_broadside_angles(
+        self,
+        cargo_pose: PoseEntry,
+        robot_pose: Optional[PoseEntry],
+    ) -> List[float]:
+        """Return the two broadside approach angles ordered closest-first to `robot_pose`."""
+        cargo_yaw = quaternion_to_yaw(*cargo_pose[3])
+        sides = [cargo_yaw + (math.pi / 2.0), cargo_yaw - (math.pi / 2.0)]
+        if robot_pose is not None:
+            robot_ang = math.atan2(robot_pose[1] - cargo_pose[1], robot_pose[0] - cargo_pose[0])
+            sides.sort(
+                key=lambda s: abs(math.atan2(math.sin(robot_ang - s), math.cos(robot_ang - s)))
+            )
+        return sides
+
+    def _check_poses_ik(
+        self, robot: str, poses: Sequence[PoseStamped]
+    ) -> Optional[bool]:
+        """Check MoveIt IK feasibility for `poses`, returning None if IK is unready."""
+        moveit = self._moveit_clients.get(robot)
+        if moveit is None or not moveit.is_ik_service_ready():
+            return None
+        prof = self._profiles[robot]
+        cur_joints = self._get_joint_positions(robot)
+        pre_fold_name = prof.srdf_states.get('pre_fold')
+        seed = (
+            moveit.get_group_state(prof.move_group_name, pre_fold_name)
+            if pre_fold_name
+            else None
+        )
+        return moveit.check_ik_reachable(
+            prof.move_group_name,
+            prof.tcp_frame,
+            poses,
+            cur_joints,
+            seed_overrides=seed,
+            avoid_collisions=True,
+            timeout_sec=0.5,
+        )
+
+    def _pick_pitch_and_z_offset(
+        self, prof: RobotProfile, bz: float, in_cargo_crate: bool
+    ) -> Tuple[float, float]:
+        """Compute wrist pitch and grasp Z offset adjusted for low cargo surfaces."""
+        grasp_pitch = (
+            max(prof.grasp_pitch_rad, 0.38) if in_cargo_crate else prof.grasp_pitch_rad
+        )
+        grasp_z_off = 0.055 if in_cargo_crate else 0.022
+        if prof.supports_navigation and prof.tcp_approach_axis == 'x':
+            if bz + grasp_z_off < -0.05:
+                grasp_pitch = max(grasp_pitch, 0.60)
+            elif bz + grasp_z_off < 0.0:
+                grasp_pitch = max(grasp_pitch, 0.50)
+        return grasp_pitch, grasp_z_off
+
+    def _build_pick_poses(
+        self,
+        prof: RobotProfile,
+        bx: float,
+        by: float,
+        bz: float,
+        in_cargo_crate: bool,
+    ) -> Tuple[PoseStamped, PoseStamped, PoseStamped]:
+        """Construct `(pre_grasp_pose, grasp_pose, lift_pose)` in `prof.base_frame`."""
+        grasp_pitch, grasp_z_off = self._pick_pitch_and_z_offset(prof, bz, in_cargo_crate)
+        lift_x_off = 0.060 if in_cargo_crate else 0.045
+        lift_z_off = 0.18 if in_cargo_crate else 0.22
+
+        aim_yaw = (
+            math.atan2(by, bx)
+            if not prof.supports_navigation
+            else math.atan2(by, max(bx - 0.15, 0.05))
+        )
+        lat_dx = -prof.grasp_lateral_offset_m * math.sin(aim_yaw)
+        lat_dy = prof.grasp_lateral_offset_m * math.cos(aim_yaw)
+
+        if not prof.supports_navigation:
+            pre_x = bx - 0.08 * math.cos(aim_yaw) + lat_dx
+            pre_y = by - 0.08 * math.sin(aim_yaw) + lat_dy
+            pre_z = bz + 0.12
+            grasp_x = bx - 0.015 * math.cos(aim_yaw) + lat_dx
+            grasp_y = by - 0.015 * math.sin(aim_yaw) + lat_dy
+            lift_x = bx - lift_x_off * math.cos(aim_yaw) + lat_dx
+            lift_y = by - lift_x_off * math.sin(aim_yaw) + lat_dy
+        else:
+            pre_x = bx - 0.025 + lat_dx
+            pre_y = by + lat_dy
+            pre_z = bz + 0.15
+            grasp_x = bx - 0.025 + lat_dx
+            grasp_y = by + lat_dy
+            lift_x = bx - lift_x_off + lat_dx
+            lift_y = by + lat_dy
+
+        pre_grasp_pose = self._make_base_pose_stamped(
+            prof, pre_x, pre_y, pre_z, prof.grasp_roll_rad, grasp_pitch
+        )
+        grasp_pose = self._make_base_pose_stamped(
+            prof, grasp_x, grasp_y, bz + grasp_z_off, prof.grasp_roll_rad, grasp_pitch
+        )
+        lift_pose = self._make_base_pose_stamped(
+            prof, lift_x, lift_y, bz + lift_z_off, prof.grasp_roll_rad, grasp_pitch
+        )
+        return pre_grasp_pose, grasp_pose, lift_pose
+
+    def _build_place_poses(
+        self,
+        prof: RobotProfile,
+        bx_raw: float,
+        by_raw: float,
+        rz: float,
+        surface_z: float,
+        large_fixture: bool,
+        is_cargo_target: bool,
+    ) -> Tuple[PoseStamped, PoseStamped, PoseStamped, Tuple[float, float, float], float]:
+        """Construct `(pre_place, place, retreat, (bx, by, bz), clear_z)` in base frame."""
+        if large_fixture:
+            dist = math.hypot(bx_raw, by_raw)
+            if dist > prof.place_drop_standoff and dist > 1e-4:
+                scale = prof.place_drop_standoff / dist
+                bx, by = bx_raw * scale, by_raw * scale
+            elif not prof.supports_navigation:
+                bx, by = bx_raw, by_raw
+            else:
+                bx, by = max(0.55, bx_raw - 0.03), by_raw
+        elif not prof.supports_navigation:
+            raw_yaw = math.atan2(by_raw, bx_raw)
+            target_bx = bx_raw - 0.015 * math.cos(raw_yaw)
+            target_by = by_raw - 0.015 * math.sin(raw_yaw)
+            reach_dist = math.hypot(target_bx, target_by)
+            if reach_dist > prof.max_reach_m and reach_dist > 1e-4:
+                scale = prof.max_reach_m / reach_dist
+                bx, by = target_bx * scale, target_by * scale
+            else:
+                bx, by = target_bx, target_by
+        else:
+            target_bx = max(0.45, bx_raw - 0.025)
+            target_by = by_raw
+            reach_dist = math.hypot(target_bx, target_by)
+            if reach_dist > prof.max_reach_m and reach_dist > 1e-4:
+                scale = prof.max_reach_m / reach_dist
+                bx, by = target_bx * scale, target_by * scale
+            else:
+                bx, by = target_bx, target_by
+
+        clear_z = (
+            max(prof.place_clear_z_offset, 0.10)
+            if is_cargo_target else prof.place_clear_z_offset
+        )
+        drop_world_z = surface_z + clear_z
+        bz = drop_world_z - rz
+
+        aim_yaw = (
+            math.atan2(by, bx)
+            if not prof.supports_navigation
+            else math.atan2(by, max(bx - 0.15, 0.05))
+        )
+        lat_dx = -prof.grasp_lateral_offset_m * math.sin(aim_yaw)
+        lat_dy = prof.grasp_lateral_offset_m * math.cos(aim_yaw)
+        place_pitch = prof.grasp_pitch_rad
+        if prof.supports_navigation and prof.tcp_approach_axis == 'x' and (bz + 0.022) < 0.0:
+            place_pitch = max(place_pitch, 0.50)
+
+        pre_place_pose = self._make_base_pose_stamped(
+            prof, bx + lat_dx, by + lat_dy, bz + 0.16, prof.grasp_roll_rad, place_pitch
+        )
+        place_pose = self._make_base_pose_stamped(
+            prof, bx + lat_dx, by + lat_dy, bz + 0.022, prof.grasp_roll_rad, place_pitch
+        )
+        retreat_pose = self._make_base_pose_stamped(
+            prof, bx + lat_dx, by + lat_dy, bz + 0.18, prof.grasp_roll_rad, place_pitch
+        )
+        return pre_place_pose, place_pose, retreat_pose, (bx, by, bz), clear_z
 
     def _add_nearby_fixture_obstacle(
         self,
@@ -916,12 +1263,15 @@ class MobileRobotController(Node):
         with self._pose_lock:
             snapshot = dict(self._pose_registry)
 
+        robot_names = tuple(self._profiles.keys()) + tuple(
+            p.gazebo_model_name for p in self._profiles.values() if p.gazebo_model_name
+        )
         collision_objs = build_world_collision_objects(
             snapshot,
             center_xy=(target_x, target_y),
             radius_m=1.8,
             world_includes=self._world_includes or None,
-            exclude_names=tuple(exclude_names) + tuple(self._profiles.keys()),
+            exclude_names=tuple(exclude_names) + robot_names,
             frame_id='map',
         )
         if collision_objs and self._scene_managers[robot].add_collision_objects(collision_objs):
@@ -1155,43 +1505,73 @@ class MobileRobotController(Node):
             return
 
         prof = self._profiles[robot]
-        wx, wy, _, _ = pose
+        wx, wy, pre_pick_z, _ = pose
         self._publish_feedback(
             plan_id, task_id, robot, status='in_progress', stage='pick_in_progress',
             detail=f"Picking '{object_name}'.",
         )
 
-        in_cargo_crate = self._is_inside_cargo_robot(wx, wy)
-        pref_dist = 0.80 if in_cargo_crate else prof.manipulation_standoff
-        ok, err = self._ensure_aligned(
-            robot, wx, wy, task_id, prof.max_reach_m, pref_dist, tight=True
+        cargo_match = self._find_cargo_robot_at(wx, wy, radius_m=0.55)
+        in_cargo_crate = cargo_match is not None and math.hypot(
+            cargo_match[1][0] - wx, cargo_match[1][1] - wy
+        ) <= 0.40
+        pref_dist = 0.80 if cargo_match is not None else prof.manipulation_standoff
+        cargo_pose = cargo_match[1] if cargo_match is not None else None
+        broadside_angles = (
+            self._cargo_broadside_angles(cargo_pose, self._get_robot_pose(robot))
+            if cargo_pose is not None
+            else None
         )
-        if not ok:
-            self._publish_feedback(
-                plan_id, task_id, robot, status='failed', stage='pick', detail=err
-            )
-            return
 
-        pose = self._resolve_target_pose(object_name)
-        if pose is None:
-            self._publish_feedback(
-                plan_id, task_id, robot, status='failed', stage='pick',
-                detail=f"Lost pose of '{object_name}'.",
+        def _check_pick_ik() -> Optional[bool]:
+            cur_obj = self._resolve_target_pose(object_name) or pose
+            base_pt_now = self._to_robot_base(robot, cur_obj[0], cur_obj[1], cur_obj[2])
+            if base_pt_now is None:
+                return None
+            pre_g, g_pose, _ = self._build_pick_poses(
+                prof, base_pt_now[0], base_pt_now[1], base_pt_now[2], in_cargo_crate
             )
-            return
-        wx, wy, pre_pick_z, _ = pose
-        base_pt = self._to_robot_base(robot, wx, wy, pre_pick_z)
-        if base_pt is None:
-            self._publish_feedback(
-                plan_id, task_id, robot, status='failed', stage='pick',
-                detail='Robot base pose unavailable.',
-            )
-            return
+            return self._check_poses_ik(robot, (pre_g, g_pose))
 
         fixture_scene_ids = self._add_nearby_fixture_obstacle(
             robot, wx, wy, exclude_names=(object_name,)
         )
         try:
+            ok, err = self._ensure_aligned(
+                robot,
+                wx,
+                wy,
+                task_id,
+                prof.max_reach_m,
+                pref_dist,
+                tight=True,
+                preferred_approach_angles=broadside_angles,
+                cargo_pose=cargo_pose,
+                reachability_fn=_check_pick_ik,
+                nav_standoff=0.95 if cargo_pose is not None else None,
+            )
+            if not ok:
+                self._publish_feedback(
+                    plan_id, task_id, robot, status='failed', stage='pick', detail=err
+                )
+                return
+
+            pose = self._resolve_target_pose(object_name)
+            if pose is None:
+                self._publish_feedback(
+                    plan_id, task_id, robot, status='failed', stage='pick',
+                    detail=f"Lost pose of '{object_name}'.",
+                )
+                return
+            wx, wy, pre_pick_z, _ = pose
+            base_pt = self._to_robot_base(robot, wx, wy, pre_pick_z)
+            if base_pt is None:
+                self._publish_feedback(
+                    plan_id, task_id, robot, status='failed', stage='pick',
+                    detail='Robot base pose unavailable.',
+                )
+                return
+
             if not (
                 self._open_gripper(robot, f'{task_id}_open')
                 and self._move_arm_state(robot, 'pre_fold', f'{task_id}_pre_fold', vel_scale=0.5)
@@ -1212,36 +1592,11 @@ class MobileRobotController(Node):
             if base_pt_now is not None:
                 bx, by, bz = base_pt_now
                 pre_pick_z = pose_now[2]
-
-            grasp_pitch = (
-                max(prof.grasp_pitch_rad, 0.38) if in_cargo_crate else prof.grasp_pitch_rad
-            )
-            grasp_z_off = 0.055 if in_cargo_crate else 0.022
-            lift_x_off = 0.060 if in_cargo_crate else 0.045
-            lift_z_off = 0.18 if in_cargo_crate else 0.22
-
-            aim_yaw = (
-                math.atan2(by, bx)
-                if not prof.supports_navigation
-                else math.atan2(by, max(bx - 0.15, 0.05))
-            )
-            lat_dx = -prof.grasp_lateral_offset_m * math.sin(aim_yaw)
-            lat_dy = prof.grasp_lateral_offset_m * math.cos(aim_yaw)
-            if not prof.supports_navigation:
-                pre_x = bx - 0.08 * math.cos(aim_yaw) + lat_dx
-                pre_y = by - 0.08 * math.sin(aim_yaw) + lat_dy
-                pre_z = bz + 0.12
             else:
-                pre_x = bx - 0.025 + lat_dx
-                pre_y = by + lat_dy
-                pre_z = bz + 0.15
-            pre_grasp_pose = self._make_base_pose_stamped(
-                prof,
-                pre_x,
-                pre_y,
-                pre_z,
-                prof.grasp_roll_rad,
-                grasp_pitch,
+                bx, by, bz = base_pt
+
+            pre_grasp_pose, _, _ = self._build_pick_poses(
+                prof, bx, by, bz, in_cargo_crate
             )
 
             if not self._move_arm_to_pose(
@@ -1263,40 +1618,12 @@ class MobileRobotController(Node):
             if base_pt_now is not None:
                 bx, by, bz = base_pt_now
                 pre_pick_z = pose_now[2]
-                aim_yaw = (
-                    math.atan2(by, bx)
-                    if not prof.supports_navigation
-                    else math.atan2(by, max(bx - 0.15, 0.05))
-                )
-                lat_dx = -prof.grasp_lateral_offset_m * math.sin(aim_yaw)
-                lat_dy = prof.grasp_lateral_offset_m * math.cos(aim_yaw)
 
-            if not prof.supports_navigation:
-                grasp_x = bx - 0.015 * math.cos(aim_yaw) + lat_dx
-                grasp_y = by - 0.015 * math.sin(aim_yaw) + lat_dy
-                lift_x = bx - lift_x_off * math.cos(aim_yaw) + lat_dx
-                lift_y = by - lift_x_off * math.sin(aim_yaw) + lat_dy
-            else:
-                grasp_x = bx - 0.025 + lat_dx
-                grasp_y = by + lat_dy
-                lift_x = bx - lift_x_off + lat_dx
-                lift_y = by + lat_dy
-
-            grasp_pose = self._make_base_pose_stamped(
-                prof,
-                grasp_x,
-                grasp_y,
-                bz + grasp_z_off,
-                prof.grasp_roll_rad,
-                grasp_pitch,
+            _, grasp_pose, lift_pose = self._build_pick_poses(
+                prof, bx, by, bz, in_cargo_crate
             )
-            lift_pose = self._make_base_pose_stamped(
-                prof,
-                lift_x,
-                lift_y,
-                bz + lift_z_off,
-                prof.grasp_roll_rad,
-                grasp_pitch,
+            grasp_pitch, grasp_z_off = self._pick_pitch_and_z_offset(
+                prof, bz, in_cargo_crate
             )
             self.get_logger().info(
                 f'[{task_id}] Pick target ({object_name}): in_cargo={in_cargo_crate}, '
@@ -1435,92 +1762,77 @@ class MobileRobotController(Node):
             pref_dist = 0.80
         else:
             pref_dist = prof.manipulation_standoff
-        ok, err = self._ensure_aligned(
-            robot, lx, ly, task_id, max_dist, pref_dist, tight=not large_fixture
+
+        cargo_pose = pose if is_cargo_target else None
+        broadside_angles = (
+            self._cargo_broadside_angles(cargo_pose, self._get_robot_pose(robot))
+            if cargo_pose is not None
+            else None
         )
-        if not ok:
-            self._publish_feedback(
-                plan_id, task_id, robot, status='failed', stage='place', detail=err
+
+        def _check_place_ik() -> Optional[bool]:
+            cur_rob = self._get_robot_pose(robot)
+            if cur_rob is None:
+                return None
+            cur_loc = self._resolve_target_pose(location) or pose
+            clx, cly, csurf_z, cis_cargo = self._resolve_place_target(location, cur_loc)
+            crx, cry, crz, crquat = cur_rob
+            cbx_raw, cby_raw, _ = transform_world_to_base(
+                clx, cly, csurf_z, (crx, cry, crz), crquat
             )
-            return
-
-        robot_pose = self._get_robot_pose(robot)
-        if robot_pose is None:
-            self._publish_feedback(
-                plan_id, task_id, robot, status='failed', stage='place',
-                detail='Robot base pose unavailable.',
+            pre_p, p_pose, _, _, _ = self._build_place_poses(
+                prof, cbx_raw, cby_raw, crz, csurf_z, large_fixture, cis_cargo
             )
-            return
-
-        pose_now = self._resolve_target_pose(location)
-        if pose_now is not None:
-            lx, ly, surface_z, _ = self._resolve_place_target(location, pose_now)
-
-        rx, ry, rz, rquat = robot_pose
-        bx_raw, by_raw, _ = transform_world_to_base(lx, ly, surface_z, (rx, ry, rz), rquat)
-        if large_fixture:
-            dist = math.hypot(bx_raw, by_raw)
-            if dist > prof.place_drop_standoff and dist > 1e-4:
-                scale = prof.place_drop_standoff / dist
-                bx, by = bx_raw * scale, by_raw * scale
-            elif not prof.supports_navigation:
-                bx, by = bx_raw, by_raw
-            else:
-                bx, by = max(0.55, bx_raw - 0.03), by_raw
-        elif not prof.supports_navigation:
-            raw_yaw = math.atan2(by_raw, bx_raw)
-            target_bx = bx_raw - 0.015 * math.cos(raw_yaw)
-            target_by = by_raw - 0.015 * math.sin(raw_yaw)
-            reach_dist = math.hypot(target_bx, target_by)
-            if reach_dist > prof.max_reach_m and reach_dist > 1e-4:
-                scale = prof.max_reach_m / reach_dist
-                bx, by = target_bx * scale, target_by * scale
-            else:
-                bx, by = target_bx, target_by
-        else:
-            target_bx = max(0.45, bx_raw - 0.025)
-            target_by = by_raw
-            reach_dist = math.hypot(target_bx, target_by)
-            if reach_dist > prof.max_reach_m and reach_dist > 1e-4:
-                scale = prof.max_reach_m / reach_dist
-                bx, by = target_bx * scale, target_by * scale
-            else:
-                bx, by = target_bx, target_by
-
-        clear_z = (
-            max(prof.place_clear_z_offset, 0.10)
-            if is_cargo_target else prof.place_clear_z_offset
-        )
-        drop_world_z = surface_z + clear_z
-        bz = drop_world_z - rz
-        self.get_logger().info(
-            f'[{task_id}] Place target ({location}): world=({lx:.3f}, {ly:.3f}, '
-            f'surf_z={surface_z:.3f}, clear_z={clear_z:.3f}) -> '
-            f'base=({bx:.3f}, {by:.3f}, {bz:.3f})'
-        )
-
-        aim_yaw = (
-            math.atan2(by, bx)
-            if not prof.supports_navigation
-            else math.atan2(by, max(bx - 0.15, 0.05))
-        )
-        lat_dx = -prof.grasp_lateral_offset_m * math.sin(aim_yaw)
-        lat_dy = prof.grasp_lateral_offset_m * math.cos(aim_yaw)
-
-        pre_place_pose = self._make_base_pose_stamped(
-            prof, bx + lat_dx, by + lat_dy, bz + 0.16, prof.grasp_roll_rad, prof.grasp_pitch_rad
-        )
-        place_pose = self._make_base_pose_stamped(
-            prof, bx + lat_dx, by + lat_dy, bz + 0.022, prof.grasp_roll_rad, prof.grasp_pitch_rad
-        )
-        retreat_pose = self._make_base_pose_stamped(
-            prof, bx + lat_dx, by + lat_dy, bz + 0.18, prof.grasp_roll_rad, prof.grasp_pitch_rad
-        )
+            return self._check_poses_ik(robot, (pre_p, p_pose))
 
         fixture_scene_ids = self._add_nearby_fixture_obstacle(
             robot, lx, ly, preferred_fixture=location, exclude_names=(object_name,)
         )
         try:
+            ok, err = self._ensure_aligned(
+                robot,
+                lx,
+                ly,
+                task_id,
+                max_dist,
+                pref_dist,
+                tight=not large_fixture,
+                preferred_approach_angles=broadside_angles,
+                cargo_pose=cargo_pose,
+                reachability_fn=_check_place_ik,
+                nav_standoff=0.95 if cargo_pose is not None else None,
+            )
+            if not ok:
+                self._publish_feedback(
+                    plan_id, task_id, robot, status='failed', stage='place', detail=err
+                )
+                return
+
+            robot_pose = self._get_robot_pose(robot)
+            if robot_pose is None:
+                self._publish_feedback(
+                    plan_id, task_id, robot, status='failed', stage='place',
+                    detail='Robot base pose unavailable.',
+                )
+                return
+
+            pose_now = self._resolve_target_pose(location)
+            if pose_now is not None:
+                lx, ly, surface_z, _ = self._resolve_place_target(location, pose_now)
+
+            rx, ry, rz, rquat = robot_pose
+            bx_raw, by_raw, _ = transform_world_to_base(lx, ly, surface_z, (rx, ry, rz), rquat)
+            pre_place_pose, place_pose, retreat_pose, (bx, by, bz), clear_z = (
+                self._build_place_poses(
+                    prof, bx_raw, by_raw, rz, surface_z, large_fixture, is_cargo_target
+                )
+            )
+            self.get_logger().info(
+                f'[{task_id}] Place target ({location}): world=({lx:.3f}, {ly:.3f}, '
+                f'surf_z={surface_z:.3f}, clear_z={clear_z:.3f}) -> '
+                f'base=({bx:.3f}, {by:.3f}, {bz:.3f})'
+            )
+
             descend_ok = (
                 self._move_arm_to_pose(
                     robot, pre_place_pose, f'{task_id}_pre_place', vel_scale=0.30

@@ -222,6 +222,8 @@ class TestTaxonomyKnowledgeBase(unittest.TestCase):
         self.assertIn("b2_cargo_1", instances)
         self.assertNotIn("b2_cargo_2", instances)
         self.assertIn("bcr_arm_1", instances)
+        self.assertIn("husky_a200_1", instances)
+        self.assertNotIn("husky_a200_2", instances)
 
         b1z1 = instances["b1z1_1"]
         self.assertEqual(b1z1["robot_type"], "b1z1")
@@ -239,6 +241,14 @@ class TestTaxonomyKnowledgeBase(unittest.TestCase):
         self.assertEqual(arm["robot_type"], "bcr_arm")
         self.assertIn("manipulation", arm["capabilities"])
         self.assertEqual(arm["specs"]["payload_capacity_kg"], 15.0)
+
+        husky = instances["husky_a200_1"]
+        self.assertEqual(husky["robot_type"], "husky_a200")
+        self.assertEqual(husky["skills"], ["navigate_to"])
+        self.assertEqual(husky["capabilities"], ["navigation"])
+        self.assertNotIn("manipulation", husky["capabilities"])
+        self.assertEqual(husky["specs"]["payload_capacity_kg"], 20.0)
+        self.assertEqual(husky["specs"]["speed_m_s"], 1.0)
 
     def test_load_fleet_instances_empty_files_log_errors(self):
         from unittest.mock import patch

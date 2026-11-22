@@ -177,6 +177,7 @@ warehouse_ws/
     ├── bcr_arm_description/           # 7-DOF BCR arm + Robotiq 2F-85 URDF/xacro, meshes, spawner (ament_python)
     ├── bcr_arm_control/               # Stationary arm ros2_control, static TF placement, bringup (ament_cmake)
     ├── bcr_arm_moveit_config/         # MoveIt 2 SRDF, kinematics, OMPL config, move_group & RViz launches (ament_cmake)
+    ├── husky_control/                 # Clearpath Husky A200 per-namespace spawn, ground-truth odom, Nav2 (ament_cmake)
     ├── third_party/                   # Vendored third-party packages (champ*, robotiq_description 2F-85)
     └── tempo_bringup/                 # Top-level combined bringup & TEMPO pipeline launch files (ament_cmake)
 ```
@@ -245,6 +246,7 @@ The core intelligence package implementing the 3-stage grounded planning and tax
   - `b1z1` (quantity: `1`, `payload_capacity_kg: 10.0`, `speed_m_s: 1.0`, skills: `["navigate_to", "pick", "place"]`) $\rightarrow$ instance `b1z1_1`.
   - `b2_cargo` (quantity: `1`, `payload_capacity_kg: 15.0`, `speed_m_s: 0.35`, skills: `["navigate_to"]`) $\rightarrow$ instance `b2_cargo_1`.
   - `bcr_arm` (quantity: `1`, `payload_capacity_kg: 15.0`, `speed_m_s: 0.0` [stationary], skills: `["pick", "place"]`) $\rightarrow$ instance `bcr_arm_1`.
+  - `husky_a200` (quantity: `1`, `payload_capacity_kg: 20.0`, `speed_m_s: 1.0`, skills: `["navigate_to"]`) $\rightarrow$ instance `husky_a200_1`.
 - **[korsah_taxonomy_axes.json](file:///home/taha/Desktop/FYP/warehouse_ws/src/llm_planner/knowledge_base/korsah_taxonomy_axes.json)**: Formal definitions of the 4 iTax axes (`robot_model`, `task_model`, `time_horizon`, `dependency`) and the 7 target subclasses.
 - **[few_shot_examples.json](file:///home/taha/Desktop/FYP/warehouse_ws/src/llm_planner/knowledge_base/few_shot_examples.json)** & **[few_shot_examples_taxonomy.json](file:///home/taha/Desktop/FYP/warehouse_ws/src/llm_planner/knowledge_base/few_shot_examples_taxonomy.json)**: Few-shot exemplars for Stage 1 decomposition and Stage 2 iTax classification (1 exemplar per target subclass).
 
@@ -279,8 +281,8 @@ Coordinates parallel and sequential execution of the allocated DAG across the ro
 Shared multi-robot controller package executing `/mission/subtask` commands across heterogeneous mobile manipulators via Nav2, MoveIt 2, TF2, and Gazebo world entity poses.
 - **[controller_config.yaml](file:///home/taha/Desktop/FYP/warehouse_ws/src/robot_controllers/config/controller_config.yaml)**:
   - `world`: `name`, 2D occupancy map path (`warehouse_sim/maps/warehouse_map.yaml`), and `fixture_surface_z` / `fixture_dims` lookup tables (`Packing_Station`, `Picking_Shelves`, `test_pedestal`, `Pallet_Standard`).
-  - `robot_profiles`: Per-platform navigation & manipulation parameters for **`b1z1`** (`/b1z1`, `z1_arm`, `z1_gripper`, `move_group` gripper mode, `use_kinematic_attach: true`, `grasp_pitch_rad: 0.26`, `grasp_lateral_offset_m: 0.028`, `min_reach_m: 0.40`, `max_reach_m: 0.85`, `fine_align_pulses: true`), **`husky_ur5e`** (`/a200_0000`, `arm_0`, `gripper_command` mode for Robotiq 2F-85), and **`b2_cargo`** (`/b2_cargo`, `supports_manipulation: false` navigation-only profile).
-  - `robot_instances`: Maps TEMPO robot instance IDs to profiles (`b1z1_1: "b1z1"`, `b2_cargo_1: "b2_cargo"`).
+  - `robot_profiles`: Per-platform navigation & manipulation parameters for **`b1z1`** (`/b1z1`, `z1_arm`, `z1_gripper`, `move_group` gripper mode, `use_kinematic_attach: true`, `grasp_pitch_rad: 0.26`, `grasp_lateral_offset_m: 0.028`, `min_reach_m: 0.40`, `max_reach_m: 0.85`, `fine_align_pulses: true`), **`husky_ur5e`** (`/a200_0000`, `arm_0`, `gripper_command` mode for Robotiq 2F-85), **`b2_cargo`** (`/b2_cargo`, `supports_manipulation: false` navigation-only profile), **`bcr_arm`** (`/bcr_arm`, stationary 7-DOF manipulator), and **`husky_a200`** (`/a200_0001`, `supports_manipulation: false` Clearpath Husky A200 navigation-only profile).
+  - `robot_instances`: Maps TEMPO robot instance IDs to profiles (`b1z1_1: "b1z1"`, `b2_cargo_1: "b2_cargo"`, `bcr_arm_1: "bcr_arm"`, `husky_a200_1: "husky_a200"`).
 - **[mobile_robot_controller.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/robot_controllers/robot_controllers/mobile_robot_controller.py)** (`MobileRobotController`):
   - Subscribes to `/mission/subtask`, `/world/<world_name>/pose/info`, and (for profiles with `supports_manipulation: true`) `/<ns>/joint_states`; publishes `/mission/feedback` and `/<ns>/cmd_vel`. Rejects `pick`/`place` for nav-only profiles with `status='failed', stage='unsupported_skill'`.
   - **Per-Robot Worker Queues**: `_subtask_callback` validates and immediately enqueues subtasks into per-robot `queue.Queue` instances drained by dedicated worker threads (`_robot_worker_loop`), preventing multi-subtask waves from starving `MultiThreadedExecutor(num_threads=4)`.
@@ -306,12 +308,12 @@ Gazebo Sim (Harmonic) simulation environment, static 2D map server, and Gazebo-R
 ### 4.8 Unitree B1 + Z1 Robot Stack (`b1z1_description`, `b1z1_control`, `b1z1_moveit_config`)
 Dedicated ROS 2 + Gazebo Harmonic simulation and control stack for the Unitree B1 quadruped with top-mounted Z1 6-DOF manipulator + gripper (all links/joints/topics parameterized by `namespace` and `prefix`, defaulting to `b1z1` / `b1z1_`):
 - **`b1z1_description`** (`src/b1z1_description/`):
-  - URDF/Xacro (`xacro/b1z1.urdf.xacro`, `b1_leg.xacro`, `z1_arm.xacro`, `b1z1_gazebo.xacro`) including 2D LiDAR (`/b1z1/scan`), odometry (`/b1z1/odom`), `gz_ros2_control`, `b1z1::DynamicAttachSystem` plugin binding, and optional third-person follow camera.
-  - [spawn_b1z1.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/b1z1_description/launch/spawn_b1z1.launch.py): Launches `robot_state_publisher`, spawns B1Z1 in Gazebo, and bridges `/<ns>/odom`, `/<ns>/scan`, and `/<ns>/tf -> /tf`.
+  - URDF/Xacro (`xacro/b1z1.urdf.xacro`, `b1_leg.xacro`, `z1_arm.xacro`, `b1z1_gazebo.xacro`) including an 8-ring 3D LiDAR (`/b1z1/scan` + `/b1z1/scan/points` `PointCloud2`), odometry (`/b1z1/odom`), `gz_ros2_control`, `b1z1::DynamicAttachSystem` plugin binding, and optional third-person follow camera.
+  - [spawn_b1z1.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/b1z1_description/launch/spawn_b1z1.launch.py): Launches `robot_state_publisher`, spawns B1Z1 in Gazebo, and bridges `/<ns>/odom`, `/<ns>/scan`, `/<ns>/scan/points`, and `/<ns>/tf -> /tf`.
 - **`b1z1_control`** (`src/b1z1_control/`, `ament_cmake`):
   - **[dynamic_attach_system.cpp](file:///home/taha/Desktop/FYP/warehouse_ws/src/b1z1_control/src/dynamic_attach_system.cpp)**: Native Gazebo Harmonic C++ system plugin (`b1z1::DynamicAttachSystem`, exported via `hooks/gz_sim_plugin_path.dsv.in`) that creates/destroys a DART fixed joint between `b1z1_gripperMover` and a target model on `/<ns>/attach` (`gz.msgs.StringMsg`) and `/<ns>/detach` (`gz.msgs.Empty`) for jitter-free grasped object transport.
   - **CHAMP Quadruped Locomotion & `ros2_control`** ([b1z1_control.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/b1z1_control/launch/b1z1_control.launch.py), `config/champ/*.yaml`, `config/ros2_controllers.yaml`): Spawns `joint_state_broadcaster`, `joint_group_effort_controller` (12 leg joints), `z1_arm_controller`, `z1_gripper_controller`, and CHAMP `quadruped_controller_node`.
-  - **Nav2 Stack** ([b1z1_nav2.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/b1z1_control/launch/b1z1_nav2.launch.py), `config/nav2/nav2_params.yaml`): Namespaced Nav2 stack with `RewrittenYaml` rewriting LiDAR observation source to `/<ns>/scan`, configured for B1Z1's holonomic footprint and obstacle inflation.
+  - **Nav2 Stack** ([b1z1_nav2.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/b1z1_control/launch/b1z1_nav2.launch.py), `config/nav2/nav2_params.yaml`): Namespaced Nav2 stack using holonomic `dwb_core::DWBLocalPlanner` (`PoseProgressChecker`) and `RewrittenYaml` rewriting LiDAR `PointCloud2` observation sources to `/<ns>/scan/points` (`VoxelLayer` local costmap with `min_obstacle_height: 0.12` + `ObstacleLayer` global costmap).
   - **[b1z1_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/b1z1_control/launch/b1z1_bringup.launch.py)**: Orchestrates `spawn_b1z1`, `b1z1_control`, `b1z1_moveit_config/move_group`, and `b1z1_nav2` with staggered startup delays.
 - **`b1z1_moveit_config`** (`src/b1z1_moveit_config/`, `ament_cmake`):
   - SRDF (`config/b1z1.srdf.xacro` defining `z1_arm` and `z1_gripper` groups plus named states `home`, `pre_fold`, `carry_retract`, `carry`, `open`, `close`, `attach`), `kinematics.yaml`, `joint_limits.yaml`, `ompl_planning.yaml`, `moveit_controllers.yaml`.
@@ -346,12 +348,23 @@ Dedicated ROS 2 + Gazebo Harmonic manipulation stack for the stationary 7-DOF `b
 
 ---
 
-### 4.11 `tempo_bringup` (`src/tempo_bringup/`)
+### 4.11 Clearpath Husky A200 Transport Robot Stack (`husky_control`)
+Dedicated ROS 2 + Gazebo Harmonic bringup and navigation stack for the Clearpath Husky A200 4-wheel skid-steer transport robot (navigation-only, default `top_plate`, namespaced under `/a200_0001`):
+- **[config/husky_transport.yaml](file:///home/taha/Desktop/FYP/warehouse_ws/src/husky_control/config/husky_transport.yaml)**: Clearpath robot definition for `a200_0001` with front/rear bumpers, `top_plate`, and `hokuyo_ust` 2D LiDAR (`/<ns>/sensors/lidar2d_0/scan`).
+- **[scripts/prepare_and_spawn_husky.sh](file:///home/taha/Desktop/FYP/warehouse_ws/src/husky_control/scripts/prepare_and_spawn_husky.sh)**: Launch-time per-namespace generator (`clearpath_generator_common`, `clearpath_generator_gz`, `xacro`, `gz sdf -p`) into `/tmp/clearpath_<ns>`, injects Gazebo `gz::sim::systems::OdometryPublisher` for drift-free ground-truth odometry, disables Clearpath EKF TF broadcast (`publish_tf: false`), rewrites `model://clearpath_*` mesh paths, and spawns `a200_0001` at the requested `(x, y, z, yaw)`.
+- **[spawn_husky.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/husky_control/launch/spawn_husky.launch.py)**: Runs `prepare_and_spawn_husky.sh` and starts Clearpath `description.launch.py`, `teleop_base.launch.py` (`twist_mux`), extended-timeout `spawner_husky_controllers` (`joint_state_broadcaster` + `platform_velocity_controller`), ground-truth `ros_gz_bridge`, static `map -> odom` TF in `/<ns>/tf_static`, and `OnProcessExit`-gated Nav2 (`use_nav2:=true`).
+- **[husky_nav2.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/husky_control/launch/husky_nav2.launch.py)**: Namespaced `nav2_bringup` using `clearpath_nav2_demos` A200 params rewritten for `/<ns>/sensors/lidar2d_0/scan`, `/<ns>/ground_truth/odom`, shared `/map` (for both local and global costmaps), `vx_max`, and slow-sim timeouts.
+- **[husky_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/husky_control/launch/husky_bringup.launch.py)**: Top-level Husky bringup entrypoint passing `use_nav2` and `max_speed` through `spawn_husky.launch.py`.
+
+---
+
+### 4.12 `tempo_bringup` (`src/tempo_bringup/`)
 Top-level launch orchestration package unifying simulation, robot bringup, and the TEMPO planning/execution stack:
 - **[warehouse_b1z1_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_b1z1_bringup.launch.py)**: Single entrypoint launching `warehouse_sim/warehouse.launch.py` + `b1z1_control/b1z1_bringup.launch.py` + optional test pedestals/boxes (`spawn_test_target:=true`) + optional TEMPO pipeline (`use_tempo:=true`).
 - **[warehouse_b2_cargo_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_b2_cargo_bringup.launch.py)**: Single entrypoint launching `warehouse_sim/warehouse.launch.py` + `b2_cargo_control/b2_cargo_bringup.launch.py` + optional `spawn_test_cargo:=true` + optional TEMPO pipeline (`use_tempo:=true`).
 - **[warehouse_bcr_arm_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_bcr_arm_bringup.launch.py)**: Single entrypoint launching `warehouse_sim/warehouse.launch.py` + `bcr_arm_control/bcr_arm_bringup.launch.py` adjacent to `Packing_Station` + optional TEMPO pipeline (`use_tempo:=true`).
-- **[warehouse_multi_robot_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_multi_robot_bringup.launch.py)**: Launches `warehouse_sim` with toggleable `spawn_b1z1`, `spawn_b2_cargo`, and `spawn_bcr_arm` arguments and optional TEMPO pipeline.
+- **[warehouse_husky_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_husky_bringup.launch.py)**: Single entrypoint launching `warehouse_sim/warehouse.launch.py` + `husky_control/husky_bringup.launch.py` + optional TEMPO pipeline (`use_tempo:=true`).
+- **[warehouse_multi_robot_bringup.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/warehouse_multi_robot_bringup.launch.py)**: Launches `warehouse_sim` with toggleable `spawn_b1z1`, `spawn_b2_cargo`, `spawn_bcr_arm`, and `spawn_husky` arguments and optional TEMPO pipeline.
 - **[tempo_warehouse_pipeline.launch.py](file:///home/taha/Desktop/FYP/warehouse_ws/src/tempo_bringup/launch/tempo_warehouse_pipeline.launch.py)**: Launches `llm_planner/planner_node`, `solver_node/solver_node`, `dispatcher_node/dispatcher_node`, and `robot_controllers/mobile_robot_controller` together with synchronized `use_sim_time`.
 
 ---

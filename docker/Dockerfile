@@ -60,6 +60,31 @@ RUN apt-get update && \
     apt-get install -y software-properties-common && \
     DEBIAN_FRONTEND=noninteractive add-apt-repository ppa:kisak/kisak-mesa
 
+# Optional ROS 2 apt mirror (e.g. https://repo.huaweicloud.com/ros2/ubuntu) for
+# when packages.ros.org is slow. Empty keeps packages.ros.org. Declared here,
+# not at the top, so changing it does not invalidate the earlier cached layers.
+# Mirrors don't carry source packages, so deb-src is dropped when one is used.
+ARG ROS_APT_MIRROR=""
+
+# Add Clearpath apt repository and install Clearpath Simulator + Nav2
+RUN if [ -n "${ROS_APT_MIRROR}" ]; then \
+        grep -Rl "packages.ros.org/ros2/ubuntu" /etc/apt/sources.list.d | \
+        xargs -r sed -i -e "s|https\?://packages.ros.org/ros2/ubuntu|${ROS_APT_MIRROR}|g" \
+                        -e "s|^Types: deb deb-src$|Types: deb|"; \
+    fi && \
+    wget -qO - https://packages.clearpathrobotics.com/public.key | \
+    gpg --dearmor -o /usr/share/keyrings/clearpath-archive-keyring.gpg && \
+    sh -c 'echo "deb [signed-by=/usr/share/keyrings/clearpath-archive-keyring.gpg] https://packages.clearpathrobotics.com/stable/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/clearpath-latest.list' && \
+    apt-get update && \
+    apt-get install -y \
+    ros-${ROS_DISTRO}-clearpath-simulator \
+    ros-${ROS_DISTRO}-clearpath-robot \
+    ros-${ROS_DISTRO}-clearpath-common \
+    ros-${ROS_DISTRO}-clearpath-nav2-demos \
+    ros-${ROS_DISTRO}-navigation2 \
+    ros-${ROS_DISTRO}-nav2-bringup && \
+    rm -rf /var/lib/apt/lists/*
+
 # Create necessary directories
 RUN mkdir -p /etc/udev/rules.d && \
     mkdir -p /root/warehouse_ws/src

@@ -125,7 +125,7 @@
         </sensor>
     </gazebo>
 
-    <!-- Preserve lidar_link frame in SDFormat and attach 2D gpu_lidar sensor -->
+    <!-- Preserve lidar_link frame in SDFormat and attach 3D multi-ring gpu_lidar sensor -->
     <gazebo reference="lidar_joint">
         <preserveFixedJoint>true</preserveFixedJoint>
     </gazebo>
@@ -133,27 +133,27 @@
     <gazebo reference="${p}lidar_link">
         <sensor name="gpu_lidar" type="gpu_lidar">
             <always_on>1</always_on>
-            <update_rate>20</update_rate>
+            <update_rate>10</update_rate>
             <visualize>false</visualize>
             <topic>/$(arg namespace)/scan</topic>
             <gz_frame_id>${p}lidar_link</gz_frame_id>
             <lidar>
                 <scan>
                     <horizontal>
-                        <samples>720</samples>
+                        <samples>360</samples>
                         <resolution>1</resolution>
-                        <min_angle>-2.35619</min_angle>
-                        <max_angle>2.35619</max_angle>
+                        <min_angle>-2.0944</min_angle>
+                        <max_angle>2.0944</max_angle>
                     </horizontal>
                     <vertical>
-                        <samples>1</samples>
+                        <samples>8</samples>
                         <resolution>1</resolution>
-                        <min_angle>0.0</min_angle>
-                        <max_angle>0.0</max_angle>
+                        <min_angle>-0.55</min_angle>
+                        <max_angle>0.05</max_angle>
                     </vertical>
                 </scan>
                 <range>
-                    <min>0.10</min>
+                    <min>0.25</min>
                     <max>15.0</max>
                     <resolution>0.01</resolution>
                 </range>

@@ -386,6 +386,47 @@ class MoveItRobotClient:
         sol = resp.solution.joint_state
         return {n: float(p) for n, p in zip(sol.name, sol.position)}
 
+    def is_ik_service_ready(self) -> bool:
+        """Return True if the MoveIt `/compute_ik` service is currently ready."""
+        return bool(self._ik_client.service_is_ready())
+
+    def check_ik_reachable(
+        self,
+        group: str,
+        ik_link_name: str,
+        poses: Sequence[PoseStamped],
+        current_joints: Dict[str, float],
+        seed_overrides: Optional[Dict[str, float]] = None,
+        avoid_collisions: bool = True,
+        timeout_sec: float = 0.5,
+    ) -> Optional[bool]:
+        """Return True iff every pose has valid IK, False if any fails, None if unready."""
+        if not self._ik_client.service_is_ready():
+            return None
+
+        active_seed = seed_overrides
+        for pose in poses:
+            seed_candidates: List[Optional[Dict[str, float]]] = (
+                [active_seed, None] if active_seed is not None else [None]
+            )
+            solved: Optional[Dict[str, float]] = None
+            for seed in seed_candidates:
+                solved = self.compute_ik(
+                    group,
+                    ik_link_name,
+                    pose,
+                    current_joints,
+                    seed_overrides=seed,
+                    avoid_collisions=avoid_collisions,
+                    timeout_sec=timeout_sec,
+                )
+                if solved:
+                    break
+            if not solved:
+                return False
+            active_seed = unwrap_ik_solution(solved, current_joints)
+        return True
+
     def move_to_pose(
         self,
         group: str,
