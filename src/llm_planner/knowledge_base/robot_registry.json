@@ -1,7 +1,7 @@
 {
   "robots": [
     {
-      "robot_type": "mobile_robot",
+      "robot_type": "b1z1",
       "capabilities": [
         "navigation",
         "manipulation"
@@ -18,7 +18,7 @@
       "status": "active"
     },
     {
-      "robot_type": "robotic_arm",
+      "robot_type": "bcr_arm",
       "capabilities": [
         "manipulation"
       ],
@@ -33,17 +33,16 @@
       "status": "active"
     },
     {
-      "robot_type": "transport_robot",
+      "robot_type": "b2_cargo",
       "capabilities": [
-        "navigation",
-        "transport"
+        "navigation"
       ],
       "skill_ids": [
         "navigate_to"
       ],
       "specs": {
-        "payload_capacity_kg": 75.0,
-        "speed_m_s": 1.0
+        "payload_capacity_kg": 15.0,
+        "speed_m_s": 0.35
       },
       "status": "active"
     }

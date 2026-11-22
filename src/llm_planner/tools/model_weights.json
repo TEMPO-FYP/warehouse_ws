@@ -1,0 +1,106 @@
+{
+  "models": {
+    "small_box": {
+      "weight_kg": 2.0,
+      "role": "object",
+      "category": "inventory",
+      "description": "Standard small cardboard inventory box"
+    },
+    "55gal_Drum": {
+      "weight_kg": 180.0,
+      "role": "object",
+      "category": "heavy_container",
+      "description": "55-gallon steel chemical/storage drum"
+    },
+    "Pallet_Standard": {
+      "weight_kg": 25.0,
+      "role": "object",
+      "category": "bulk_goods",
+      "description": "Standard wooden warehouse pallet"
+    },
+    "cordless_drill_default_inertia": {
+      "weight_kg": 1.5,
+      "role": "object",
+      "category": "tool",
+      "description": "Cordless electric power drill"
+    },
+    "cordless_drill_auto_inertia": {
+      "weight_kg": 1.5,
+      "role": "object",
+      "category": "tool",
+      "description": "Cordless electric power drill"
+    },
+    "cordless_drill": {
+      "weight_kg": 1.5,
+      "role": "object",
+      "category": "tool",
+      "description": "Cordless electric power drill"
+    },
+    "wall_mount_bracket": {
+      "weight_kg": null,
+      "role": "location",
+      "category": "tool_mount",
+      "description": "Wall-mounted metal tool bracket fixture holding cordless power drills"
+    },
+    "Handtruck_01": {
+      "weight_kg": 15.0,
+      "role": "object",
+      "category": "transport_equipment",
+      "description": "Two-wheeled upright hand truck"
+    },
+    "Handtruck_02": {
+      "weight_kg": 15.0,
+      "role": "object",
+      "category": "transport_equipment",
+      "description": "Two-wheeled upright hand truck model 2"
+    },
+    "Hand_Cart": {
+      "weight_kg": 20.0,
+      "role": "object",
+      "category": "transport_equipment",
+      "description": "Four-wheeled flatbed hand utility cart"
+    },
+    "Pallet_Jack": {
+      "weight_kg": 70.0,
+      "role": "object",
+      "category": "transport_equipment",
+      "description": "Manual hydraulic pallet jack"
+    },
+    "Ladder": {
+      "weight_kg": 10.0,
+      "role": "object",
+      "category": "utility",
+      "description": "Portable warehouse maintenance ladder"
+    },
+    "Generator": {
+      "weight_kg": 120.0,
+      "role": "static_infrastructure",
+      "category": "heavy_equipment",
+      "description": "Elevated ceiling-mounted industrial backup power generator"
+    },
+    "Dumpster_Large": {
+      "weight_kg": 300.0,
+      "role": "location",
+      "category": "waste_disposal",
+      "description": "Large industrial outdoor waste dumpster disposal location"
+    },
+    "Packing_Station": {
+      "weight_kg": null,
+      "role": "location",
+      "category": "workstation",
+      "description": "Fixed warehouse packing station workbench location"
+    },
+    "Picking_Shelves": {
+      "weight_kg": null,
+      "role": "location",
+      "category": "storage_rack",
+      "description": "Multi-tier warehouse storage picking shelf fixture"
+    },
+    "Distribution_Warehouse": {
+      "weight_kg": null,
+      "role": "static_infrastructure",
+      "category": "building",
+      "description": "Warehouse building enclosure"
+    }
+  }
+}

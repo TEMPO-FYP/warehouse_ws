@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Use ROS_DISTRO from environment (set by base image), fall back to jazzy if not set
+# Set ROS 2 distribution as a variable
 ROS_DISTRO="${ROS_DISTRO:-jazzy}"
 
 # Source ROS 2 setup
@@ -16,27 +16,17 @@ apt-get update && apt-get install -y \
 # Add Clearpath rosdep sources so rosdep can resolve clearpath package dependencies
 wget https://raw.githubusercontent.com/clearpathrobotics/public-rosdistro/master/rosdep/50-clearpath.list \
     -O /etc/ros/rosdep/sources.list.d/50-clearpath.list
-rosdep update
 
 # Navigate to workspace root
 cd /root/warehouse_ws
 
 # Install ROS 2 dependencies for workspace packages
 echo "Installing ROS 2 dependencies..."
+rosdep update
 rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y
 
-# Install MoveIt Task Constructor and Python dependencies
-echo "Installing MoveIt Task Constructor and Python dependencies..."
-apt-get install -y \
-    ros-$ROS_DISTRO-moveit-task-constructor-core \
-    ros-$ROS_DISTRO-moveit-task-constructor-msgs \
-    ros-$ROS_DISTRO-moveit-task-constructor-visualization \
-    python3-scipy \
-    python3-sklearn
-
-# Install Python dependencies for LLM planner
-echo "Installing LLM Planner Python dependencies..."
-pip install --no-cache-dir sentence-transformers groq google-genai
+# Re-source ROS 2 setup so hooks from newly installed vendor packages (e.g. gz_sim_vendor) are loaded
+source /opt/ros/$ROS_DISTRO/setup.bash
 
 # Fix PCL warning if PCL is installed
 echo "Fixing PCL warnings..."

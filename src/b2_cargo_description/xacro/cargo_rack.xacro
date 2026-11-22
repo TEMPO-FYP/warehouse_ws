@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!--
+        Open-top warehouse plastic tote/crate attached rigidly to the quadruped trunk.
+        Uses cargo_rack.dae for realistic visuals paired with 5 thin hollow box
+        colliders lining the interior pocket (0.348 m x 0.214 m x 0.066 m).
+    -->
+    <xacro:macro name="cargo_rack" params="parent:=trunk *origin">
+
+        <joint name="cargo_rack_joint" type="fixed">
+            <xacro:insert_block name="origin"/>
+            <parent link="${parent}"/>
+            <child link="cargo_rack_link"/>
+        </joint>
+
+        <link name="cargo_rack_link">
+            <visual>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://b2_cargo_description/meshes/cargo/cargo_rack.dae" scale="1 1 1"/>
+                </geometry>
+            </visual>
+
+            <!-- 5-box hollow collision geometry aligned to cargo_rack.dae pocket -->
+            <!-- 1. Bottom floor plate (top surface at z = +0.022 m matching rubber tread) -->
+            <collision name="cargo_floor_collision">
+                <origin rpy="0 0 0" xyz="0 0 0.011"/>
+                <geometry>
+                    <box size="0.390 0.256 0.022"/>
+                </geometry>
+            </collision>
+            <!-- 2. Front wall (+X) -->
+            <collision name="cargo_front_wall_collision">
+                <origin rpy="0 0 0" xyz="0.1845 0 0.055"/>
+                <geometry>
+                    <box size="0.021 0.256 0.066"/>
+                </geometry>
+            </collision>
+            <!-- 3. Rear wall (-X) -->
+            <collision name="cargo_rear_wall_collision">
+                <origin rpy="0 0 0" xyz="-0.1845 0 0.055"/>
+                <geometry>
+                    <box size="0.021 0.256 0.066"/>
+                </geometry>
+            </collision>
+            <!-- 4. Left wall (+Y) -->
+            <collision name="cargo_left_wall_collision">
+                <origin rpy="0 0 0" xyz="0 0.1175 0.055"/>
+                <geometry>
+                    <box size="0.348 0.021 0.066"/>
+                </geometry>
+            </collision>
+            <!-- 5. Right wall (-Y) -->
+            <collision name="cargo_right_wall_collision">
+                <origin rpy="0 0 0" xyz="0 -0.1175 0.055"/>
+                <geometry>
+                    <box size="0.348 0.021 0.066"/>
+                </geometry>
+            </collision>
+
+            <!-- Empty crate inertia (~2.2 kg HDPE + aluminum saddle) -->
+            <inertial>
+                <origin rpy="0 0 0" xyz="0 0 0.042"/>
+                <mass value="2.2"/>
+                <inertia
+                    ixx="0.0125" ixy="0.0" ixz="0.0"
+                    iyy="0.0280" iyz="0.0"
+                    izz="0.0375"/>
+            </inertial>
+        </link>
+
+        <gazebo reference="cargo_rack_joint">
+            <preserveFixedJoint>true</preserveFixedJoint>
+        </gazebo>
+
+        <!-- High-friction rubberized liner surface to retain boxes during trotting -->
+        <gazebo reference="cargo_rack_link">
+            <mu1>2.0</mu1>
+            <mu2>2.0</mu2>
+            <kp>100000.0</kp>
+            <kd>10.0</kd>
+            <minDepth>0.001</minDepth>
+        </gazebo>
+
+    </xacro:macro>
+
+</robot>

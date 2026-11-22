@@ -1,4 +1,5 @@
 import os
+
 from setuptools import find_packages, setup
 
 package_name = 'warehouse_sim'
@@ -19,12 +20,11 @@ data_files = [
     ('share/' + package_name, ['package.xml']),
 ]
 
-# Add launch, worlds, and models recursively
+# Add launch, maps, worlds, and models recursively
 data_files.extend(generate_data_files(package_name, 'launch'))
+data_files.extend(generate_data_files(package_name, 'maps'))
 data_files.extend(generate_data_files(package_name, 'worlds'))
 data_files.extend(generate_data_files(package_name, 'models'))
-data_files.extend(generate_data_files(package_name, 'scripts'))
-data_files.extend(generate_data_files(package_name, 'maps'))
 
 setup(
     name=package_name,
@@ -45,6 +45,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'gz_pose_bridge = warehouse_sim.gz_pose_bridge:main',
+            'gz_video_recorder = warehouse_sim.gz_video_recorder:main',
         ],
     },
 )

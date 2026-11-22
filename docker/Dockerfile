@@ -32,7 +32,7 @@ RUN apt-get update -q && \
     python3-scipy python3-sklearn
 
 # Install TEMPO LLM Planner Python dependencies
-RUN pip install --no-cache-dir --timeout 300 sentence-transformers groq google-genai
+RUN --mount=type=cache,target=/root/.cache/pip pip install sentence-transformers groq google-genai
 
 # Set up the ROS 2 environment
 # This ensures that ROS 2 commands are available in the shell
@@ -49,7 +49,9 @@ RUN apt-get update && \
     ros-${ROS_DISTRO}-demo-nodes-cpp \
     ros-${ROS_DISTRO}-demo-nodes-py \
     ros-${ROS_DISTRO}-rviz2 \
-    ros-${ROS_DISTRO}-rqt-reconfigure
+    ros-${ROS_DISTRO}-moveit-ros-visualization \
+    ros-${ROS_DISTRO}-rqt-reconfigure \
+    ros-${ROS_DISTRO}-teleop-twist-keyboard
 
 # Install Mesa graphics drivers
 # Mesa is an open-source implementation of OpenGL and other graphics APIs
@@ -64,7 +66,7 @@ RUN apt-get update && \
 # Mirrors don't carry source packages, so deb-src is dropped when one is used.
 ARG ROS_APT_MIRROR=""
 
-# Add Clearpath apt repository and install Clearpath Simulator
+# Add Clearpath apt repository and install Clearpath Simulator + Nav2
 RUN if [ -n "${ROS_APT_MIRROR}" ]; then \
         grep -Rl "packages.ros.org/ros2/ubuntu" /etc/apt/sources.list.d | \
         xargs -r sed -i -e "s|https\?://packages.ros.org/ros2/ubuntu|${ROS_APT_MIRROR}|g" \

@@ -1,0 +1,19 @@
+# Default ROS 2 <-> Gazebo Sim Harmonic bridge configuration for /b1z1
+
+- ros_topic_name: "/b1z1/odom"
+  gz_topic_name: "/b1z1/odom"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: "/b1z1/scan"
+  gz_topic_name: "/b1z1/scan"
+  ros_type_name: "sensor_msgs/msg/LaserScan"
+  gz_type_name: "gz.msgs.LaserScan"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: "/tf"
+  gz_topic_name: "/b1z1/tf"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: "GZ_TO_ROS"

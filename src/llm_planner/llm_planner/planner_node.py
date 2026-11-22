@@ -105,6 +105,7 @@ class LLMPlannerNode(Node):
             "plan": result.plan,
             "errors": result.errors,
             "attempts": {
+                "grounding": result.grounding_attempts,
                 "decomposition": result.decomposition_attempts,
                 "taxonomy": result.taxonomy_attempts,
             },

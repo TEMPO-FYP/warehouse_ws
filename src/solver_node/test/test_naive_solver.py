@@ -78,9 +78,9 @@ def test_single_chain_allocation():
     assigned = allocate_subtasks(subtasks)
     assert len(assigned) == 3
     # All tasks in the single chain should be allocated to the same robot
-    assert assigned[0]['robot'] == 'mobile_robot_1'
-    assert assigned[1]['robot'] == 'mobile_robot_1'
-    assert assigned[2]['robot'] == 'mobile_robot_1'
+    assert assigned[0]['robot'] == 'b1z1_1'
+    assert assigned[1]['robot'] == 'b1z1_1'
+    assert assigned[2]['robot'] == 'b1z1_1'
 
 
 def test_two_chain_allocation():
@@ -139,4 +139,4 @@ def test_immutability_of_input():
     subtasks = [{'id': 'T1', 'dependencies': []}]
     assigned = allocate_subtasks(subtasks)
     assert 'robot' not in subtasks[0]
-    assert assigned[0]['robot'] == 'mobile_robot_1'
+    assert assigned[0]['robot'] == 'b1z1_1'

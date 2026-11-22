@@ -8,7 +8,7 @@ Two responsibilities:
   1. build_dag(): converts a plan's subtask dependency lists into a
      NetworkX DiGraph where nodes are subtask ids and edges represent
      execution ordering constraints.
-  2. validate_plan(): runs five checks on the plan and DAG to catch
+  2. validate_plan(): runs six checks on the plan and DAG to catch
      errors before the plan is dispatched to the solver.
 
 Validation checks:
@@ -17,6 +17,7 @@ Validation checks:
   3. No dangling dependency references.
   4. All required_skills exist in the retrieved skill bank.
   5. Args keys match the skill's inputs exactly.
+  6. Args values for objects and locations exist in the grounded 3D Scene Graph.
 """
 
 import networkx as nx
@@ -45,14 +46,20 @@ def build_dag(plan: dict) -> nx.DiGraph:
 
 # Validator
 
-def validate_plan(plan: dict, G: nx.DiGraph,
-                  skill_bank: list[dict]) -> list[str]:
+def validate_plan(
+    plan: dict,
+    G: nx.DiGraph,
+    skill_bank: list[dict],
+    grounded_entities: dict[str, set[str]],
+) -> list[str]:
     """
-    Validates the plan against five checks. Returns a list of error
+    Validates the plan against six checks. Returns a list of error
     strings. An empty list means the plan is valid.
 
     skill_bank: the list of skill entries from skill_retriever, used
                 for checks 4 and 5.
+    grounded_entities: dictionary with 'objects' and 'locations' sets of valid
+                       IDs from the grounded 3D Scene Graph, used for check 6.
 
     Check 1: No duplicate subtask ids.
              Every subtask in the plan must have a unique id.
@@ -68,7 +75,11 @@ def validate_plan(plan: dict, G: nx.DiGraph,
 
     Check 5: Args keys match the skill's inputs exactly.
              The keys in a subtask's args must match the input names
-             listed for that skill in the skill bank. 
+             listed for that skill in the skill bank.
+
+    Check 6: Entity grounding validation.
+             Any 'object' in args must exist in grounded_entities['objects'].
+             Any 'location' in args must exist in grounded_entities['locations'].
     """
     errors = []
 
@@ -76,6 +87,9 @@ def validate_plan(plan: dict, G: nx.DiGraph,
     valid_skills   = {s["name"] for s in skill_bank}
     skill_inputs   = {s["name"]: set(s["inputs"]) for s in skill_bank}
     task_ids       = {t["id"] for t in plan["subtasks"]}
+
+    valid_objects   = grounded_entities.get("objects", set())
+    valid_locations = grounded_entities.get("locations", set())
 
     # Check 1, duplicate task ids.
     seen_ids = set()
@@ -156,5 +170,26 @@ def validate_plan(plan: dict, G: nx.DiGraph,
                 f"but has unexpected args: {sorted(extra)}. "
                 f"Expected inputs: {sorted(expected_inputs)}"
             )
+
+    # Check 6, grounded entities validation.
+    for task in plan["subtasks"]:
+        args = task.get("args", {})
+        if "object" in args:
+            obj_name = args["object"]
+            if obj_name not in valid_objects:
+                errors.append(
+                    f"UNGROUNDED_OBJECT: task '{task['id']}' references object '{obj_name}' "
+                    f"which does not exist in the grounded environment. "
+                    f"Valid grounded objects: {sorted(valid_objects)}"
+                )
+
+        if "location" in args:
+            loc_name = args["location"]
+            if loc_name not in valid_locations:
+                errors.append(
+                    f"UNGROUNDED_LOCATION: task '{task['id']}' references location '{loc_name}' "
+                    f"which does not exist in the grounded environment. "
+                    f"Valid grounded locations: {sorted(valid_locations)}"
+                )
 
     return errors

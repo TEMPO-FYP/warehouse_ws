@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="bcr_arm">
+
+  <xacro:arg name="namespace" default="bcr_arm"/>
+  <xacro:arg name="prefix" default="bcr_arm_"/>
+  <xacro:arg name="controllers_yaml" default=""/>
+  <xacro:arg name="use_pedestal" default="true"/>
+  <xacro:arg name="pedestal_height" default="0.55"/>
+  <xacro:arg name="pedestal_width" default="0.28"/>
+  <xacro:arg name="add_world_joint" default="false"/>
+
+  <xacro:property name="p" value="$(arg prefix)"/>
+  <xacro:property name="ped_h" value="$(arg pedestal_height)"/>
+  <xacro:property name="ped_w" value="$(arg pedestal_width)"/>
+
+  <material name="pedestal_dark_grey">
+    <color rgba="0.22 0.24 0.27 1.0"/>
+  </material>
+
+  <!-- Root mount frame anchored at ground contact (map -> ${p}mount_link published via TF2) -->
+  <link name="${p}mount_link"/>
+
+  <!-- World fixed joint used ONLY for Gazebo Sim spawning so DART pins the stationary arm -->
+  <xacro:if value="$(arg add_world_joint)">
+    <link name="world"/>
+    <joint name="${p}world_to_mount" type="fixed">
+      <parent link="world"/>
+      <child link="${p}mount_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+  </xacro:if>
+
+  <xacro:if value="$(arg use_pedestal)">
+    <link name="${p}pedestal_link">
+      <visual>
+        <origin xyz="0 0 ${ped_h / 2.0}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${ped_w} ${ped_w} ${ped_h}"/>
+        </geometry>
+        <material name="pedestal_dark_grey"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${ped_h / 2.0}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${ped_w} ${ped_w} ${ped_h}"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 ${ped_h / 2.0}" rpy="0 0 0"/>
+        <mass value="50.0"/>
+        <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+      </inertial>
+    </link>
+    <gazebo reference="${p}pedestal_link">
+      <material>
+        <ambient>0.22 0.24 0.27 1.0</ambient>
+        <diffuse>0.22 0.24 0.27 1.0</diffuse>
+        <specular>0.15 0.15 0.15 1.0</specular>
+      </material>
+    </gazebo>
+    <joint name="${p}mount_to_pedestal" type="fixed">
+      <parent link="${p}mount_link"/>
+      <child link="${p}pedestal_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    <joint name="${p}pedestal_to_base" type="fixed">
+      <parent link="${p}pedestal_link"/>
+      <child link="${p}base_link"/>
+      <origin xyz="0 0 ${ped_h}" rpy="0 0 0"/>
+    </joint>
+  </xacro:if>
+
+  <xacro:unless value="$(arg use_pedestal)">
+    <joint name="${p}mount_to_base" type="fixed">
+      <parent link="${p}mount_link"/>
+      <child link="${p}base_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+  </xacro:unless>
+
+  <!-- 7-DOF BCR Mechanical Arm -->
+  <xacro:include filename="$(find bcr_arm_description)/xacro/bcr_arm_mech.urdf.xacro"/>
+  <xacro:bcr_arm_kinematics prefix="${p}"/>
+
+  <!-- Gazebo ros2_control + DynamicAttachSystem -->
+  <xacro:include filename="$(find bcr_arm_description)/xacro/bcr_arm_gazebo.xacro"/>
+
+  <!-- Robotiq 2F-85 Gripper (links prefixed, joints unprefixed inside /<namespace>/) -->
+  <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_85_macro.urdf.xacro"/>
+  <xacro:robotiq_gripper
+      name="$(arg namespace)_gripper"
+      prefix="${p}"
+      use_joint_prefix="false"
+      parent="${p}flange"
+      sim_gazebo="true"
+      gripper_initial_position="0.05">
+    <origin xyz="0 0 0" rpy="1.5707963 0 1.5707963"/>
+  </xacro:robotiq_gripper>
+
+</robot>

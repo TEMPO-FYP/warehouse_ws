@@ -167,21 +167,6 @@ def load_fleet_instances() -> Dict[str, Any]:
     return instances
 
 
-def infer_default_objects(subtasks: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Infers an objects specification dictionary from subtask arguments.
-    Standard objects default to 2.0 kg; objects with 'heavy' in their name default to 20.0 kg.
-    """
-    objects = {}
-    for task in subtasks:
-        args = task.get("args", {})
-        obj_name = args.get("object")
-        if obj_name and obj_name not in objects:
-            weight = 20.0 if "heavy" in str(obj_name).lower() else 2.0
-            objects[obj_name] = {"weight_kg": weight}
-    return objects
-
-
 @dataclass
 class TaxonomyClassificationResult:
     """Encapsulates the result of a taxonomy classification attempt."""
@@ -226,17 +211,15 @@ class TaxonomyClassifier:
     def classify(
         self,
         subtasks: List[Dict[str, Any]],
+        objects: Dict[str, Any],
         fleet: Optional[Dict[str, Any]] = None,
-        objects: Optional[Dict[str, Any]] = None,
     ) -> TaxonomyClassificationResult:
         """
         Classifies a candidate subtask DAG into an iTax subclass using full in-context
         taxonomy formalisms and exemplars, with automated validation and retry handling.
         """
         active_fleet = fleet if fleet is not None else load_default_fleet()
-        active_objects = (
-            objects if objects is not None else infer_default_objects(subtasks)
-        )
+        active_objects = objects
 
         user_prompt = build_taxonomy_prompt(
             subtasks=subtasks,
@@ -340,8 +323,8 @@ _default_taxonomy_classifier: Optional[TaxonomyClassifier] = None
 
 def classify_taxonomy(
     subtasks: List[Dict[str, Any]],
+    objects: Dict[str, Any],
     fleet: Optional[Dict[str, Any]] = None,
-    objects: Optional[Dict[str, Any]] = None,
     client: Optional[Any] = None,
     model: Optional[str] = None,
     max_retries: Optional[int] = None,
@@ -355,21 +338,22 @@ def classify_taxonomy(
             model=model,
             max_retries=max_retries if max_retries is not None else MAX_RETRIES,
         )
-        return classifier.classify(subtasks, fleet=fleet, objects=objects)
+        return classifier.classify(subtasks, objects=objects, fleet=fleet)
 
     global _default_taxonomy_classifier
     if _default_taxonomy_classifier is None:
         _default_taxonomy_classifier = TaxonomyClassifier()
-    return _default_taxonomy_classifier.classify(subtasks, fleet=fleet, objects=objects)
+    return _default_taxonomy_classifier.classify(subtasks, objects=objects, fleet=fleet)
 
 
 if __name__ == "__main__":
     from llm_planner.orchestrator import decompose_mission
+    from llm_planner.scene_graph_grounder import extract_objects_dict
 
     mission_text = (
         sys.argv[1]
         if len(sys.argv) > 1
-        else "Retrieve the red box from shelf A and deliver it to origin."
+        else "Pick up a small box from aisle 1 in the picking zone and place it at a packing station."
     )
 
     print(f"\n==========================================")
@@ -387,7 +371,12 @@ if __name__ == "__main__":
 
     # Step 2: Classify
     print("\nExecuting Stage 2: Taxonomy Classification...")
-    tax_result = classify_taxonomy(decomp_result.plan["subtasks"])
+    grounded_objects = extract_objects_dict(
+        decomp_result.grounded_scene, decomp_result.plan["subtasks"]
+    )
+    tax_result = classify_taxonomy(
+        decomp_result.plan["subtasks"], objects=grounded_objects
+    )
 
     print("\n---------------- TAXONOMY RESULT ----------------")
     print(f"Subclass: {tax_result.subclass}")
