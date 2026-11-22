@@ -25,7 +25,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from action_msgs.msg import GoalStatus
 from ament_index_python.packages import get_package_share_directory
-from geometry_msgs.msg import PoseStamped, Twist
+from geometry_msgs.msg import PoseStamped, Twist, TwistStamped
 from gz.msgs10.empty_pb2 import Empty as GzEmpty  # type: ignore[import-not-found]
 from gz.msgs10.stringmsg_pb2 import StringMsg as GzStringMsg  # type: ignore[import-not-found]
 from gz.transport13 import Node as GzNode  # type: ignore[import-not-found]
@@ -37,6 +37,7 @@ from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from robot_controllers.geometry_utils import (
     quaternion_to_yaw,
     rpy_to_quat_tuple,
@@ -122,12 +123,18 @@ class RobotProfile:
     supports_navigation: bool = True
     tcp_approach_axis: str = 'x'
     cargo_surface_z_offset: float = 0.110
+    joint_states_topic: Optional[str] = None
+    use_namespaced_tf: bool = False
+    cmd_vel_stamped: bool = False
+    gripper_attach_position: Optional[float] = None
 
 
 def _build_profile(instance_id: str, profile_name: str, raw: Dict[str, Any]) -> RobotProfile:
     nav = raw.get('navigation', {})
     manip = raw.get('manipulation', {})
     raw_dims = manip.get('default_object_dims', [0.06, 0.06, 0.06])
+    raw_js_topic = raw.get('joint_states_topic')
+    raw_attach_pos = manip.get('gripper_attach_position')
     return RobotProfile(
         instance_id=instance_id,
         profile_name=profile_name,
@@ -174,6 +181,12 @@ def _build_profile(instance_id: str, profile_name: str, raw: Dict[str, Any]) -> 
         supports_navigation=bool(raw.get('supports_navigation', True)),
         tcp_approach_axis=str(manip.get('tcp_approach_axis', 'x')).strip().lower(),
         cargo_surface_z_offset=float(raw.get('cargo_surface_z_offset', 0.110)),
+        joint_states_topic=str(raw_js_topic).strip() if raw_js_topic else None,
+        use_namespaced_tf=bool(raw.get('use_namespaced_tf', False)),
+        cmd_vel_stamped=bool(raw.get('cmd_vel_stamped', False)),
+        gripper_attach_position=(
+            float(raw_attach_pos) if raw_attach_pos is not None else None
+        ),
     )
 
 
@@ -253,6 +266,7 @@ class MobileRobotController(Node):
 
         self._tf_buffer = tf2_ros.Buffer()
         self._tf_listener = tf2_ros.TransformListener(self._tf_buffer, self)
+        self._robot_tf_buffers: Dict[str, tf2_ros.Buffer] = {}
 
         any_attach = any(p.use_kinematic_attach for p in self._profiles.values())
         self._gz_node: Optional[GzNode] = GzNode() if any_attach else None
@@ -276,17 +290,42 @@ class MobileRobotController(Node):
         self._gz_attach_pubs: Dict[str, Any] = {}
         self._gz_detach_pubs: Dict[str, Any] = {}
 
+        tf_static_qos = QoSProfile(
+            depth=100,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            reliability=ReliabilityPolicy.RELIABLE,
+        )
+
         for inst, prof in self._profiles.items():
             ns_prefix = f'/{prof.namespace.strip("/")}' if prof.namespace.strip('/') else ''
             nav_topic = f'{ns_prefix}/navigate_to_pose'
-            js_topic = f'{ns_prefix}/joint_states'
+            js_topic = prof.joint_states_topic or f'{ns_prefix}/joint_states'
             cmd_topic = f'{ns_prefix}/cmd_vel'
+
+            if prof.use_namespaced_tf and ns_prefix:
+                buf = tf2_ros.Buffer()
+                self._robot_tf_buffers[inst] = buf
+                self.create_subscription(
+                    TFMessage,
+                    f'{ns_prefix}/tf',
+                    lambda msg, b=buf: self._ingest_tf(b, msg, static=False),
+                    100,
+                    callback_group=self._cb_group,
+                )
+                self.create_subscription(
+                    TFMessage,
+                    f'{ns_prefix}/tf_static',
+                    lambda msg, b=buf: self._ingest_tf(b, msg, static=True),
+                    tf_static_qos,
+                    callback_group=self._cb_group,
+                )
 
             if prof.supports_navigation:
                 self._nav_clients[inst] = ActionClient(
                     self, NavigateToPose, nav_topic, callback_group=self._cb_group
                 )
-                self._cmd_vel_pubs[inst] = self.create_publisher(Twist, cmd_topic, 10)
+                vel_msg_type = TwistStamped if prof.cmd_vel_stamped else Twist
+                self._cmd_vel_pubs[inst] = self.create_publisher(vel_msg_type, cmd_topic, 10)
             if prof.supports_manipulation:
                 self._moveit_clients[inst] = MoveItRobotClient(
                     self,
@@ -377,10 +416,20 @@ class MobileRobotController(Node):
             for p in ('Packing_Station', 'Picking_Shelves', 'Pallet_Standard')
         )
 
-    def _lookup_frame_in_map(self, frame_id: str) -> Optional[PoseEntry]:
+    @staticmethod
+    def _ingest_tf(buf: tf2_ros.Buffer, msg: TFMessage, static: bool) -> None:
+        setter = buf.set_transform_static if static else buf.set_transform
+        authority = 'ns_tf_static' if static else 'ns_tf'
+        for tf in msg.transforms:
+            setter(tf, authority)
+
+    def _lookup_frame_in_map(
+        self, frame_id: str, robot: Optional[str] = None
+    ) -> Optional[PoseEntry]:
         """Look up `frame_id` in world `map` coordinates via TF2."""
+        buf = self._robot_tf_buffers.get(robot, self._tf_buffer) if robot else self._tf_buffer
         try:
-            tf = self._tf_buffer.lookup_transform(
+            tf = buf.lookup_transform(
                 'map', frame_id, rclpy.time.Time(), timeout=Duration(seconds=0.5)
             )
         except Exception:
@@ -396,7 +445,7 @@ class MobileRobotController(Node):
     ) -> Optional[PoseEntry]:
         """Return world `(x, y, z, quat)` of `robot`'s `tcp_frame` + local `offset_xyz`."""
         prof = self._profiles[robot]
-        tcp_pose = self._lookup_frame_in_map(prof.tcp_frame)
+        tcp_pose = self._lookup_frame_in_map(prof.tcp_frame, robot=robot)
         if tcp_pose is None:
             return None
         px, py, pz, quat = tcp_pose
@@ -469,7 +518,7 @@ class MobileRobotController(Node):
     def _get_robot_pose(self, robot: str) -> Optional[PoseEntry]:
         prof = self._profiles[robot]
         if not prof.supports_navigation:
-            tf_pose = self._lookup_frame_in_map(prof.base_frame)
+            tf_pose = self._lookup_frame_in_map(prof.base_frame, robot=robot)
             if tf_pose is not None:
                 return tf_pose
         with self._pose_lock:
@@ -779,26 +828,39 @@ class MobileRobotController(Node):
             status='success', stage='complete', detail=f"Reached '{location}'.",
         )
 
+    def _publish_cmd_vel(
+        self, robot: str, vx: float = 0.0, vy: float = 0.0, wz: float = 0.0
+    ) -> None:
+        pub = self._cmd_vel_pubs[robot]
+        prof = self._profiles[robot]
+        twist = Twist()
+        twist.linear.x = float(vx)
+        twist.linear.y = float(vy)
+        twist.angular.z = float(wz)
+        if prof.cmd_vel_stamped:
+            msg = TwistStamped()
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.header.frame_id = prof.base_frame
+            msg.twist = twist
+            pub.publish(msg)
+        else:
+            pub.publish(twist)
+
     def _drive_pulse(
         self, robot: str, vx: float, wz: float, sim_dur: float, vy: float = 0.0
     ) -> None:
-        pub = self._cmd_vel_pubs[robot]
-        cmd = Twist()
-        cmd.linear.x = float(vx)
-        cmd.linear.y = float(vy)
-        cmd.angular.z = float(wz)
         start_ns = self.get_clock().now().nanoseconds
         target_ns = start_ns + int(sim_dur * 1e9) if start_ns > 0 else 0
         wall_deadline = time.monotonic() + max(10.0, sim_dur * 18.0)
         while time.monotonic() < wall_deadline:
-            pub.publish(cmd)
+            self._publish_cmd_vel(robot, vx=vx, vy=vy, wz=wz)
             if target_ns > 0:
                 if self.get_clock().now().nanoseconds >= target_ns:
                     break
             elif time.monotonic() >= (wall_deadline - max(10.0, sim_dur * 18.0) + sim_dur):
                 break
             time.sleep(0.03)
-        pub.publish(Twist())
+        self._publish_cmd_vel(robot)
         self._sim_sleep(0.9)
 
     def _ensure_aligned(
@@ -923,7 +985,7 @@ class MobileRobotController(Node):
                         else False
                     )
                     if ik_res is True:
-                        self._cmd_vel_pubs[robot].publish(Twist())
+                        self._publish_cmd_vel(robot)
                         self._sim_sleep(0.3)
                         self.get_logger().info(
                             f'[{task_id}] MoveIt IK confirmed reachable after pulse {step}; '
@@ -981,7 +1043,7 @@ class MobileRobotController(Node):
                                 )
                                 break
 
-            self._cmd_vel_pubs[robot].publish(Twist())
+            self._publish_cmd_vel(robot)
             self._sim_sleep(1.0)
 
         robot_pose = self._get_robot_pose(robot)
@@ -1043,7 +1105,9 @@ class MobileRobotController(Node):
         cargo_prof = self._find_cargo_robot_profile(location)
         if cargo_prof is not None:
             if cargo_prof.tcp_frame:
-                tf_pose = self._lookup_frame_in_map(cargo_prof.tcp_frame)
+                tf_pose = self._lookup_frame_in_map(
+                    cargo_prof.tcp_frame, robot=cargo_prof.instance_id
+                )
                 if tf_pose is not None:
                     return tf_pose[0], tf_pose[1], tf_pose[2] + 0.022, True
             return (
@@ -1334,8 +1398,13 @@ class MobileRobotController(Node):
         prof = self._profiles[robot]
         moveit = self._moveit_clients[robot]
         if prof.gripper_mode == 'gripper_command':
+            target_pos = (
+                prof.gripper_attach_position
+                if for_attach and prof.gripper_attach_position is not None
+                else prof.gripper_closed_position
+            )
             ok = moveit.move_gripper_command(
-                prof.gripper_closed_position, prof.gripper_max_effort, label
+                target_pos, prof.gripper_max_effort, label
             )
         else:
             key = 'gripper_attach' if for_attach else 'gripper_close'
@@ -1780,6 +1849,8 @@ class MobileRobotController(Node):
             cbx_raw, cby_raw, _ = transform_world_to_base(
                 clx, cly, csurf_z, (crx, cry, crz), crquat
             )
+            if not large_fixture and math.hypot(cbx_raw, cby_raw) > prof.max_reach_m:
+                return False
             pre_p, p_pose, _, _, _ = self._build_place_poses(
                 prof, cbx_raw, cby_raw, crz, csurf_z, large_fixture, cis_cargo
             )

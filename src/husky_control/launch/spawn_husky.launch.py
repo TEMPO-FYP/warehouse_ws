@@ -46,6 +46,12 @@ def _setup_spawn(context, pkg_husky_control: str, pkg_husky_prefix: str):
     use_sim_time = LaunchConfiguration('use_sim_time').perform(context).strip().lower() == 'true'
     use_sim_time_str = 'true' if use_sim_time else 'false'
     use_nav2 = LaunchConfiguration('use_nav2').perform(context).strip().lower() == 'true'
+    use_manipulation_controllers = (
+        LaunchConfiguration('use_manipulation_controllers').perform(context).strip().lower()
+        == 'true'
+    )
+    use_manip_str = 'true' if use_manipulation_controllers else 'false'
+    use_moveit = LaunchConfiguration('use_moveit').perform(context).strip().lower() == 'true'
     max_speed = LaunchConfiguration('max_speed').perform(context).strip() or '1.0'
     x = LaunchConfiguration('x').perform(context).strip()
     y = LaunchConfiguration('y').perform(context).strip()
@@ -67,12 +73,18 @@ def _setup_spawn(context, pkg_husky_control: str, pkg_husky_prefix: str):
     pkg_clearpath_control = get_package_share_directory('clearpath_control')
     pkg_clearpath_desc = get_package_share_directory('clearpath_platform_description')
     pkg_clearpath_gz = get_package_share_directory('clearpath_gz')
+    pkg_ur_desc = get_package_share_directory('ur_description')
+    pkg_robotiq_desc = get_package_share_directory('robotiq_description')
     ros_share_path = os.path.dirname(pkg_clearpath_desc)
+    ur_share_parent = os.path.dirname(pkg_ur_desc)
+    robotiq_share_parent = os.path.dirname(pkg_robotiq_desc)
     existing_gz_path = os.environ.get('GZ_SIM_RESOURCE_PATH', '')
     gz_resource_path = SetEnvironmentVariable(
         name='GZ_SIM_RESOURCE_PATH',
         value=':'.join(filter(None, [
             ros_share_path,
+            ur_share_parent,
+            robotiq_share_parent,
             setup_dir,
             os.path.join(pkg_clearpath_gz, 'models'),
             os.path.join(pkg_clearpath_gz, 'meshes'),
@@ -98,17 +110,22 @@ def _setup_spawn(context, pkg_husky_control: str, pkg_husky_prefix: str):
         output='screen',
     )
 
+    desc_launch_args = {
+        'setup_path': setup_dir,
+        'use_sim_time': use_sim_time_str,
+        'namespace': ns,
+        'use_manipulation_controllers': use_manip_str,
+    }
+    if use_manipulation_controllers:
+        desc_launch_args['robot_description_command'] = f'cat {setup_dir}/robot_abs.urdf'
+
     platform_group = GroupAction([
         PushRosNamespace(ns),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(pkg_clearpath_desc, 'launch', 'description.launch.py')
             ),
-            launch_arguments={
-                'setup_path': setup_dir,
-                'use_sim_time': use_sim_time_str,
-                'namespace': ns,
-            }.items(),
+            launch_arguments=desc_launch_args.items(),
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
@@ -124,6 +141,13 @@ def _setup_spawn(context, pkg_husky_control: str, pkg_husky_prefix: str):
         setup_dir, 'sensors', 'launch', 'sensors-service.launch.py'
     )
 
+    controller_names = ['joint_state_broadcaster', 'platform_velocity_controller']
+    if use_manipulation_controllers:
+        controller_names.extend([
+            'arm_0_joint_trajectory_controller',
+            'arm_0_gripper_controller',
+        ])
+
     controllers_spawner = Node(
         package='controller_manager',
         executable='spawner',
@@ -131,8 +155,7 @@ def _setup_spawn(context, pkg_husky_control: str, pkg_husky_prefix: str):
         namespace=ns,
         additional_env={'ROS_SUPER_CLIENT': 'True'},
         arguments=[
-            'joint_state_broadcaster',
-            'platform_velocity_controller',
+            *controller_names,
             '--controller-manager', f'/{ns}/controller_manager',
             '--controller-manager-timeout', '120',
             '--switch-timeout', '120',
@@ -175,23 +198,37 @@ def _setup_spawn(context, pkg_husky_control: str, pkg_husky_prefix: str):
         if event.returncode != 0:
             return [
                 LogInfo(
-                    msg=f'[spawn_husky] Controller spawner failed for {name}; skipping Nav2 launch.'
+                    msg=f'[spawn_husky] Controller spawner failed for {name}; skipping Nav2/MoveIt launch.'
                 )
             ]
-        if not use_nav2:
-            return []
-        return [
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(pkg_husky_control, 'launch', 'husky_nav2.launch.py')
-                ),
-                launch_arguments={
-                    'namespace': ns,
-                    'use_sim_time': use_sim_time_str,
-                    'max_speed': max_speed,
-                }.items(),
+        actions = []
+        if use_nav2:
+            actions.append(
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(
+                        os.path.join(pkg_husky_control, 'launch', 'husky_nav2.launch.py')
+                    ),
+                    launch_arguments={
+                        'namespace': ns,
+                        'use_sim_time': use_sim_time_str,
+                        'max_speed': max_speed,
+                    }.items(),
+                )
             )
-        ]
+        if use_moveit:
+            actions.append(
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(
+                        os.path.join(pkg_husky_control, 'launch', 'husky_moveit.launch.py')
+                    ),
+                    launch_arguments={
+                        'setup_path': setup_dir,
+                        'namespace': ns,
+                        'use_sim_time': use_sim_time_str,
+                    }.items(),
+                )
+            )
+        return actions
 
     on_controllers_handler = RegisterEventHandler(
         OnProcessExit(target_action=controllers_spawner, on_exit=_on_controllers_ready)
@@ -267,6 +304,18 @@ def generate_launch_description():
             default_value='false',
             choices=['true', 'false'],
             description='Launch Nav2 navigation stack after controllers activate',
+        ),
+        DeclareLaunchArgument(
+            'use_manipulation_controllers',
+            default_value='false',
+            choices=['true', 'false'],
+            description='Enable and spawn arm_0_joint_trajectory_controller and arm_0_gripper_controller',
+        ),
+        DeclareLaunchArgument(
+            'use_moveit',
+            default_value='false',
+            choices=['true', 'false'],
+            description='Launch MoveIt 2 move_group after controllers activate',
         ),
         DeclareLaunchArgument(
             'max_speed',

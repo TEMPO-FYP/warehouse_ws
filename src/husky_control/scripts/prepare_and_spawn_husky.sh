@@ -49,11 +49,72 @@ with open(dst_path, 'w', encoding='utf-8') as f:
     yaml.safe_dump(cfg, f, sort_keys=False)
 PYEOF
 
-echo "[prepare_and_spawn_husky] Generating Clearpath files in ${SETUP_DIR} (namespace=${NAMESPACE})..."
+HAS_MANIPULATORS=$(python3 - "${SETUP_DIR}/robot.yaml" <<'PYEOF'
+import sys
+import yaml
+
+with open(sys.argv[1], 'r', encoding='utf-8') as f:
+    cfg = yaml.safe_load(f) or {}
+
+arms = (cfg.get('manipulators') or {}).get('arms') or []
+print('1' if arms else '0')
+PYEOF
+)
+
+echo "[prepare_and_spawn_husky] Generating Clearpath files in ${SETUP_DIR} (namespace=${NAMESPACE}, manipulators=${HAS_MANIPULATORS})..."
 ros2 run clearpath_generator_common generate_bash -s "${SETUP_DIR}"
 ros2 run clearpath_generator_common generate_description -s "${SETUP_DIR}"
 ros2 run clearpath_generator_gz generate_launch -s "${SETUP_DIR}"
 ros2 run clearpath_generator_gz generate_param -s "${SETUP_DIR}"
+
+if [ "${HAS_MANIPULATORS}" = "1" ]; then
+    ros2 run clearpath_generator_common generate_semantic_description -s "${SETUP_DIR}"
+    if [ ! -f "${SETUP_DIR}/robot.srdf" ]; then
+        echo "[prepare_and_spawn_husky] ERROR: ${SETUP_DIR}/robot.srdf was not generated."
+        exit 1
+    fi
+    python3 - "${SETUP_DIR}/robot.srdf" <<'PYEOF'
+import sys
+import xml.etree.ElementTree as ET
+
+srdf_path = sys.argv[1]
+tree = ET.parse(srdf_path)
+root = tree.getroot()
+
+if root.find('virtual_joint') is None:
+    vj = ET.Element(
+        'virtual_joint',
+        {
+            'name': 'virtual_joint',
+            'type': 'floating',
+            'parent_frame': 'odom',
+            'child_link': 'base_link',
+        },
+    )
+    root.insert(0, vj)
+
+has_carry = any(
+    gs.attrib.get('name') == 'carry' and gs.attrib.get('group') == 'arm_0'
+    for gs in root.findall('group_state')
+)
+if not has_carry:
+    carry = ET.SubElement(root, 'group_state', {'name': 'carry', 'group': 'arm_0'})
+    carry_joints = [
+        ('arm_0_shoulder_pan_joint', '0.0'),
+        ('arm_0_shoulder_lift_joint', '-1.5707'),
+        ('arm_0_elbow_joint', '0.7854'),
+        ('arm_0_wrist_1_joint', '-2.3562'),
+        ('arm_0_wrist_2_joint', '-1.5707'),
+        ('arm_0_wrist_3_joint', '0.0'),
+    ]
+    for jname, jval in carry_joints:
+        ET.SubElement(carry, 'joint', {'name': jname, 'value': jval})
+
+ET.indent(tree, space='  ')
+tree.write(srdf_path, encoding='utf-8', xml_declaration=True)
+PYEOF
+    echo "[prepare_and_spawn_husky] Patched ${SETUP_DIR}/robot.srdf with virtual_joint and carry state"
+fi
 
 if [ ! -f "${SETUP_DIR}/robot.urdf.xacro" ]; then
     echo "[prepare_and_spawn_husky] ERROR: ${SETUP_DIR}/robot.urdf.xacro was not generated."
@@ -92,16 +153,64 @@ PYEOF
     echo "[prepare_and_spawn_husky] Disabled EKF publish_tf in ${LOC_YAML}"
 fi
 
-# Convert xacro -> URDF -> SDF and resolve model://clearpath_* URIs
+# Convert xacro -> URDF -> SDF and resolve model://clearpath_* (and arm/gripper) URIs
+USE_MANIP_CTRL="false"
+if [ "${HAS_MANIPULATORS}" = "1" ]; then
+    USE_MANIP_CTRL="true"
+fi
+
 ros2 run xacro xacro "${SETUP_DIR}/robot.urdf.xacro" \
     is_sim:=true \
     "namespace:=${NAMESPACE}" \
     "gazebo_controllers:=${SETUP_DIR}/platform/config/control.yaml" \
+    "use_manipulation_controllers:=${USE_MANIP_CTRL}" \
     > "${URDF_FILE}"
 
 if [ ! -s "${URDF_FILE}" ]; then
     echo "[prepare_and_spawn_husky] ERROR: xacro produced an empty URDF."
     exit 1
+fi
+
+if [ "${HAS_MANIPULATORS}" = "1" ]; then
+    python3 - "${URDF_FILE}" <<'PYEOF'
+import sys
+import xml.etree.ElementTree as ET
+
+urdf_path = sys.argv[1]
+tree = ET.parse(urdf_path)
+root = tree.getroot()
+
+initial_positions = {
+    'arm_0_shoulder_pan_joint': '0.0',
+    'arm_0_shoulder_lift_joint': '-1.5707',
+    'arm_0_elbow_joint': '1.5707',
+    'arm_0_wrist_1_joint': '-1.5707',
+    'arm_0_wrist_2_joint': '-1.5707',
+    'arm_0_wrist_3_joint': '0.0',
+}
+
+updated = 0
+for rc in root.findall('ros2_control'):
+    for joint in rc.findall('joint'):
+        jname = joint.attrib.get('name', '')
+        if jname not in initial_positions:
+            continue
+        for si in joint.findall('state_interface'):
+            if si.attrib.get('name') != 'position':
+                continue
+            param = next(
+                (p for p in si.findall('param') if p.attrib.get('name') == 'initial_value'),
+                None,
+            )
+            if param is None:
+                param = ET.SubElement(si, 'param', {'name': 'initial_value'})
+            param.text = initial_positions[jname]
+            updated += 1
+
+ET.indent(tree, space='  ')
+tree.write(urdf_path, encoding='utf-8', xml_declaration=True)
+print(f'[prepare_and_spawn_husky] Set initial_value on {updated} UR5e state_interface(s)')
+PYEOF
 fi
 
 gz sdf -p "${URDF_FILE}" > "${SDF_FILE}"
@@ -113,17 +222,39 @@ fi
 ROS_SHARE_PATH=$(ros2 pkg prefix clearpath_platform_description)/share
 sed -i -E "s|model://(clearpath_[a-z0-9_]+)|${ROS_SHARE_PATH}/\1|g" "${SDF_FILE}"
 
-# Inject Gazebo OdometryPublisher plugin for drift-free ground-truth odom -> base_link
-python3 - "${SDF_FILE}" "${NAMESPACE}" <<'PYEOF'
+if [ "${HAS_MANIPULATORS}" = "1" ]; then
+    UR_SHARE_PATH=$(ros2 pkg prefix ur_description)/share/ur_description
+    ROBOTIQ_SHARE_PATH=$(ros2 pkg prefix robotiq_description)/share/robotiq_description
+    sed -i -E "s|model://ur_description|${UR_SHARE_PATH}|g" "${SDF_FILE}"
+    sed -i -E "s|model://robotiq_description|${ROBOTIQ_SHARE_PATH}|g" "${SDF_FILE}"
+fi
+
+# Inject OdometryPublisher, deduplicate GazeboSimROS2ControlPlugin, and add DynamicAttachSystem
+python3 - "${SDF_FILE}" "${NAMESPACE}" "${HAS_MANIPULATORS}" <<'PYEOF'
 import sys
 import xml.etree.ElementTree as ET
 
-sdf_path, ns = sys.argv[1], sys.argv[2]
+sdf_path, ns, has_manip = sys.argv[1], sys.argv[2], sys.argv[3]
 tree = ET.parse(sdf_path)
 root = tree.getroot()
 model = root.find('model')
 if model is None:
     raise RuntimeError(f'No <model> element found in {sdf_path}')
+
+changed = False
+
+# Deduplicate bare GazeboSimROS2ControlPlugin elements (Clearpath universal_robots.urdf.xacro
+# emits a second bare plugin without <parameters> alongside a200.urdf.xacro's parameterized one).
+ros2_ctrl_plugins = [
+    p for p in model.findall('plugin')
+    if p.attrib.get('name') == 'gz_ros2_control::GazeboSimROS2ControlPlugin'
+]
+has_parameterized = any(p.find('parameters') is not None for p in ros2_ctrl_plugins)
+if has_parameterized and len(ros2_ctrl_plugins) > 1:
+    for p in ros2_ctrl_plugins:
+        if p.find('parameters') is None:
+            model.remove(p)
+            changed = True
 
 already_present = any(
     p.attrib.get('name') == 'gz::sim::systems::OdometryPublisher'
@@ -149,6 +280,40 @@ if not already_present:
     for tag, text in entries:
         el = ET.SubElement(plugin, tag)
         el.text = text
+    changed = True
+
+if has_manip == '1':
+    link_names = {lnk.attrib.get('name', '') for lnk in model.findall('link')}
+    attach_link = 'arm_0_wrist_3_link'
+    if attach_link not in link_names:
+        arm_links = sorted(n for n in link_names if n.startswith('arm_0_'))
+        raise RuntimeError(
+            f"Expected attach parent link '{attach_link}' not found in {sdf_path}; "
+            f'available arm_0 links: {arm_links}'
+        )
+    has_attach = any(
+        p.attrib.get('name') == 'b1z1::DynamicAttachSystem'
+        for p in model.findall('plugin')
+    )
+    if not has_attach:
+        attach_plugin = ET.SubElement(
+            model,
+            'plugin',
+            {
+                'filename': 'libdynamic_attach_system.so',
+                'name': 'b1z1::DynamicAttachSystem',
+            },
+        )
+        for tag, text in (
+            ('parent_link', attach_link),
+            ('attach_topic', f'/{ns}/attach'),
+            ('detach_topic', f'/{ns}/detach'),
+        ):
+            el = ET.SubElement(attach_plugin, tag)
+            el.text = text
+        changed = True
+
+if changed:
     ET.indent(tree, space='  ')
     tree.write(sdf_path, encoding='utf-8', xml_declaration=True)
 PYEOF
