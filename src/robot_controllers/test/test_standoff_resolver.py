@@ -137,3 +137,41 @@ def test_world_to_base_and_round_trip():
     assert math.isclose(rx, world_pt[0], abs_tol=1e-6)
     assert math.isclose(ry, world_pt[1], abs_tol=1e-6)
     assert math.isclose(rz, world_pt[2], abs_tol=1e-6)
+
+
+def test_preferred_approach_angles_selects_broadside_over_bumper(tmp_path: Path):
+    """Verify preferred broadside angles override straight-line bumper approach."""
+    occ_mask = np.zeros((80, 80), dtype=bool)
+    occ = _make_synthetic_map(tmp_path, occ_mask, res=0.1)
+
+    # Robot starts straight behind target (angle pi); prefer broadsides ±pi/2.
+    gx, gy, yaw = occ.find_standoff_pose(
+        tx=4.0,
+        ty=4.0,
+        target_yaw=0.0,
+        robot_x=2.0,
+        robot_y=4.0,
+        preferred_dist=0.80,
+        clearance_radius=0.35,
+        preferred_approach_angles=[math.pi / 2.0, -math.pi / 2.0],
+    )
+    assert math.isclose(gx, 4.0, abs_tol=1e-6)
+    assert math.isclose(gy, 4.80, abs_tol=1e-6)
+    assert math.isclose(yaw, -math.pi / 2.0, abs_tol=1e-6)
+
+    # Block the +pi/2 broadside with a wall at y in [4.5, 5.5] -> falls back to -pi/2.
+    occ_mask[45:56, 30:50] = True
+    occ_blocked = _make_synthetic_map(tmp_path, occ_mask, res=0.1)
+    gx2, gy2, yaw2 = occ_blocked.find_standoff_pose(
+        tx=4.0,
+        ty=4.0,
+        target_yaw=0.0,
+        robot_x=2.0,
+        robot_y=4.0,
+        preferred_dist=0.80,
+        clearance_radius=0.35,
+        preferred_approach_angles=[math.pi / 2.0, -math.pi / 2.0],
+    )
+    assert math.isclose(gx2, 4.0, abs_tol=1e-6)
+    assert math.isclose(gy2, 3.20, abs_tol=1e-6)
+    assert math.isclose(yaw2, math.pi / 2.0, abs_tol=1e-6)

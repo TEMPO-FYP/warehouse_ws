@@ -48,6 +48,7 @@ def _build_nav2(context, pkg_nav2_bringup: str, pkg_clearpath_nav2: str):
             'controller_server.ros__parameters.FollowPath.TwirlingCritic.enabled': 'false',
             'controller_server.ros__parameters.FollowPath.vx_max': max_speed,
             'global_costmap.global_costmap.ros__parameters.rolling_window': 'false',
+            'local_costmap.local_costmap.ros__parameters.static_layer.map_topic': '/map',
             'global_costmap.global_costmap.ros__parameters.static_layer.map_topic': '/map',
             'bt_navigator.ros__parameters.odom_topic': odom_topic,
             'controller_server.ros__parameters.odom_topic': odom_topic,

@@ -22,10 +22,17 @@ import time
 from unittest.mock import MagicMock
 
 from ament_index_python.packages import get_package_share_directory
+from geometry_msgs.msg import PoseStamped
 from moveit_msgs.msg import CollisionObject
+import pytest
 import rclpy
+from robot_controllers.geometry_utils import yaw_to_quaternion
 from robot_controllers.mobile_robot_controller import _load_config, MobileRobotController
-from robot_controllers.moveit_client import parse_srdf_group_states, unwrap_ik_solution
+from robot_controllers.moveit_client import (
+    MoveItRobotClient,
+    parse_srdf_group_states,
+    unwrap_ik_solution,
+)
 from robot_controllers.planning_scene_manager import PlanningSceneManager
 from robot_controllers.sdf_scene_loader import (
     build_world_collision_objects,
@@ -405,7 +412,7 @@ def test_execute_place_into_b2_cargo_aims_at_crate_center():
         )
         align_calls = []
         node._ensure_aligned = (
-            lambda robot, tx, ty, tid, max_d, pref_d, tight=True:
+            lambda robot, tx, ty, tid, max_d, pref_d, tight=True, **_kw:
             align_calls.append((tid, pref_d, tight)) or (True, '')
         )
         recorded_poses = {}
@@ -455,7 +462,7 @@ def test_execute_pick_from_b2_cargo_raises_grasp_clearance_and_pitch():
         node._pose_registry['tall_box'] = (1.82, 2.0, 0.735, (0.0, 0.0, 0.0, 1.0))
         align_calls = []
         node._ensure_aligned = (
-            lambda robot, tx, ty, tid, max_d, pref_d, tight=True:
+            lambda robot, tx, ty, tid, max_d, pref_d, tight=True, **_kw:
             align_calls.append((tid, pref_d, tight)) or (True, '')
         )
         recorded_poses = {}
@@ -741,3 +748,242 @@ def test_sdf_scene_loader_excludes_husky_a200_model():
     by_id = {o.id: o for o in objs}
     assert 'world_a200_0001' not in by_id
     assert 'world_Packing_Station' in by_id
+
+
+def test_husky_a200_cargo_pose_alias_and_top_plate_surface_z():
+    """Verify husky_a200_1 resolves to a200_0001 and uses top_plate cargo surface Z."""
+    rclpy.init()
+    husky_pose = (2.0, 16.0, 0.132, (0.0, 0.0, 0.0, 1.0))
+    node = _init_node_with_poses()
+    try:
+        node._pose_registry['a200_0001'] = husky_pose
+        assert node._profiles['husky_a200_1'].cargo_surface_z_offset == pytest.approx(0.252)
+        assert node._profiles['b2_cargo_1'].cargo_surface_z_offset == pytest.approx(0.110)
+
+        assert node._resolve_target_pose('husky_a200_1') == husky_pose
+
+        for target_name in ('husky_a200_1', 'a200_0001'):
+            lx, ly, surf_z, is_cargo = node._resolve_place_target(target_name, husky_pose)
+            assert lx == pytest.approx(2.0)
+            assert ly == pytest.approx(16.0)
+            assert surf_z == pytest.approx(0.132 + 0.252)
+            assert is_cargo is True
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_ensure_aligned_accepts_immediately_when_moveit_ik_reachable():
+    """Verify MoveIt IK skips Nav2 and pulses even outside legacy rigid heuristic."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        # horiz=0.947m and lateral by=0.18m would both fail legacy heuristic, but IK succeeds.
+        node._pose_registry['b1z1'] = (1.0, 2.0, 0.56, (0.0, 0.0, 0.0, 1.0))
+        nav_mock = MagicMock(return_value=(True, ''))
+        pulse_mock = MagicMock()
+        node._send_nav_goal = nav_mock
+        node._drive_pulse = pulse_mock
+
+        ok, err = node._ensure_aligned(
+            'b1z1_1',
+            1.93,
+            2.18,
+            'T_ik_ok',
+            0.85,
+            0.80,
+            tight=True,
+            reachability_fn=lambda: True,
+        )
+        assert ok, err
+        assert nav_mock.call_count == 0
+        assert pulse_mock.call_count == 0
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_ensure_aligned_repositions_out_of_cargo_bumper_cone_to_broadside():
+    """Verify robot in cargo bumper cone uses Nav2 to move to broadside, then skips pulses."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        cargo_pose = (3.30, 16.0, 0.132, (0.0, 0.0, 0.0, 1.0))
+        # Robot starts directly behind Husky rear bumper at x=2.35 (horiz=0.95).
+        node._pose_registry['b1z1'] = (2.35, 16.0, 0.56, (0.0, 0.0, 0.0, 1.0))
+        node._occ_map = None
+
+        nav_calls = []
+
+        def fake_nav(robot, gx, gy, gyaw, tid):
+            nav_calls.append((gx, gy, gyaw, tid))
+            # Teleport robot to commanded broadside pose facing Husky.
+            q = yaw_to_quaternion(gyaw)
+            node._pose_registry['b1z1'] = (gx, gy, 0.56, (q.x, q.y, q.z, q.w))
+            return True, ''
+
+        ik_results = iter([False, True])
+        pulse_mock = MagicMock()
+        node._send_nav_goal = fake_nav
+        node._drive_pulse = pulse_mock
+        node._sim_sleep = lambda _s: None
+
+        broadside = node._cargo_broadside_angles(cargo_pose, node._pose_registry['b1z1'])
+        ok, err = node._ensure_aligned(
+            'b1z1_1',
+            3.30,
+            16.0,
+            'T_broadside',
+            0.85,
+            0.80,
+            tight=True,
+            preferred_approach_angles=broadside,
+            cargo_pose=cargo_pose,
+            reachability_fn=lambda: next(ik_results, True),
+            nav_standoff=0.95,
+        )
+        assert ok, err
+        assert len(nav_calls) == 1
+        assert abs(nav_calls[0][1] - 16.0) == pytest.approx(0.95, abs=1e-3)
+        assert pulse_mock.call_count == 0
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_execute_navigate_to_husky_uses_broadside_95cm_standoff():
+    """Verify navigate_to husky_a200_1 targets 0.95m broadside rather than 0.73m."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        node._pose_registry['a200_0001'] = (2.0, 16.0, 0.132, (0.0, 0.0, 0.0, 1.0))
+        node._pose_registry['b1z1'] = (0.5, 14.5, 0.56, (0.0, 0.0, 0.0, 1.0))
+        node._occ_map = None
+
+        nav_calls = []
+        node._send_nav_goal = (
+            lambda robot, gx, gy, gyaw, tid: nav_calls.append((gx, gy, gyaw, tid)) or (True, '')
+        )
+        node._publish_feedback = lambda *a, **kw: None
+
+        node._execute_navigate_to('p', 't_nav', 'b1z1_1', {'location': 'husky_a200_1'})
+        assert len(nav_calls) == 1
+        gx, gy, _, _ = nav_calls[0]
+        assert gx == pytest.approx(2.0, abs=1e-3)
+        assert gy == pytest.approx(15.05, abs=1e-3)
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_ensure_aligned_detects_stall_and_aborts_pulse_loop():
+    """Verify 3 forward pulses without progress stop early without a cross-robot Nav2 detour."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        q_face = yaw_to_quaternion(0.0)
+        node._pose_registry['b1z1'] = (2.32, 16.0, 0.56, (q_face.x, q_face.y, q_face.z, q_face.w))
+        node._occ_map = None
+        node._profiles['b1z1_1'].fine_align_pulses = True
+
+        pulses = []
+        nav_calls = []
+
+        def fake_pulse(robot, vx, wz, dur, vy=0.0):
+            pulses.append((vx, wz, dur, vy))
+
+        def fake_nav(robot, gx, gy, gyaw, tid):
+            nav_calls.append((gx, gy, gyaw, tid))
+            return True, ''
+
+        node._drive_pulse = fake_pulse
+        node._send_nav_goal = fake_nav
+        node._sim_sleep = lambda _s: None
+
+        ok, err = node._ensure_aligned(
+            'b1z1_1',
+            3.30,
+            16.0,
+            'T_stall',
+            0.85,
+            0.80,
+            tight=True,
+            preferred_approach_angles=[math.pi / 2.0, -math.pi / 2.0],
+            cargo_pose=None,
+            reachability_fn=lambda: False,
+        )
+        assert not ok
+        assert 'MoveIt IK unreachable' in err
+        assert len(pulses) == 3
+        assert len(nav_calls) == 0
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_low_husky_top_plate_raises_wrist_pitch_for_kdl_ik():
+    """Verify low targets below base_link get steeper pitch while high ones keep default."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        prof = node._profiles['b1z1_1']
+        # Low Husky place: surface_z=0.384, rz=0.56 -> bz+0.022 < 0 -> pitch >= 0.50 rad.
+        _, low_place, _, _, _ = node._build_place_poses(
+            prof, 0.80, 0.0, rz=0.56, surface_z=0.384, large_fixture=False, is_cargo_target=True
+        )
+        q_low_place = low_place.pose.orientation
+        sin_p_place = 2.0 * (q_low_place.w * q_low_place.y - q_low_place.z * q_low_place.x)
+        assert math.asin(max(-1.0, min(1.0, sin_p_place))) == pytest.approx(0.50, abs=1e-3)
+
+        # Low Husky pick: bz=-0.155 -> bz+grasp_z_off=-0.10 < -0.05 -> pitch >= 0.60 rad.
+        _, low_pick, _ = node._build_pick_poses(prof, 0.80, 0.0, bz=-0.155, in_cargo_crate=True)
+        q_low_pick = low_pick.pose.orientation
+        sin_p_pick = 2.0 * (q_low_pick.w * q_low_pick.y - q_low_pick.z * q_low_pick.x)
+        assert math.asin(max(-1.0, min(1.0, sin_p_pick))) == pytest.approx(0.60, abs=1e-3)
+
+        # Elevated b2_cargo/test_pedestal pick (bz=+0.17) keeps default 0.26 rad.
+        _, high_pick, _ = node._build_pick_poses(prof, 0.73, 0.0, bz=0.17, in_cargo_crate=False)
+        q_high_pick = high_pick.pose.orientation
+        sin_p_high = 2.0 * (q_high_pick.w * q_high_pick.y - q_high_pick.z * q_high_pick.x)
+        assert math.asin(max(-1.0, min(1.0, sin_p_high))) == pytest.approx(0.26, abs=1e-3)
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_moveit_client_check_ik_reachable_returns_none_when_service_unready():
+    """Verify check_ik_reachable returns None when unready and chains IK seeds when ready."""
+    rclpy.init()
+    node = rclpy.create_node('test_ik_check_node')
+    try:
+        from rclpy.callback_groups import ReentrantCallbackGroup
+        client = MoveItRobotClient(node, 'b1z1', lambda f, t: True, ReentrantCallbackGroup())
+        client._ik_client = MagicMock()
+        client._ik_client.service_is_ready.return_value = False
+
+        p1 = PoseStamped()
+        p2 = PoseStamped()
+        assert client.check_ik_reachable('z1_arm', 'b1z1_gripper_tcp', [p1, p2], {}) is None
+
+        client._ik_client.service_is_ready.return_value = True
+        recorded_seeds = []
+
+        def fake_compute_ik(group, link, pose, cur, seed_overrides=None, **_kw):
+            recorded_seeds.append(seed_overrides)
+            return {'joint1': 0.1 * len(recorded_seeds)}
+
+        client.compute_ik = fake_compute_ik
+        assert client.check_ik_reachable(
+            'z1_arm', 'b1z1_gripper_tcp', [p1, p2], {'joint1': 0.0}, seed_overrides={'joint1': 0.5}
+        ) is True
+        assert recorded_seeds == [{'joint1': 0.5}, {'joint1': 0.1}]
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()

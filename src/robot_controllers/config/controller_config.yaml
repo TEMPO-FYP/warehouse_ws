@@ -144,6 +144,7 @@ robot_profiles:
     base_frame: "base_link"
     tcp_frame: ""
     supports_manipulation: false
+    cargo_surface_z_offset: 0.252
     navigation:
       standoff_distance: 1.00
       manipulation_standoff: 0.85

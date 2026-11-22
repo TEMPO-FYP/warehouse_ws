@@ -14,6 +14,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>clearpath_control</exec_depend>
   <exec_depend>clearpath_generator_common</exec_depend>
   <exec_depend>clearpath_generator_gz</exec_depend>
   <exec_depend>clearpath_nav2_demos</exec_depend>

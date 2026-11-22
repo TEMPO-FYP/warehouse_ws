@@ -21,6 +21,7 @@ from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     ExecuteProcess,
+    GroupAction,
     IncludeLaunchDescription,
     LogInfo,
     OpaqueFunction,
@@ -30,7 +31,7 @@ from launch.actions import (
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch_ros.actions import Node, PushRosNamespace
 
 
 def _resolve_namespace(raw_ns: str) -> str:
@@ -43,6 +44,9 @@ def _setup_spawn(context, pkg_husky_control: str, pkg_husky_prefix: str):
     name = LaunchConfiguration('name').perform(context).strip() or ns
     world_name = LaunchConfiguration('world_name').perform(context).strip() or 'default'
     use_sim_time = LaunchConfiguration('use_sim_time').perform(context).strip().lower() == 'true'
+    use_sim_time_str = 'true' if use_sim_time else 'false'
+    use_nav2 = LaunchConfiguration('use_nav2').perform(context).strip().lower() == 'true'
+    max_speed = LaunchConfiguration('max_speed').perform(context).strip() or '1.0'
     x = LaunchConfiguration('x').perform(context).strip()
     y = LaunchConfiguration('y').perform(context).strip()
     z = LaunchConfiguration('z').perform(context).strip()
@@ -60,6 +64,7 @@ def _setup_spawn(context, pkg_husky_control: str, pkg_husky_prefix: str):
             pkg_husky_control, 'scripts', 'prepare_and_spawn_husky.sh'
         )
 
+    pkg_clearpath_control = get_package_share_directory('clearpath_control')
     pkg_clearpath_desc = get_package_share_directory('clearpath_platform_description')
     pkg_clearpath_gz = get_package_share_directory('clearpath_gz')
     ros_share_path = os.path.dirname(pkg_clearpath_desc)
@@ -93,19 +98,40 @@ def _setup_spawn(context, pkg_husky_control: str, pkg_husky_prefix: str):
         output='screen',
     )
 
-    platform_launch = os.path.join(
-        setup_dir, 'platform', 'launch', 'platform-service.launch.py'
-    )
+    platform_group = GroupAction([
+        PushRosNamespace(ns),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(pkg_clearpath_desc, 'launch', 'description.launch.py')
+            ),
+            launch_arguments={
+                'setup_path': setup_dir,
+                'use_sim_time': use_sim_time_str,
+                'namespace': ns,
+            }.items(),
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(pkg_clearpath_control, 'launch', 'teleop_base.launch.py')
+            ),
+            launch_arguments={
+                'setup_path': setup_dir,
+                'use_sim_time': use_sim_time_str,
+            }.items(),
+        ),
+    ])
     sensors_launch = os.path.join(
         setup_dir, 'sensors', 'launch', 'sensors-service.launch.py'
     )
 
-    platform_controller_spawner = Node(
+    controllers_spawner = Node(
         package='controller_manager',
         executable='spawner',
-        name='spawner_platform_velocity_controller',
+        name='spawner_husky_controllers',
         namespace=ns,
+        additional_env={'ROS_SUPER_CLIENT': 'True'},
         arguments=[
+            'joint_state_broadcaster',
             'platform_velocity_controller',
             '--controller-manager', f'/{ns}/controller_manager',
             '--controller-manager-timeout', '120',
@@ -145,15 +171,42 @@ def _setup_spawn(context, pkg_husky_control: str, pkg_husky_prefix: str):
         parameters=[{'use_sim_time': use_sim_time}],
     )
 
+    def _on_controllers_ready(event, _ctx):
+        if event.returncode != 0:
+            return [
+                LogInfo(
+                    msg=f'[spawn_husky] Controller spawner failed for {name}; skipping Nav2 launch.'
+                )
+            ]
+        if not use_nav2:
+            return []
+        return [
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(pkg_husky_control, 'launch', 'husky_nav2.launch.py')
+                ),
+                launch_arguments={
+                    'namespace': ns,
+                    'use_sim_time': use_sim_time_str,
+                    'max_speed': max_speed,
+                }.items(),
+            )
+        ]
+
+    on_controllers_handler = RegisterEventHandler(
+        OnProcessExit(target_action=controllers_spawner, on_exit=_on_controllers_ready)
+    )
+
     def _on_spawn_exit(event, _ctx):
         if event.returncode != 0:
             return [LogInfo(msg=f'[spawn_husky] Spawn failed for {name}; skipping platform launch.')]
         return [
-            IncludeLaunchDescription(PythonLaunchDescriptionSource(platform_launch)),
+            platform_group,
             IncludeLaunchDescription(PythonLaunchDescriptionSource(sensors_launch)),
-            platform_controller_spawner,
+            controllers_spawner,
             gt_odom_bridge,
             static_tf_map_odom,
+            on_controllers_handler,
         ]
 
     on_spawn_handler = RegisterEventHandler(
@@ -208,6 +261,17 @@ def generate_launch_description():
             'config_yaml',
             default_value=default_config_yaml,
             description='Path to Clearpath robot.yaml configuration template',
+        ),
+        DeclareLaunchArgument(
+            'use_nav2',
+            default_value='false',
+            choices=['true', 'false'],
+            description='Launch Nav2 navigation stack after controllers activate',
+        ),
+        DeclareLaunchArgument(
+            'max_speed',
+            default_value='1.0',
+            description='Max forward speed in m/s for Husky Nav2',
         ),
         OpaqueFunction(function=_setup_spawn, args=[pkg_husky_control, pkg_husky_prefix]),
     ])

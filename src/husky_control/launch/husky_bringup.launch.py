@@ -18,19 +18,14 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
-from launch.conditions import IfCondition
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
     """Spawn Husky A200 into a running Gazebo world and start Nav2."""
     pkg_husky_control = get_package_share_directory('husky_control')
-
-    nav2_period = PythonExpression([
-        "float('", LaunchConfiguration('spawn_delay'), "') + 12.0",
-    ])
 
     spawn_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -46,24 +41,9 @@ def generate_launch_description():
             'z': LaunchConfiguration('z'),
             'yaw': LaunchConfiguration('yaw'),
             'spawn_delay': LaunchConfiguration('spawn_delay'),
+            'use_nav2': LaunchConfiguration('use_nav2'),
+            'max_speed': LaunchConfiguration('max_speed'),
         }.items(),
-    )
-
-    nav2_launch = TimerAction(
-        period=nav2_period,
-        actions=[
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(pkg_husky_control, 'launch', 'husky_nav2.launch.py')
-                ),
-                launch_arguments={
-                    'namespace': LaunchConfiguration('namespace'),
-                    'use_sim_time': LaunchConfiguration('use_sim_time'),
-                    'max_speed': LaunchConfiguration('max_speed'),
-                }.items(),
-                condition=IfCondition(LaunchConfiguration('use_nav2')),
-            )
-        ],
     )
 
     return LaunchDescription([
@@ -107,5 +87,4 @@ def generate_launch_description():
             description='Seconds to wait after /create is ready before spawning Husky',
         ),
         spawn_launch,
-        nav2_launch,
     ])
