@@ -1,0 +1,39 @@
+serial_number: a200-0001
+version: 0
+system:
+  hosts:
+    - hostname: cpr-a200-0001
+      ip: 192.168.131.2
+  ros2:
+    namespace: a200_0001
+platform:
+  attachments:
+    - name: front_bumper
+      type: a200.bumper
+      parent: front_bumper_mount
+    - name: rear_bumper
+      type: a200.bumper
+      parent: rear_bumper_mount
+    - name: top_plate
+      type: a200.top_plate
+      model: default
+      parent: default_mount
+      enabled: true
+sensors:
+  # 2D lidar for Nav2: AMCL localizes against warehouse_sim/maps/warehouse_map
+  # with it, and the costmaps use it for obstacles not on the static map.
+  # Published as /a200_0001/sensors/lidar2d_0/scan (Clearpath's Nav2 default).
+  lidar2d:
+    - model: hokuyo_ust
+      urdf_enabled: true
+      launch_enabled: true
+      parent: top_plate_front_mount
+      xyz: [0.0, 0.0, 0.0]
+      rpy: [0.0, 0.0, 0.0]
+      ros_parameters:
+        urg_node:
+          laser_frame_id: lidar2d_0_laser
+          ip_address: 192.168.131.20
+          ip_port: 10940
+          angle_min: -2.356
+          angle_max: 2.356

@@ -7,16 +7,19 @@
   <maintainer email="tz09220@st.habib.edu.pk">Taha Zahid</maintainer>
   <license>Apache-2.0</license>
 
+  <depend>ament_index_python</depend>
+  <depend>geometry_msgs</depend>
+  <depend>rclpy</depend>
   <depend>ros_gz_sim</depend>
   <depend>ros_gz_bridge</depend>
   <depend>ros2launch</depend>
   <depend>rosgraph_msgs</depend>
   <depend>tf2_msgs</depend>
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>builtin_interfaces</exec_depend>
-  <exec_depend>controller_manager_msgs</exec_depend>
-  <exec_depend>clearpath_gz</exec_depend>
-  <exec_depend>python3-yaml</exec_depend>
+
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

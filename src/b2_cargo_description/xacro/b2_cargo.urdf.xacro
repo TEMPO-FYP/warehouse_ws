@@ -1,0 +1,147 @@
+<?xml version="1.0"?>
+<robot name="b2_cargo" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <xacro:arg name="namespace" default=""/>
+    <xacro:arg name="frame_prefix" default=""/>
+    <xacro:arg name="controllers_file" default=""/>
+
+    <xacro:property name="namespace" value="$(arg namespace)"/>
+    <xacro:property name="frame_prefix" value="$(arg frame_prefix)"/>
+    <xacro:property name="controllers_file" value="$(arg controllers_file)"/>
+
+    <!-- Include subcomponents -->
+    <xacro:include filename="$(find b2_cargo_description)/xacro/materials.xacro"/>
+    <xacro:include filename="$(find b2_cargo_description)/xacro/b2_const.xacro"/>
+    <xacro:include filename="$(find b2_cargo_description)/xacro/b2_leg.xacro"/>
+    <xacro:include filename="$(find b2_cargo_description)/xacro/cargo_rack.xacro"/>
+    <xacro:include filename="$(find b2_cargo_description)/xacro/b2_cargo_gazebo.xacro"/>
+
+    <!-- Base root frame -->
+    <link name="base_link"/>
+
+    <joint name="base_to_trunk" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <parent link="base_link"/>
+        <child link="trunk"/>
+    </joint>
+
+    <!-- Unitree B2 Trunk -->
+    <link name="trunk">
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <mesh filename="package://b2_cargo_description/meshes/b2/base_link.dae" scale="1 1 1"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <box size="${trunk_length} ${trunk_width} ${trunk_height}"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin rpy="0 0 0" xyz="${trunk_com_x} ${trunk_com_y} ${trunk_com_z}"/>
+            <mass value="${trunk_mass}"/>
+            <inertia
+                ixx="${trunk_ixx}" ixy="${trunk_ixy}" ixz="${trunk_ixz}"
+                iyy="${trunk_iyy}" iyz="${trunk_iyz}"
+                izz="${trunk_izz}"/>
+        </inertial>
+    </link>
+
+    <!-- Front head housing inertia & bumper collision (matches b2_description CAD) -->
+    <joint name="head_joint" type="fixed">
+        <parent link="trunk"/>
+        <child link="head_Link"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+    </joint>
+
+    <link name="head_Link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.33989 -0.000168 0.12029"/>
+            <mass value="3.366"/>
+            <inertia
+                ixx="0.026455" ixy="3.15E-05" ixz="0.00166"
+                iyy="0.029221" iyz="-3.27E-05"
+                izz="0.010918"/>
+        </inertial>
+        <collision>
+            <origin rpy="0 0 0" xyz="0.41 0 0.005"/>
+            <geometry>
+                <box size="0.04 0.12 0.14"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <!-- Rear tail inertia & bumper collision (matches b2_description CAD) -->
+    <joint name="tail_joint" type="fixed">
+        <parent link="trunk"/>
+        <child link="tail_link"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+    </joint>
+
+    <link name="tail_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.37448 0.000488 0.006495"/>
+            <mass value="0.777"/>
+            <inertia
+                ixx="0.0028118" ixy="1.95E-05" ixz="-7.87E-06"
+                iyy="0.0047506" iyz="-1.57E-05"
+                izz="0.0029154"/>
+        </inertial>
+        <collision>
+            <origin rpy="0 0 0" xyz="-0.405 0 0.005"/>
+            <geometry>
+                <box size="0.025 0.12 0.14"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <!-- IMU sensor frame -->
+    <joint name="imu_joint" type="fixed">
+        <parent link="trunk"/>
+        <child link="imu_link"/>
+        <origin rpy="0 0 0" xyz="0 -0.02341 0.04927"/>
+    </joint>
+
+    <link name="imu_link">
+        <inertial>
+            <mass value="0.001"/>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+        </inertial>
+    </link>
+
+    <!-- 2D LiDAR sensor frame positioned inside B2 front LiDAR dome (clears cargo rim) -->
+    <joint name="lidar_joint" type="fixed">
+        <parent link="trunk"/>
+        <child link="lidar_link"/>
+        <origin rpy="0 0 0" xyz="0.34218 0.0 0.185"/>
+    </joint>
+
+    <link name="lidar_link">
+        <inertial>
+            <mass value="0.05"/>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+        </inertial>
+        <collision>
+            <origin rpy="0 0 0" xyz="0 0 -0.02"/>
+            <geometry>
+                <cylinder length="0.16" radius="0.076"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <!-- Instantiate the 4 B2 Quadruped Legs -->
+    <xacro:leg name="FR" mirror="-1" front_hind="1"/>
+    <xacro:leg name="FL" mirror="1"  front_hind="1"/>
+    <xacro:leg name="RR" mirror="-1" front_hind="-1"/>
+    <xacro:leg name="RL" mirror="1"  front_hind="-1"/>
+
+    <!-- Mount the custom industrial cargo crate flush on B2's twin top payload rails -->
+    <xacro:cargo_rack parent="trunk">
+        <origin xyz="-0.02 0.0 0.088" rpy="0 0 0"/>
+    </xacro:cargo_rack>
+
+</robot>

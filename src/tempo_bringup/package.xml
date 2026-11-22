@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>tempo_bringup</name>
+  <version>0.1.0</version>
+  <description>Top-level launch package for the TEMPO multi-robot mission pipeline</description>
+  <maintainer email="tz09220@st.habib.edu.pk">Taha Zahid</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>b1z1_control</exec_depend>
+  <exec_depend>b1z1_description</exec_depend>
+  <exec_depend>b2_cargo_control</exec_depend>
+  <exec_depend>b2_cargo_description</exec_depend>
+  <exec_depend>bcr_arm_control</exec_depend>
+  <exec_depend>bcr_arm_description</exec_depend>
+  <exec_depend>dispatcher_node</exec_depend>
+  <exec_depend>husky_control</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>llm_planner</exec_depend>
+  <exec_depend>robot_controllers</exec_depend>
+  <exec_depend>robotiq_description</exec_depend>
+  <exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>solver_node</exec_depend>
+  <exec_depend>warehouse_sim</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

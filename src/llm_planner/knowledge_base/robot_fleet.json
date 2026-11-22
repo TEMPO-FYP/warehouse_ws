@@ -1,6 +1,8 @@
 {
   "fleet": {
-    "mobile_robot": 1,
-    "robotic_arm": 1
+    "b1z1": 1,
+    "b2_cargo": 1,
+    "bcr_arm": 1,
+    "husky_a200": 1
   }
 }

@@ -349,16 +349,8 @@ class SceneGraphNavigator:
         valid_locations: Set[str] = set()
         objects_metadata: Dict[str, Dict[str, Any]] = {}
 
-        # Only active zones and expanded aisles are valid location referents
-        active_zones = (
-            self.expanded_zones if self.expanded_zones else set(self.zones_dict.keys())
-        )
-        for zid in active_zones:
-            valid_locations.add(zid)
-        for aid in self.expanded_aisles:
-            valid_locations.add(aid)
-
-        # Fixtures in expanded zones (zone-level fixtures) or expanded aisles (aisle-level fixtures)
+        # Fixtures in expanded zones (zone-level fixtures) or expanded aisles (aisle-level fixtures);
+        # semantic zones and aisles are navigation-search containers, not physical Gazebo targets.
         for fix_id, fentry in self.fixture_lookup.items():
             z_id = fentry.get("zone_id")
             a_id = fentry.get("aisle_id")

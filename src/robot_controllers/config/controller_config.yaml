@@ -1,179 +1,159 @@
-# Configuration of mobile_robot_controller (TEMPO mobile manipulator:
-# Husky A200 + UR5e + Robotiq 2F-85, spawned by warehouse_clearpath.launch.py).
-# Per-model tables (standoff_overrides, approach_axes, grasp_offsets,
-# place_heights) are keyed by Gazebo entity-name prefix; the longest matching
-# prefix wins (e.g. "Picking_Shelves" matches "Picking_Shelves.012").
-
-robot_instances:
-  mobile_robot_1: "/a200_0000"
-
-navigation:
-  # Distance from the target's origin to the robot's base_link at the goal
-  standoff_distance: 0.8
-  standoff_overrides:
-    # Shelves are 0.44 m deep: 0.95 leaves ~0.18 m between bumper and shelf
-    Picking_Shelves: 0.95
-    small_box: 0.95
-    Packing_Station: 1.15   # table is 0.84 m deep: ~0.18 m clearance too
-  # How the standoff pose is chosen: local_y / local_x (along the target's
-  # own axis, on the side nearer the robot) or radial (on the line from the
-  # target to the robot). Picking_Shelves are open along their local Y,
-  # Packing_Stations along their local X.
-  approach_axes:
-    Picking_Shelves: local_y
-    small_box: local_y
-    Packing_Station: local_x
-  default_approach_axis: radial
-  # A side is skipped if another copy of the target's model (e.g. the
-  # back-to-back twin of a shelf) is closer to it than this x standoff
-  blocker_clearance: 0.75
-  # After Nav2 succeeds, turn to face the target and creep straight to the
-  # exact standoff distance using the true pose from Gazebo: Nav2's goal
-  # tolerance plus AMCL drift (up to ~0.35 m) is too coarse for the arm's
-  # reach. Simulation only.
-  fine_positioning:
-    enabled: true
-    tolerance: 0.03          # m
-    yaw_tolerance: 0.05      # rad
-    max_correction: 0.5      # m; larger errors are left alone
-    max_linear_speed: 0.1    # m/s
-    max_angular_speed: 0.3   # rad/s
-    timeout_sec: 60.0
-  nav_timeout_sec: 300.0  # all timeouts are in node-clock (simulation) time
-
-manipulation:
-  move_group_name: "arm_0"
-  planning_frame: "base_link"
-  end_effector_link: "arm_0_tool0"
-  # Point between the Robotiq fingertip pads, along tool0's z axis (m); the
-  # finger tip links are 0.112 m from tool0
-  tcp_offset: 0.13
-  # UR5e shoulder in base_link (from TF); the approach direction is
-  # horizontal from here to the object
-  arm_base_xyz: [0.08, 0.0, 0.414]
-  approach_distance: 0.15   # pre-grasp / pre-place distance along the approach
-  # Straight pull-back of the arm after grasping / releasing (further and
-  # the UR5e folds into itself)
-  retreat_distance: 0.3
-  # After a pick the base then backs straight off by this much (on cmd_vel,
-  # true pose from Gazebo), so a 0.2 m deep box clears a 0.44 m deep shelf
-  # before the arm stows; 0 to disable
-  back_off_distance: 0.3
-  lift_distance: 0.06       # lift after grasping, and hover before placing
-  place_clearance: 0.02     # release this much above the place height
-  position_tolerance: 0.01
-  orientation_tolerance: 0.1
-  planning_time_sec: 10.0
-  planning_attempts: 5
-  velocity_scaling: 0.5      # planned (free) motions
-  cartesian_scaling: 0.2     # straight approach / lift / retreat moves
-  min_cartesian_fraction: 0.95
-  # Max distance from the shoulder to tool0 for a horizontal grasp; targets
-  # further away fail fast with "navigate closer"
-  max_reach: 0.85
-  # Top of the floor slab added to MoveIt's planning scene, in base_link
-  # (the floor is 0.132 m below base_link; kept just under the wheels)
-  ground_z: -0.145
-  moveit_timeout_sec: 240.0
-  # The TCP stops this far short of the object's centre (half the object
-  # depth for objects wider than the 85 mm gripper opening)
-  grasp_offsets:
-    small_box: 0.12
-  # Candidate release heights of the held object's centre above the
-  # location's origin, in order of preference; the first one not already
-  # holding a copy of the object's model is used
-  place_heights:
-    place_spot: [0.0]
-    Picking_Shelves: [0.78, 0.47, 1.08]   # tiers 3, 2 and 4 (small_box centres)
-    Packing_Station: [1.01]               # on the work surface (top 0.914)
-  # Move the release point this far from the location's origin towards the
-  # robot (onto the near half of a deep surface)
-  place_offsets:
-    Packing_Station: 0.25   # 0.17 m in from the table's front edge
-  slot_radius: 0.2        # a place height is occupied if another copy of the
-  slot_half_height: 0.12  # held object's model is this close to it
-  # Object sizes [width across the approach, depth along it, height], for the
-  # held object in MoveIt's planning scene
-  object_sizes:
-    small_box: [0.3, 0.2, 0.1875]
-    test_box: [0.06, 0.06, 0.06]
-  default_object_size: [0.1, 0.1, 0.1]
-  # Fixture bounding boxes [x, y, z] in the fixture's own frame (standing on
-  # its origin), added to MoveIt's planning scene when within fixture_radius
-  # of the robot, so planned arm motions avoid them
-  fixture_sizes:
-    Picking_Shelves: [0.9017, 0.4443, 1.9]
-    Packing_Station: [0.84, 2.11, 0.93]
-    pick_stand: [0.15, 0.15, 0.5]
-    place_stand: [0.15, 0.15, 0.5]
-  fixture_radius: 2.5
-  # Links the held object may touch in the planning scene
-  touch_links:
-    - arm_0_wrist_3_link
-    - arm_0_flange
-    - arm_0_tool0
-    - arm_0_gripper_robotiq_85_base_link
-    - arm_0_gripper_robotiq_85_left_knuckle_link
-    - arm_0_gripper_robotiq_85_right_knuckle_link
-    - arm_0_gripper_robotiq_85_left_finger_link
-    - arm_0_gripper_robotiq_85_right_finger_link
-    - arm_0_gripper_robotiq_85_left_inner_knuckle_link
-    - arm_0_gripper_robotiq_85_right_inner_knuckle_link
-    - arm_0_gripper_robotiq_85_left_finger_tip_link
-    - arm_0_gripper_robotiq_85_right_finger_tip_link
-  # Robot link pairs MoveIt may consider in contact (missing from Clearpath's
-  # generated SRDF)
-  allowed_collision_pairs:
-    - [lidar2d_0_link, top_plate_link]
-  # TCP position in base_link (gripper level, pointing forward) for carrying
-  # a picked object: high over the robot, above table tops and the lidar
-  carry_tcp: [0.5, 0.0, 1.0]   # closer than x=0.5 has no IK solution
-  # Empty-handed arm pose for driving and after each place (SRDF "home"). The arm
-  # spawns stretched out in the lidar plane, so it is stowed at startup.
-  stow_on_startup: true
-  arm_joint_names:
-    - arm_0_shoulder_pan_joint
-    - arm_0_shoulder_lift_joint
-    - arm_0_elbow_joint
-    - arm_0_wrist_1_joint
-    - arm_0_wrist_2_joint
-    - arm_0_wrist_3_joint
-  stow_joint_positions: [0.0, -1.5707, 1.5707, -1.5707, -1.5707, 0.0]
-  gripper_action: "arm_0_gripper_controller/gripper_cmd"
-  gripper_open_position: 0.0
-  gripper_closed_position: 0.8
-  gripper_max_opening: 0.085   # m between the pads at gripper_open_position
-  gripper_clearance: 0.004     # close to object width + this (narrow objects)
-  gripper_max_effort: 50.0
-  gripper_timeout_sec: 60.0
-  # Hold picked objects with a Gazebo DetachableJoint (the 2F-85 cannot grip
-  # the 0.2-0.3 m warehouse boxes, and friction grasps slip in Gazebo)
-  # Planned arm motions (pre-grasp, pre-place, carry, stow) are retried this
-  # many times; straight approach / lift / lower moves are best effort
-  motion_retries: 2
-  # Holding: the picked object is fixed to the wrist with a Gazebo
-  # DetachableJoint and teleported with set_pose, so pick and place do not
-  # depend on the fingers or on the arm reaching exactly
-  attach:
-    enabled: true
-    parent_link: "arm_0_wrist_3_link"
-    child_link: "link"
-    service_timeout_ms: 5000
-    # Snap the object into the gripper before attaching if it is further
-    # than snap_tolerance from where the gripper holds it; refuse if the
-    # gripper is further than snap_max_distance away (arm not at the object)
-    snap_tolerance: 0.02
-    snap_max_distance: 0.3
-    # Held: object within held_tolerance of where the gripper holds it.
-    # Placed: within place_tolerance of the release point horizontally and
-    # at most place_drop_limit below it. Otherwise retried this many times:
-    held_tolerance: 0.06
-    place_tolerance: 0.05
-    place_drop_limit: 0.25
-    attempts: 3
-    settle_sec: 0.05               # sim time for Gazebo to apply a teleport
-    joint_state_timeout_sec: 2.0   # wait for the joint's attached/detached state
-
 world:
   name: "default"
-  pose_update_period_sec: 0.2   # feedback period of fine positioning
+  map_package: "warehouse_sim"
+  map_yaml_relpath: "maps/warehouse_map.yaml"
+  fixture_surface_z:
+    Packing_Station: 0.914
+    Picking_Shelves: 0.686
+    test_pedestal: 0.700
+    Pallet_Standard: 0.145
+  fixture_dims:
+    Packing_Station: [0.838, 2.108, 0.914]
+    Picking_Shelves: [0.902, 0.444, 0.686]
+    test_pedestal: [0.180, 0.180, 0.700]
+    Pallet_Standard: [1.200, 1.000, 0.145]
+
+robot_profiles:
+  b1z1:
+    namespace: "/b1z1"
+    gazebo_model_name: "b1z1"
+    base_frame: "b1z1_base_link"
+    tcp_frame: "b1z1_gripper_tcp"
+    navigation:
+      standoff_distance: 0.90
+      manipulation_standoff: 0.73
+      nav_timeout_sec: 150.0
+      robot_clearance_radius: 0.36
+      fine_align_pulses: true
+      min_pulse_duration_sec: 0.90
+    manipulation:
+      move_group_name: "z1_arm"
+      gripper_mode: "move_group"          # "move_group" or "gripper_command"
+      gripper_group_name: "z1_gripper"
+      srdf_states:
+        home: "home"
+        pre_fold: "pre_fold"
+        carry_retract: "carry_retract"
+        carry: "carry"
+        gripper_open: "open"
+        gripper_close: "close"
+        gripper_attach: "attach"
+      touch_links: ["b1z1_gripper_tcp", "b1z1_gripperStator", "b1z1_gripperMover", "b1z1_link06"]
+      gripper_open_tolerance: 0.08
+      gripper_closed_tolerance: 0.02
+      arm_joint_tolerance: 0.005
+      moveit_timeout_sec: 45.0
+      min_reach_m: 0.40
+      max_reach_m: 0.85
+      place_drop_standoff: 0.72
+      place_clear_z_offset: 0.055
+      use_kinematic_attach: true
+      attach_max_distance_m: 0.18
+      default_object_dims: [0.06, 0.06, 0.06]
+      grasp_pitch_rad: 0.26
+      grasp_lateral_offset_m: 0.028
+
+  husky_ur5e:
+    namespace: "/a200_0000"
+    gazebo_model_name: "a200_0000"
+    base_frame: "a200_0000/base_link"
+    tcp_frame: "a200_0000/arm_0_tool0"
+    navigation:
+      standoff_distance: 1.00
+      manipulation_standoff: 0.85
+      nav_timeout_sec: 60.0
+      robot_clearance_radius: 0.45
+      fine_align_pulses: false
+    manipulation:
+      move_group_name: "arm_0"
+      gripper_mode: "gripper_command"
+      gripper_action_name: "robotiq_gripper_controller/gripper_cmd"
+      gripper_open_position: 0.0
+      gripper_closed_position: 0.8
+      gripper_max_effort: 50.0
+      arm_joint_tolerance: 0.01
+      moveit_timeout_sec: 30.0
+      min_reach_m: 0.35
+      max_reach_m: 0.95
+      place_drop_standoff: 0.85
+      place_clear_z_offset: 0.06
+      use_kinematic_attach: false
+      default_object_dims: [0.06, 0.06, 0.06]
+
+  b2_cargo:
+    namespace: "/b2_cargo"
+    gazebo_model_name: "b2_cargo"
+    base_frame: "b2_cargo/base_link"
+    tcp_frame: "b2_cargo/cargo_rack_link"
+    supports_manipulation: false
+    navigation:
+      standoff_distance: 0.90
+      manipulation_standoff: 0.73
+      nav_timeout_sec: 150.0
+      robot_clearance_radius: 0.42
+      fine_align_pulses: false
+
+  bcr_arm:
+    namespace: "/bcr_arm"
+    gazebo_model_name: "bcr_arm"
+    base_frame: "bcr_arm_base_link"
+    tcp_frame: "bcr_arm_grasp_tcp"
+    supports_navigation: false
+    supports_manipulation: true
+    manipulation:
+      move_group_name: "bcr_arm"
+      gripper_mode: "move_group"
+      gripper_group_name: "bcr_gripper"
+      tcp_approach_axis: "z"
+      srdf_states:
+        home: "home"
+        pre_fold: "pre_fold"
+        gripper_open: "open"
+        gripper_close: "close"
+        gripper_attach: "attach"
+      touch_links:
+        - "bcr_arm_grasp_tcp"
+        - "bcr_arm_flange"
+        - "bcr_arm_robotiq_85_base_link"
+        - "bcr_arm_robotiq_85_left_finger_tip_link"
+        - "bcr_arm_robotiq_85_right_finger_tip_link"
+        - "bcr_arm_robotiq_85_left_finger_link"
+        - "bcr_arm_robotiq_85_right_finger_link"
+        - "bcr_arm_robotiq_85_left_inner_knuckle_link"
+        - "bcr_arm_robotiq_85_right_inner_knuckle_link"
+        - "bcr_arm_robotiq_85_left_knuckle_link"
+        - "bcr_arm_robotiq_85_right_knuckle_link"
+      gripper_open_tolerance: 0.05
+      gripper_closed_tolerance: 0.05
+      arm_joint_tolerance: 0.01
+      moveit_timeout_sec: 90.0
+      min_reach_m: 0.20
+      max_reach_m: 0.92
+      place_drop_standoff: 0.72
+      place_clear_z_offset: 0.055
+      use_kinematic_attach: true
+      attach_max_distance_m: 0.18
+      default_object_dims: [0.06, 0.06, 0.06]
+      grasp_roll_rad: 0.0
+      grasp_pitch_rad: 0.314
+      grasp_lateral_offset_m: 0.0
+
+  husky_a200:
+    namespace: "/a200_0001"
+    gazebo_model_name: "a200_0001"
+    base_frame: "base_link"
+    tcp_frame: ""
+    supports_manipulation: false
+    cargo_surface_z_offset: 0.252
+    navigation:
+      standoff_distance: 1.00
+      manipulation_standoff: 0.85
+      nav_timeout_sec: 150.0
+      robot_clearance_radius: 0.52
+      fine_align_pulses: false
+
+robot_instances:
+  b1z1_1: "b1z1"
+  b2_cargo_1: "b2_cargo"
+  bcr_arm_1: "bcr_arm"
+  husky_a200_1: "husky_a200"

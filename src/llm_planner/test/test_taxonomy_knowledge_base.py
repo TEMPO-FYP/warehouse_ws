@@ -217,20 +217,38 @@ class TestTaxonomyKnowledgeBase(unittest.TestCase):
         from llm_planner.taxonomy_classifier import load_fleet_instances
 
         instances = load_fleet_instances()
-        self.assertIn("mobile_robot_1", instances)
-        self.assertNotIn("mobile_robot_2", instances)
-        self.assertIn("robotic_arm_1", instances)
+        self.assertIn("b1z1_1", instances)
+        self.assertNotIn("b1z1_2", instances)
+        self.assertIn("b2_cargo_1", instances)
+        self.assertNotIn("b2_cargo_2", instances)
+        self.assertIn("bcr_arm_1", instances)
+        self.assertIn("husky_a200_1", instances)
+        self.assertNotIn("husky_a200_2", instances)
 
-        mr1 = instances["mobile_robot_1"]
-        self.assertEqual(mr1["robot_type"], "mobile_robot")
-        self.assertIn("navigate_to", mr1["skills"])
-        self.assertIn("navigation", mr1["capabilities"])
-        self.assertEqual(mr1["specs"]["payload_capacity_kg"], 10.0)
+        b1z1 = instances["b1z1_1"]
+        self.assertEqual(b1z1["robot_type"], "b1z1")
+        self.assertIn("navigate_to", b1z1["skills"])
+        self.assertIn("navigation", b1z1["capabilities"])
+        self.assertEqual(b1z1["specs"]["payload_capacity_kg"], 10.0)
 
-        arm = instances["robotic_arm_1"]
-        self.assertEqual(arm["robot_type"], "robotic_arm")
+        b2_cargo = instances["b2_cargo_1"]
+        self.assertEqual(b2_cargo["robot_type"], "b2_cargo")
+        self.assertEqual(b2_cargo["skills"], ["navigate_to"])
+        self.assertEqual(b2_cargo["capabilities"], ["navigation"])
+        self.assertEqual(b2_cargo["specs"]["payload_capacity_kg"], 15.0)
+
+        arm = instances["bcr_arm_1"]
+        self.assertEqual(arm["robot_type"], "bcr_arm")
         self.assertIn("manipulation", arm["capabilities"])
         self.assertEqual(arm["specs"]["payload_capacity_kg"], 15.0)
+
+        husky = instances["husky_a200_1"]
+        self.assertEqual(husky["robot_type"], "husky_a200")
+        self.assertEqual(husky["skills"], ["navigate_to"])
+        self.assertEqual(husky["capabilities"], ["navigation"])
+        self.assertNotIn("manipulation", husky["capabilities"])
+        self.assertEqual(husky["specs"]["payload_capacity_kg"], 20.0)
+        self.assertEqual(husky["specs"]["speed_m_s"], 1.0)
 
     def test_load_fleet_instances_empty_files_log_errors(self):
         from unittest.mock import patch
