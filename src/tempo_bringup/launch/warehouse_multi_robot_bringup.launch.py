@@ -16,7 +16,7 @@ from launch.substitutions import LaunchConfiguration, PythonExpression
 
 
 def generate_launch_description():
-    """Launch warehouse_sim with toggleable b1z1, b2_cargo, and bcr_arm robots plus TEMPO."""
+    """Launch warehouse_sim with toggleable b1z1, b2_cargo, bcr_arm, and husky_a200 plus TEMPO."""
     pkg_warehouse_sim = get_package_share_directory('warehouse_sim')
     pkg_b1z1_description = get_package_share_directory('b1z1_description')
     pkg_b1z1_control = get_package_share_directory('b1z1_control')
@@ -24,6 +24,7 @@ def generate_launch_description():
     pkg_b2_cargo_control = get_package_share_directory('b2_cargo_control')
     pkg_bcr_arm_description = get_package_share_directory('bcr_arm_description')
     pkg_bcr_arm_control = get_package_share_directory('bcr_arm_control')
+    pkg_husky_control = get_package_share_directory('husky_control')
     pkg_robotiq_description = get_package_share_directory('robotiq_description')
     pkg_tempo_bringup = get_package_share_directory('tempo_bringup')
 
@@ -196,6 +197,32 @@ def generate_launch_description():
         description='bcr_arm built-in pedestal height (m)',
     )
 
+    spawn_husky_arg = DeclareLaunchArgument(
+        'spawn_husky',
+        default_value='true',
+        choices=['true', 'false'],
+        description='Spawn and bring up Clearpath Husky A200 transport robot',
+    )
+    husky_name_arg = DeclareLaunchArgument(
+        'husky_name',
+        default_value='a200_0001',
+        description='Gazebo model name for Husky A200',
+    )
+    husky_namespace_arg = DeclareLaunchArgument(
+        'husky_namespace',
+        default_value='a200_0001',
+        description='ROS namespace for Husky A200',
+    )
+    husky_x_arg = DeclareLaunchArgument('husky_x', default_value='0.0', description='Husky Spawn X')
+    husky_y_arg = DeclareLaunchArgument('husky_y', default_value='-5.0', description='Husky Spawn Y')
+    husky_z_arg = DeclareLaunchArgument('husky_z', default_value='0.15', description='Husky Spawn Z')
+    husky_yaw_arg = DeclareLaunchArgument('husky_yaw', default_value='0.0', description='Husky Yaw')
+    husky_max_speed_arg = DeclareLaunchArgument(
+        'husky_max_speed',
+        default_value='1.0',
+        description='Husky Nav2 max forward speed (m/s)',
+    )
+
     nav2_use_static_map = PythonExpression([
         "'true' if ('", LaunchConfiguration('use_static_map'), "' == 'true' or ('",
         LaunchConfiguration('use_static_map'), "' == 'auto' and 'warehouse' in '",
@@ -280,6 +307,26 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('spawn_bcr_arm')),
     )
 
+    husky_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_husky_control, 'launch', 'husky_bringup.launch.py')
+        ),
+        launch_arguments={
+            'name': LaunchConfiguration('husky_name'),
+            'namespace': LaunchConfiguration('husky_namespace'),
+            'world_name': LaunchConfiguration('world_name'),
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+            'x': LaunchConfiguration('husky_x'),
+            'y': LaunchConfiguration('husky_y'),
+            'z': LaunchConfiguration('husky_z'),
+            'yaw': LaunchConfiguration('husky_yaw'),
+            'use_nav2': LaunchConfiguration('use_nav2'),
+            'max_speed': LaunchConfiguration('husky_max_speed'),
+            'spawn_delay': effective_spawn_delay,
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('spawn_husky')),
+    )
+
     tempo_pipeline_launch = TimerAction(
         period=PythonExpression(["float('", effective_spawn_delay, "') + 12.0"]),
         actions=[
@@ -330,9 +377,18 @@ def generate_launch_description():
         bcr_arm_yaw_arg,
         bcr_arm_use_pedestal_arg,
         bcr_arm_pedestal_height_arg,
+        spawn_husky_arg,
+        husky_name_arg,
+        husky_namespace_arg,
+        husky_x_arg,
+        husky_y_arg,
+        husky_z_arg,
+        husky_yaw_arg,
+        husky_max_speed_arg,
         warehouse_launch,
         b1z1_launch,
         b2_cargo_launch,
         bcr_arm_launch,
+        husky_launch,
         tempo_pipeline_launch,
     ])

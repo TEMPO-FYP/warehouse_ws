@@ -37,7 +37,7 @@ CollisionPrimitiveSpec = Tuple[int, Tuple[float, ...], PosTuple, QuatTuple]
 WorldIncludeMap = Dict[str, Tuple[str, PosTuple, QuatTuple]]
 
 _IGNORED_MODELS = frozenset({'ground_plane', 'sun'})
-_DEFAULT_ROBOT_PREFIXES = ('b1z1', 'b2_cargo', 'bcr_arm')
+_DEFAULT_ROBOT_PREFIXES = ('b1z1', 'b2_cargo', 'bcr_arm', 'a200', 'husky')
 
 
 def _parse_pose_text(

@@ -16,6 +16,7 @@
   <exec_depend>bcr_arm_control</exec_depend>
   <exec_depend>bcr_arm_description</exec_depend>
   <exec_depend>dispatcher_node</exec_depend>
+  <exec_depend>husky_control</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>llm_planner</exec_depend>

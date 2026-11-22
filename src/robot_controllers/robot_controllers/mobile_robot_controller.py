@@ -916,12 +916,15 @@ class MobileRobotController(Node):
         with self._pose_lock:
             snapshot = dict(self._pose_registry)
 
+        robot_names = tuple(self._profiles.keys()) + tuple(
+            p.gazebo_model_name for p in self._profiles.values() if p.gazebo_model_name
+        )
         collision_objs = build_world_collision_objects(
             snapshot,
             center_xy=(target_x, target_y),
             radius_m=1.8,
             world_includes=self._world_includes or None,
-            exclude_names=tuple(exclude_names) + tuple(self._profiles.keys()),
+            exclude_names=tuple(exclude_names) + robot_names,
             frame_id='map',
         )
         if collision_objs and self._scene_managers[robot].add_collision_objects(collision_objs):

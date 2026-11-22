@@ -45,6 +45,20 @@
         "speed_m_s": 0.35
       },
       "status": "active"
+    },
+    {
+      "robot_type": "husky_a200",
+      "capabilities": [
+        "navigation"
+      ],
+      "skill_ids": [
+        "navigate_to"
+      ],
+      "specs": {
+        "payload_capacity_kg": 20.0,
+        "speed_m_s": 1.0
+      },
+      "status": "active"
     }
   ]
 }

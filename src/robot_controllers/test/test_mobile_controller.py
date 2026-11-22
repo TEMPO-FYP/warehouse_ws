@@ -72,6 +72,10 @@ def test_controller_config_exposes_b1z1_and_husky_profiles():
     assert cfg['robot_profiles']['b2_cargo']['namespace'] == '/b2_cargo'
     assert cfg['robot_profiles']['b2_cargo']['supports_manipulation'] is False
     assert cfg['robot_instances']['b2_cargo_1'] == 'b2_cargo'
+    assert 'husky_a200' in cfg['robot_profiles']
+    assert cfg['robot_profiles']['husky_a200']['namespace'] == '/a200_0001'
+    assert cfg['robot_profiles']['husky_a200']['supports_manipulation'] is False
+    assert cfg['robot_instances']['husky_a200_1'] == 'husky_a200'
 
 
 def test_parse_srdf_group_states():
@@ -671,3 +675,69 @@ def test_unwrap_ik_solution_avoids_full_turn_spins():
     assert math.isclose(unwrapped['joint3'], -4.85 + 2.0 * math.pi, abs_tol=1e-9)
     assert math.isclose(unwrapped['joint2'], -1.53, abs_tol=1e-9)
     assert math.isclose(unwrapped['joint4'], 3.10, abs_tol=1e-9)
+
+
+def test_husky_a200_nav_only_profile_rejects_manipulation_and_queues_nav():
+    """Verify husky_a200_1 skips MoveIt, queues navigate_to, and rejects pick/place."""
+    rclpy.init()
+    node = _init_node_with_poses()
+    try:
+        assert 'husky_a200_1' in node._nav_clients
+        assert 'husky_a200_1' in node._cmd_vel_pubs
+        assert 'husky_a200_1' not in node._moveit_clients
+        assert 'husky_a200_1' not in node._scene_managers
+
+        feedbacks = []
+        node._publish_feedback = lambda *a, **kw: feedbacks.append((a, kw))
+        for skill in ('pick', 'place'):
+            node._handle_subtask({
+                'plan_id': 'p_husky',
+                'task_id': f'T_{skill}',
+                'robot': 'husky_a200_1',
+                'required_skills': [skill],
+                'args': {'object': 'small_box_1', 'location': 'Packing_Station'},
+            })
+
+        assert len(feedbacks) == 2
+        for _, kw in feedbacks:
+            assert kw['status'] == 'failed'
+            assert kw['stage'] == 'unsupported_skill'
+
+        calls = []
+        node._execute_navigate_to = (
+            lambda plan_id, task_id, robot, args: calls.append((plan_id, task_id, robot, args))
+        )
+        msg = String()
+        msg.data = json.dumps({
+            'plan_id': 'p_husky',
+            'task_id': 'T_nav',
+            'robot': 'husky_a200_1',
+            'required_skills': ['navigate_to'],
+            'args': {'location': 'Packing_Station'},
+        })
+        node._subtask_callback(msg)
+        node._robot_queues['husky_a200_1'].join()
+        assert calls == [('p_husky', 'T_nav', 'husky_a200_1', {'location': 'Packing_Station'})]
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+def test_sdf_scene_loader_excludes_husky_a200_model():
+    """Verify build_world_collision_objects excludes Husky a200_0001 from static colliders."""
+    sim_share = get_package_share_directory('warehouse_sim')
+    includes = parse_world_sdf_includes(os.path.join(sim_share, 'worlds', 'warehouse.sdf'))
+    objs = build_world_collision_objects(
+        entity_poses={
+            'a200_0001': (1.75, 13.08, 0.15, (0.0, 0.0, 0.0, 1.0)),
+            'Packing_Station': (0.934, 13.08, 0.0, (0.0, 0.0, 0.0, 1.0)),
+        },
+        center_xy=(1.75, 13.08),
+        radius_m=2.0,
+        world_includes=includes,
+        frame_id='map',
+    )
+    by_id = {o.id: o for o in objs}
+    assert 'world_a200_0001' not in by_id
+    assert 'world_Packing_Station' in by_id
